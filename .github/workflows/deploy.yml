@@ -33,7 +33,7 @@ jobs:
       run: flutter pub get
 
     - name: Build web
-      run: flutter build web --base-href="/LoveRiverJustMenu/"
+      run: flutter build web --release --base-href="/LoveRiverJustMenu/"
 
     - name: Setup Pages
       uses: actions/configure-pages@v4
