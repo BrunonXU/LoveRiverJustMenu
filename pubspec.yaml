@@ -1,0 +1,96 @@
+name: love_recipe
+description: 极简高级美食菜谱应用 - 为爱下厨，记录美食与情感
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 状态管理 - Riverpod 2.0
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+  
+  # 路由管理
+  go_router: ^12.1.1
+  
+  # 动画库
+  flutter_animate: ^4.2.0+1
+  rive: ^0.12.4
+  
+  # 手势识别增强 (已包含在Flutter SDK中)
+  
+  # 3D渲染
+  vector_math: ^2.1.4
+  
+  # 物理引擎基础
+  flame: ^1.12.0
+  
+  # 本地存储
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
+  
+  # 网络请求
+  dio: ^5.3.2
+  
+  # 图片处理
+  cached_network_image: ^3.3.0
+  
+  # 设备信息
+  device_info_plus: ^9.1.1
+  
+  # 权限管理
+  permission_handler: ^11.0.1
+  
+  # 国际化
+  intl: ^0.18.1
+  
+  # 安全存储
+  flutter_secure_storage: ^9.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # 代码生成
+  riverpod_generator: ^2.3.9
+  build_runner: ^2.4.7
+  
+  # 静态分析
+  flutter_lints: ^3.0.1
+  
+  # 图标生成
+  hive_generator: ^2.0.1
+  
+  # 测试
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  
+  # 字体配置 (暂时使用系统默认字体)
+  # fonts:
+  #   - family: PingFang SC
+  #     fonts:
+  #       - asset: assets/fonts/PingFangSC-Ultralight.ttf
+  #         weight: 100
+  #       - asset: assets/fonts/PingFangSC-Light.ttf  
+  #         weight: 300
+  #       - asset: assets/fonts/PingFangSC-Medium.ttf
+  #         weight: 500
+  
+  # 资源配置
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/animations/
+    - assets/sounds/
+
+flutter_gen:
+  output: lib/generated/
+  line_length: 80
