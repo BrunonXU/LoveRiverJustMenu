@@ -330,4 +330,165 @@ class _VoiceInteractionDialogState extends State<VoiceInteractionDialog>
                     
                     Space.h4,
                     
-                    Text(\n                      _currentStatus,\n                      style: AppTypography.bodySmallStyle(isDark: false).copyWith(\n                        color: _isListening \n                            ? AppColors.error \n                            : AppColors.textSecondary,\n                      ),\n                    ),\n                  ],\n                ),\n              ),\n              \n              // 关闭按钮\n              GestureDetector(\n                onTap: () => Navigator.of(context).pop(),\n                child: Container(\n                  width: 32,\n                  height: 32,\n                  decoration: BoxDecoration(\n                    color: AppColors.backgroundSecondary,\n                    shape: BoxShape.circle,\n                  ),\n                  child: const Icon(\n                    Icons.close,\n                    size: 16,\n                    color: AppColors.textSecondary,\n                  ),\n                ),\n              ),\n            ],\n          ),\n          \n          Space.h32,\n          \n          // 识别文本显示\n          if (_recognizedText.isNotEmpty) ...[\n            Container(\n              width: double.infinity,\n              padding: const EdgeInsets.all(AppSpacing.md),\n              decoration: BoxDecoration(\n                color: AppColors.backgroundSecondary,\n                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),\n              ),\n              child: Text(\n                _recognizedText,\n                style: AppTypography.bodyMediumStyle(isDark: false),\n              ),\n            ),\n            \n            Space.h24,\n          ],\n          \n          // 语音按钮\n          Center(\n            child: VoiceInteractionWidget(\n              isListening: _isListening,\n              onStartListening: _startListening,\n              onStopListening: _stopListening,\n            ),\n          ),\n          \n          Space.h32,\n          \n          // 建议指令\n          Column(\n            crossAxisAlignment: CrossAxisAlignment.start,\n            children: [\n              Text(\n                '试试这些指令',\n                style: AppTypography.bodySmallStyle(isDark: false),\n              ),\n              \n              Space.h12,\n              \n              Wrap(\n                spacing: 8,\n                runSpacing: 8,\n                children: _suggestions.map((suggestion) {\n                  return GestureDetector(\n                    onTap: () => _handleSuggestionTap(suggestion),\n                    child: Container(\n                      padding: const EdgeInsets.symmetric(\n                        horizontal: AppSpacing.md,\n                        vertical: AppSpacing.xs,\n                      ),\n                      decoration: BoxDecoration(\n                        color: AppColors.backgroundSecondary,\n                        borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),\n                      ),\n                      child: Text(\n                        suggestion,\n                        style: AppTypography.captionStyle(isDark: false),\n                      ),\n                    ),\n                  );\n                }).toList(),\n              ),\n            ],\n          ),\n        ],\n      ),\n    );\n  }\n  \n  void _startListening() {\n    setState(() {\n      _isListening = true;\n      _currentStatus = '正在监听...';\n      _recognizedText = '';\n    });\n    \n    // 模拟语音识别过程\n    Future.delayed(const Duration(seconds: 3), () {\n      if (_isListening) {\n        _stopListening();\n        _simulateRecognition();\n      }\n    });\n  }\n  \n  void _stopListening() {\n    setState(() {\n      _isListening = false;\n      _currentStatus = '处理中...';\n    });\n  }\n  \n  void _simulateRecognition() {\n    // 模拟语音识别结果\n    final simulatedResults = [\n      '我想吃银耳莲子羹',\n      '今天想做什么菜呢',\n      '推荐一道简单的菜',\n      '查看菜谱',\n    ];\n    \n    final result = simulatedResults[math.Random().nextInt(simulatedResults.length)];\n    \n    setState(() {\n      _recognizedText = result;\n      _currentStatus = '识别完成';\n    });\n    \n    // 处理识别结果\n    Future.delayed(const Duration(milliseconds: 1500), () {\n      widget.onVoiceCommand?.call(result);\n      Navigator.of(context).pop();\n    });\n  }\n  \n  void _handleSuggestionTap(String suggestion) {\n    setState(() {\n      _recognizedText = suggestion;\n      _currentStatus = '执行指令...';\n    });\n    \n    Future.delayed(const Duration(milliseconds: 1000), () {\n      widget.onVoiceCommand?.call(suggestion);\n      Navigator.of(context).pop();\n    });\n  }\n}
+                    Text(
+                      _currentStatus,
+                      style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                        color: _isListening 
+                            ? AppColors.error 
+                            : AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // 关闭按钮
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundSecondary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          Space.h32,
+          
+          // 识别文本显示
+          if (_recognizedText.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundSecondary,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+              ),
+              child: Text(
+                _recognizedText,
+                style: AppTypography.bodyMediumStyle(isDark: false),
+              ),
+            ),
+            
+            Space.h24,
+          ],
+          
+          // 语音按钮
+          Center(
+            child: VoiceInteractionWidget(
+              isListening: _isListening,
+              onStartListening: _startListening,
+              onStopListening: _stopListening,
+            ),
+          ),
+          
+          Space.h32,
+          
+          // 建议指令
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '试试这些指令',
+                style: AppTypography.bodySmallStyle(isDark: false),
+              ),
+              
+              Space.h8,
+              
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _suggestions.map((suggestion) {
+                  return GestureDetector(
+                    onTap: () => _handleSuggestionTap(suggestion),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundSecondary,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
+                      ),
+                      child: Text(
+                        suggestion,
+                        style: AppTypography.captionStyle(isDark: false),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _startListening() {
+    setState(() {
+      _isListening = true;
+      _currentStatus = '正在监听...';
+      _recognizedText = '';
+    });
+    
+    // 模拟语音识别过程
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_isListening) {
+        _stopListening();
+        _simulateRecognition();
+      }
+    });
+  }
+  
+  void _stopListening() {
+    setState(() {
+      _isListening = false;
+      _currentStatus = '处理中...';
+    });
+  }
+  
+  void _simulateRecognition() {
+    // 模拟语音识别结果
+    final simulatedResults = [
+      '我想吃银耳莲子羹',
+      '今天想做什么菜呢',
+      '推荐一道简单的菜',
+      '查看菜谱',
+    ];
+    
+    final result = simulatedResults[math.Random().nextInt(simulatedResults.length)];
+    
+    setState(() {
+      _recognizedText = result;
+      _currentStatus = '识别完成';
+    });
+    
+    // 处理识别结果
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      widget.onVoiceCommand?.call(result);
+      Navigator.of(context).pop();
+    });
+  }
+  
+  void _handleSuggestionTap(String suggestion) {
+    setState(() {
+      _recognizedText = suggestion;
+      _currentStatus = '执行指令...';
+    });
+    
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      widget.onVoiceCommand?.call(suggestion);
+      Navigator.of(context).pop();
+    });
+  }
+}

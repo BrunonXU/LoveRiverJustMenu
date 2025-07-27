@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../themes/colors.dart';
 import 'dart:math' as math;
 
 import '../themes/spacing.dart';
@@ -286,13 +287,13 @@ class _CustomGestureRecognizerState extends State<CustomGestureRecognizer>
         HapticFeedback.heavyImpact();
         break;
       case HapticType.success:
-        HapticFeedback.notificationImpact(NotificationFeedbackType.success);
+        HapticFeedback.lightImpact();
         break;
       case HapticType.warning:
-        HapticFeedback.notificationImpact(NotificationFeedbackType.warning);
+        HapticFeedback.mediumImpact();
         break;
       case HapticType.error:
-        HapticFeedback.notificationImpact(NotificationFeedbackType.error);
+        HapticFeedback.heavyImpact();
         break;
     }
   }
@@ -356,7 +357,7 @@ class _CustomGestureRecognizerState extends State<CustomGestureRecognizer>
         if (widget.enableTrailVisualization && _trailPoints.isNotEmpty)
           Positioned.fill(
             child: CustomPaint(
-              painter: GestureTrailPainter(
+              painter: _GestureTrailPainter(
                 points: _trailPoints,
                 animation: _trailController,
                 gestureType: _currentGesture,
@@ -382,6 +383,66 @@ class _CustomGestureRecognizerState extends State<CustomGestureRecognizer>
           ),
       ],
     );
+  }
+}
+
+/// 手势轨迹绘制器
+class _GestureTrailPainter extends CustomPainter {
+  final List<Offset> points;
+  final Animation<double> animation;
+  final GestureType? gestureType;
+  
+  _GestureTrailPainter({
+    required this.points,
+    required this.animation,
+    this.gestureType,
+  }) : super(repaint: animation);
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    
+    final paint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    
+    // 根据手势类型设置颜色
+    Color trailColor = AppColors.primary;
+    switch (gestureType) {
+      case GestureType.swipeUp:
+        trailColor = AppColors.success;
+        break;
+      case GestureType.swipeDown:
+        trailColor = AppColors.info;
+        break;
+      case GestureType.swipeLeft:
+        trailColor = AppColors.warning;
+        break;
+      case GestureType.swipeRight:
+        trailColor = AppColors.error;
+        break;
+      default:
+        trailColor = AppColors.primary;
+    }
+    
+    // 绘制渐变轨迹
+    for (int i = 1; i < points.length; i++) {
+      final progress = i / points.length;
+      final alpha = (progress * animation.value).clamp(0.0, 1.0);
+      
+      paint
+        ..color = trailColor.withOpacity(alpha * 0.8)
+        ..strokeWidth = (1 + progress * 4) * animation.value;
+      
+      canvas.drawLine(points[i - 1], points[i], paint);
+    }
+  }
+  
+  @override
+  bool shouldRepaint(_GestureTrailPainter oldDelegate) {
+    return points != oldDelegate.points ||
+           animation.value != oldDelegate.animation.value ||
+           gestureType != oldDelegate.gestureType;
   }
 }
 
