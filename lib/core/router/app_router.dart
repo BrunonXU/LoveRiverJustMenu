@@ -6,6 +6,11 @@ import '../../features/home/presentation/pages/main_screen.dart';
 import '../../features/timeline/presentation/pages/timeline_screen.dart';
 import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen.dart';
 import '../../features/cooking_mode/presentation/pages/cooking_mode_screen.dart';
+import '../../features/recipe/presentation/pages/recipe_detail_screen.dart';
+import '../../features/recipe/presentation/pages/create_recipe_screen.dart';
+import '../../features/search/presentation/pages/search_screen.dart';
+import '../../features/couple/presentation/pages/couple_binding_screen.dart';
+import '../../features/couple/presentation/pages/couple_profile_screen.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -24,6 +29,9 @@ class AppRouter {
   static const String cookingMode = '/cooking-mode';
   static const String recipeDetail = '/recipe/:id';
   static const String createRecipe = '/create-recipe';
+  static const String search = '/search';
+  static const String coupleBinding = '/couple/binding';
+  static const String coupleProfile = '/couple/profile';
   static const String profile = '/profile';
   static const String settings = '/settings';
   
@@ -115,6 +123,42 @@ class AppRouter {
           child: const CreateRecipeScreen(),
           state: state,
           transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 搜索页面路由
+      GoRoute(
+        path: search,
+        name: 'search',
+        builder: (context, state) => const SearchScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const SearchScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 情侣绑定路由
+      GoRoute(
+        path: coupleBinding,
+        name: 'couple-binding',
+        builder: (context, state) => const CoupleBindingScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const CoupleBindingScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 情侣档案路由
+      GoRoute(
+        path: coupleProfile,
+        name: 'couple-profile',
+        builder: (context, state) => const CoupleProfileScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const CoupleProfileScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideRight,
         ),
       ),
       
@@ -342,32 +386,6 @@ class _LiquidClipper extends CustomClipper<Path> {
 
 // ==================== 临时占位页面 ====================
 // 这些页面将在后续任务中实现
-
-class RecipeDetailScreen extends StatelessWidget {
-  final String recipeId;
-  
-  const RecipeDetailScreen({super.key, required this.recipeId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('菜谱详情 $recipeId')),
-      body: const Center(child: Text('菜谱详情页面')),
-    );
-  }
-}
-
-class CreateRecipeScreen extends StatelessWidget {
-  const CreateRecipeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('创建菜谱')),
-      body: const Center(child: Text('创建菜谱页面')),
-    );
-  }
-}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});

@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
-import '../../../../core/themes/app_theme.dart';
 import '../../../../core/themes/colors.dart';
-import '../../../../core/themes/spacing.dart';
 import '../../../../core/themes/typography.dart';
+import '../../../../core/themes/spacing.dart';
 import '../../domain/models/memory.dart';
 
-/// 3D时光机组件
-/// 严格遵循95%黑白灰设计原则，呼吸动画和手势识别
+/// 3D时光机组件 - 响应式版本
+/// 修复全屏模式显示问题，恢复旋转动画
 class Timeline3DWidget extends StatefulWidget {
   final List<Memory> memories;
-  final Function(Memory memory)? onMemoryTap;
-  
+  final Function(Memory)? onMemoryTap;
+
   const Timeline3DWidget({
     super.key,
     required this.memories,
@@ -26,10 +25,11 @@ class Timeline3DWidget extends StatefulWidget {
 
 class _Timeline3DWidgetState extends State<Timeline3DWidget>
     with TickerProviderStateMixin {
+  double _rotationY = 0.0;
+  double _scale = 1.0;
+  
   late AnimationController _rotationController;
   late AnimationController _breathingController;
-  double _rotationY = 0;
-  double _scale = 1.0;
 
   @override
   void initState() {
@@ -39,11 +39,17 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       vsync: this,
     );
     
-    // 呼吸动画：4s循环，符合设计规范
+    // 监听旋转动画值变化
+    _rotationController.addListener(() {
+      setState(() {
+        _rotationY = _rotationController.value * 2 * math.pi;
+      });
+    });
+    
     _breathingController = AnimationController(
       duration: const Duration(seconds: 4),
       vsync: this,
-    )..repeat(reverse: true);
+    );
   }
 
   @override
@@ -57,191 +63,163 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        // 95%使用黑白灰背景
         color: AppColors.backgroundColor,
       ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // 标题 - 使用设计系统
-            Padding(
-              padding: AppSpacing.pagePadding,
-              child: Text(
-                '美食时光机',
-                style: AppTypography.displayLargeStyle(
-                  isDark: false,
-                ).copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w100,
-                ),
-              ),
-            ),
-            
-            Space.h32,
-            
-            // 3D时间轴
-            Expanded(
-              child: GestureDetector(
-                onPanUpdate: (details) {
-                  setState(() {
-                    _rotationY += details.delta.dx * 0.01;
-                  });
-                  HapticFeedback.lightImpact();
-                },
-                onScaleUpdate: (details) {
-                  setState(() {
-                    _scale = details.scale.clamp(0.5, 2.0);
-                  });
-                },
-                child: Transform(
+      child: Column(
+        children: [
+          // 3D时间轴
+          Expanded(
+            child: GestureDetector(
+              onScaleUpdate: (details) {
+                setState(() {
+                  if (details.pointerCount == 1) {
+                    _rotationY += details.focalPointDelta.dx * 0.01;
+                  }
+                  _scale = details.scale.clamp(0.5, 2.0);
+                });
+                HapticFeedback.lightImpact();
+              },
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001)
+                  ..rotateY(_rotationY)
+                  ..scale(_scale),
+                child: Stack(
                   alignment: Alignment.center,
-                  transform: Matrix4.identity()
-                    ..setEntry(3, 2, 0.001) // 透视效果
-                    ..rotateY(_rotationY)
-                    ..scale(_scale),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: widget.memories.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final memory = entry.value;
-                      return _build3DMemoryCard(memory, index);
-                    }).toList(),
-                  ),
+                  children: widget.memories.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final memory = entry.value;
+                    return _build3DMemoryCard(memory, index);
+                  }).toList(),
                 ),
               ),
             ),
-            
-            Space.h32,
-            
-            // 极简控制按钮
-            _buildMinimalControls(),
-            
-            Space.h48,
-          ],
-        ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // 控制按钮
+          _buildMinimalControls(),
+          
+          const SizedBox(height: 48),
+        ],
       ),
     );
   }
   
   Widget _build3DMemoryCard(Memory memory, int index) {
-    // 螺旋布局算法
-    final angle = (index / widget.memories.length) * 2 * math.pi;
-    final radius = AppSpacing.magneticRadius; // 使用设计系统中的150px
+    final totalMemories = widget.memories.length;
+    final angle = (index / totalMemories) * 2 * math.pi;
+    final radius = 150.0;
     final x = math.sin(angle) * radius;
     final z = math.cos(angle) * radius;
     final y = index * 50.0 - 100;
     
-    return AnimatedBuilder(
-      animation: _breathingController,
-      builder: (context, child) {
-        // 呼吸动画：微妙的浮动效果
-        final breathingOffset = math.sin(_breathingController.value * math.pi) * 8;
-        final breathingScale = 1.0 + (_breathingController.value * AppSpacing.breathingScale);
-        
-        return Transform(
-          transform: Matrix4.identity()
-            ..translate(x, y + breathingOffset, z)
-            ..rotateY(-angle)
-            ..scale(breathingScale),
-          alignment: Alignment.center,
-          child: GestureDetector(
-            onTap: () {
-              widget.onMemoryTap?.call(memory);
-              HapticFeedback.mediumImpact();
-            },
-            child: Container(
-              width: 200,
-              height: 280,
-              decoration: BoxDecoration(
-                // 95%黑白灰 + 5%彩色焦点设计
-                color: memory.special 
-                  ? AppColors.backgroundColor
-                  : AppColors.backgroundSecondary,
-                gradient: memory.special 
-                  ? AppColors.primaryGradient // 5%彩色焦点
-                  : null,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.getShadowColor(false),
-                    blurRadius: AppSpacing.shadowBlurRadius,
-                    offset: AppSpacing.shadowOffset,
-                    spreadRadius: memory.special ? 2 : 0,
-                  ),
-                ],
-              ),
-              padding: AppSpacing.cardContentPadding,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Emoji图标
-                  Text(
-                    memory.emoji,
-                    style: const TextStyle(fontSize: 60),
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 标题 - 使用设计系统
-                  Text(
-                    memory.title,
-                    style: AppTypography.titleMediumStyle(
-                      isDark: false,
-                    ).copyWith(
+    return RepaintBoundary(
+      child: Transform(
+        transform: Matrix4.identity()
+          ..translate(x, y, z)
+          ..rotateY(-angle),
+        alignment: Alignment.center,
+        child: GestureDetector(
+          onTap: () {
+            widget.onMemoryTap?.call(memory);
+            HapticFeedback.mediumImpact();
+          },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // 响应式尺寸，适配全屏模式
+              final cardWidth = (constraints.maxWidth * 0.15).clamp(120.0, 200.0);
+              final cardHeight = (constraints.maxHeight * 0.25).clamp(180.0, 280.0);
+              
+              return Container(
+                width: cardWidth,
+                height: cardHeight,
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
                       color: memory.special 
-                        ? Colors.white 
-                        : AppColors.textPrimary,
-                      fontWeight: FontWeight.w300,
+                        ? AppColors.primary.withOpacity(0.3)
+                        : AppColors.shadow,
+                      blurRadius: memory.special ? 16 : 8,
+                      offset: const Offset(0, 4),
+                      spreadRadius: memory.special ? 2 : 0,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  Space.h8,
-                  
-                  // 日期
-                  Text(
-                    _formatDate(memory.date),
-                    style: AppTypography.bodySmallStyle(
-                      isDark: false,
-                    ).copyWith(
-                      color: memory.special 
-                        ? Colors.white.withOpacity(0.8)
-                        : AppColors.textSecondary,
-                    ),
-                  ),
-                  
-                  Space.h8,
-                  
-                  // 情绪标签
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: memory.special 
-                        ? Colors.white.withOpacity(0.2)
-                        : AppColors.textSecondary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                    ),
-                    child: Text(
-                      memory.mood,
-                      style: AppTypography.captionStyle(
-                        isDark: false,
-                      ).copyWith(
-                        color: memory.special 
-                          ? Colors.white
-                          : AppColors.textSecondary,
-                        fontWeight: FontWeight.w300,
+                  ],
+                ),
+                padding: const EdgeInsets.all(16),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Emoji图标
+                      Text(
+                        memory.emoji,
+                        style: const TextStyle(fontSize: 48),
                       ),
-                    ),
+                      
+                      const SizedBox(height: 12),
+                      
+                      // 标题
+                      Text(
+                        memory.title,
+                        style: AppTypography.titleMediumStyle(
+                          isDark: false,
+                        ).copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w300,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      
+                      const SizedBox(height: 6),
+                      
+                      // 日期
+                      Text(
+                        _formatDate(memory.date),
+                        style: AppTypography.bodySmallStyle(
+                          isDark: false,
+                        ).copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 6),
+                      
+                      // 情绪标签
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundSecondary,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          memory.mood,
+                          style: AppTypography.captionStyle(
+                            isDark: false,
+                          ).copyWith(
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
   
@@ -252,16 +230,16 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _buildMinimalButton(
-            icon: Icons.chevron_left,
+            icon: Icons.remove,
             onTap: () {
               setState(() {
-                _rotationY -= math.pi / 3;
+                _scale = (_scale - 0.1).clamp(0.5, 2.0);
               });
               HapticFeedback.lightImpact();
             },
           ),
           
-          Space.w48,
+          const SizedBox(width: 48),
           
           _buildMinimalButton(
             icon: _rotationController.isAnimating ? Icons.pause : Icons.play_arrow,
@@ -275,13 +253,13 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
             },
           ),
           
-          Space.w48,
+          const SizedBox(width: 48),
           
           _buildMinimalButton(
-            icon: Icons.chevron_right,
+            icon: Icons.add,
             onTap: () {
               setState(() {
-                _rotationY += math.pi / 3;
+                _scale = (_scale + 0.1).clamp(0.5, 2.0);
               });
               HapticFeedback.lightImpact();
             },
@@ -297,35 +275,25 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedBuilder(
-        animation: _breathingController,
-        builder: (context, child) {
-          final breathingScale = 1.0 + (_breathingController.value * 0.01);
-          
-          return Transform.scale(
-            scale: breathingScale,
-            child: Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.backgroundSecondary,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.getShadowColor(false),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                icon,
-                color: AppColors.textPrimary,
-                size: 24,
-              ),
+      child: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          color: AppColors.backgroundSecondary,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          );
-        },
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: AppColors.textPrimary,
+          size: 24,
+        ),
       ),
     );
   }

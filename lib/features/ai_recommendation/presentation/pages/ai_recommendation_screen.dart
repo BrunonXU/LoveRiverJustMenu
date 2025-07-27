@@ -16,6 +16,7 @@ class AiRecommendationScreen extends StatelessWidget {
     final recommendations = RecommendationData.getSampleRecommendations();
     
     return Scaffold(
+      backgroundColor: Colors.white,
       body: AIStoryWidget(
         recommendations: recommendations,
         onRecommendationTap: (recommendation) {

@@ -199,6 +199,11 @@ class AppColors {
   static Color getTextSecondaryColor(bool isDark) {
     return isDark ? textSecondaryDark : textSecondary;
   }
+  
+  /// 获取次要背景色（根据主题模式）
+  static Color getBackgroundSecondaryColor(bool isDark) {
+    return isDark ? backgroundSecondaryDark : backgroundSecondary;
+  }
 }
 
 /// 颜色常量 - 便于快速访问

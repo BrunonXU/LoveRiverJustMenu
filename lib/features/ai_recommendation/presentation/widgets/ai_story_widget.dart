@@ -109,17 +109,17 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
       padding: AppSpacing.pagePadding,
       child: Row(
         children: [
-          // AI图标 - 仅在特殊情况使用5%彩色
-          BreathingWidget(
+          // AI图标 - 移除呼吸动画以提升性能
+          RepaintBoundary(
             child: Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
                 gradient: AppColors.primaryGradient, // 5%彩色焦点
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                borderRadius: BorderRadius.circular(12), // 固定值
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.getShadowColor(false),
+                    color: Colors.black.withOpacity(0.08), // 固定阴影
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -184,17 +184,20 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
         
         return Padding(
           padding: AppSpacing.pagePadding,
-          child: AnimatedBuilder(
-            animation: _cardAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, 30 * (1 - _cardAnimation.value)),
-                child: Opacity(
-                  opacity: _cardAnimation.value,
-                  child: _buildStoryCard(story),
-                ),
-              );
-            },
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _cardAnimation,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, 30 * (1 - _cardAnimation.value)),
+                  child: Opacity(
+                    opacity: _cardAnimation.value,
+                    child: child!,
+                  ),
+                );
+              },
+              child: _buildStoryCard(story),
+            ),
           ),
         );
       },
@@ -202,16 +205,17 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
   }
   
   Widget _buildStoryCard(StoryRecommendation story) {
-    return BreathingWidget(
+    return RepaintBoundary(
       child: Container(
+        // 移除高度限制，让内容自然展开
         decoration: BoxDecoration(
           color: AppColors.backgroundColor,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppColors.getShadowColor(false),
-              blurRadius: AppSpacing.shadowBlurRadius,
-              offset: AppSpacing.shadowOffset,
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 32,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -253,7 +257,7 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
               ),
             ),
             
-            // 故事内容
+            // 故事内容 - 移除嵌套Expanded，使用固定高度
             Padding(
               padding: AppSpacing.cardContentPadding,
               child: Column(
@@ -273,13 +277,16 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                   
                   Space.h24,
                   
-                  // 推荐卡片 - 95%灰色设计
+                  // 推荐卡片 - 使用固定最小高度
                   GestureDetector(
                     onTap: () {
                       widget.onRecommendationTap?.call(story);
                       HapticFeedback.lightImpact();
                     },
                     child: Container(
+                      constraints: BoxConstraints(
+                        minHeight: 200, // 设置最小高度
+                      ),
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       decoration: BoxDecoration(
                         color: AppColors.backgroundSecondary,
@@ -290,7 +297,7 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                           // 菜谱图标
                           Text(
                             story.icon,
-                            style: const TextStyle(fontSize: 48),
+                            style: const TextStyle(fontSize: 72), // 增大图标
                           ),
                           
                           Space.w16,
@@ -298,10 +305,11 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   story.recipe,
-                                  style: AppTypography.titleMediumStyle(
+                                  style: AppTypography.titleLargeStyle( // 使用更大的字体
                                     isDark: false,
                                   ).copyWith(
                                     color: AppColors.textPrimary,
@@ -309,11 +317,11 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                                   ),
                                 ),
                                 
-                                Space.h4,
+                                Space.h12,
                                 
                                 Text(
                                   story.reason,
-                                  style: AppTypography.bodySmallStyle(
+                                  style: AppTypography.bodyLargeStyle(
                                     isDark: false,
                                   ).copyWith(
                                     color: AppColors.textSecondary,
@@ -321,10 +329,10 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                                 ),
                                 
                                 if (story.cookingTime != null) ...[
-                                  Space.h4,
+                                  Space.h12,
                                   Text(
                                     '预计 ${story.cookingTime} 分钟',
-                                    style: AppTypography.captionStyle(
+                                    style: AppTypography.bodyMediumStyle(
                                       isDark: false,
                                     ).copyWith(
                                       color: AppColors.textSecondary,
@@ -337,7 +345,7 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                           
                           Icon(
                             Icons.arrow_forward_ios,
-                            size: 16,
+                            size: 24,
                             color: AppColors.textSecondary,
                           ),
                         ],
@@ -379,6 +387,8 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                       ),
                     ),
                   ],
+                  
+                  Space.h24, // 底部间距
                 ],
               ),
             ),
@@ -398,18 +408,18 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
             offset: Offset(_isShaking ? _shakeAnimation.value : 0, 0),
             child: GestureDetector(
               onTap: _shakeForNewRecommendation,
-              child: BreathingWidget(
+              child: RepaintBoundary(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.md,
+                    horizontal: 24,
+                    vertical: 16,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundSecondary,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.getShadowColor(false),
+                        color: Colors.black.withOpacity(0.08),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
