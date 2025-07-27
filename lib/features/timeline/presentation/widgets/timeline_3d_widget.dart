@@ -68,9 +68,11 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
               padding: AppSpacing.pagePadding,
               child: Text(
                 '美食时光机',
-                style: AppTypography.displayLarge.copyWith(
+                style: AppTypography.displayLargeStyle(
+                  isDark: false,
+                ).copyWith(
                   color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w100, // 超轻字重
+                  fontWeight: FontWeight.w100,
                 ),
               ),
             ),
@@ -183,11 +185,13 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                   // 标题 - 使用设计系统
                   Text(
                     memory.title,
-                    style: AppTypography.titleMedium.copyWith(
+                    style: AppTypography.titleMediumStyle(
+                      isDark: false,
+                    ).copyWith(
                       color: memory.special 
                         ? Colors.white 
                         : AppColors.textPrimary,
-                      fontWeight: FontWeight.w300, // 轻字重
+                      fontWeight: FontWeight.w300,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -197,7 +201,9 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                   // 日期
                   Text(
                     _formatDate(memory.date),
-                    style: AppTypography.bodySmall.copyWith(
+                    style: AppTypography.bodySmallStyle(
+                      isDark: false,
+                    ).copyWith(
                       color: memory.special 
                         ? Colors.white.withOpacity(0.8)
                         : AppColors.textSecondary,
@@ -220,7 +226,9 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                     ),
                     child: Text(
                       memory.mood,
-                      style: AppTypography.caption.copyWith(
+                      style: AppTypography.captionStyle(
+                        isDark: false,
+                      ).copyWith(
                         color: memory.special 
                           ? Colors.white
                           : AppColors.textSecondary,

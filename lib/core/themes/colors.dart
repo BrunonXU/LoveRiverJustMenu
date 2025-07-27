@@ -83,17 +83,47 @@ class AppColors {
   
   // ==================== 时间感知背景色 ====================
   
-  /// 早晨背景色 (6:00-12:00)
-  static const Color morningBackground = Color(0xFFFFF5E6);
+  /// 早晨背景色 (6:00-12:00) - 温暖晨光
+  static const Color morningBackground = Color(0xFFFFF9F0);
   
-  /// 午后背景色 (12:00-17:00)
-  static const Color afternoonBackground = Color(0xFFFFF8DC);
+  /// 午后背景色 (12:00-17:00) - 明亮午阳
+  static const Color afternoonBackground = Color(0xFFFFFAF5);
   
-  /// 晚霞背景色 (17:00-22:00)
-  static const Color eveningBackground = Color(0xFFFFE4E1);
+  /// 晚霞背景色 (17:00-22:00) - 浪漫晚霞
+  static const Color eveningBackground = Color(0xFFFFF0F5);
   
-  /// 夜空背景色 (22:00-6:00)
-  static const Color nightBackground = Color(0xFF191970);
+  /// 夜空背景色 (22:00-6:00) - 深邃夜空
+  static const Color nightBackground = Color(0xFFF8F8FA);
+  
+  // ==================== 时间渐变色 ====================
+  
+  /// 早晨渐变 - 金色黎明
+  static const LinearGradient morningGradient = LinearGradient(
+    colors: [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+  
+  /// 午后渐变 - 暖阳午后
+  static const LinearGradient afternoonGradient = LinearGradient(
+    colors: [Color(0xFFFFF8E1), Color(0xFFFFECB3)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+  
+  /// 晚霞渐变 - 粉紫晚霞
+  static const LinearGradient eveningGradient = LinearGradient(
+    colors: [Color(0xFFFCE4EC), Color(0xFFF8BBD9)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+  
+  /// 夜空渐变 - 宁静夜空
+  static const LinearGradient nightGradient = LinearGradient(
+    colors: [Color(0xFFE8EAF6), Color(0xFFC5CAE9)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
   
   // ==================== 工具方法 ====================
   
@@ -104,6 +134,41 @@ class AppColors {
     if (hour >= 12 && hour < 17) return afternoonBackground;
     if (hour >= 17 && hour < 22) return eveningBackground;
     return nightBackground;
+  }
+  
+  /// 获取当前时段的背景渐变
+  static LinearGradient getTimeBasedGradient() {
+    final hour = DateTime.now().hour;
+    if (hour >= 6 && hour < 12) return morningGradient;
+    if (hour >= 12 && hour < 17) return afternoonGradient;
+    if (hour >= 17 && hour < 22) return eveningGradient;
+    return nightGradient;
+  }
+  
+  /// 获取当前时段名称
+  static String getTimeOfDay() {
+    final hour = DateTime.now().hour;
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 22) return 'evening';
+    return 'night';
+  }
+  
+  /// 获取时段对应的主题色
+  static Color getTimeBasedAccent() {
+    final timeOfDay = getTimeOfDay();
+    switch (timeOfDay) {
+      case 'morning':
+        return const Color(0xFFFFB74D); // 金色
+      case 'afternoon':
+        return const Color(0xFFFF8A65); // 橙色
+      case 'evening':
+        return const Color(0xFFAD7BE9); // 紫色
+      case 'night':
+        return const Color(0xFF7986CB); // 靛蓝色
+      default:
+        return primary;
+    }
   }
   
   /// 创建自定义渐变

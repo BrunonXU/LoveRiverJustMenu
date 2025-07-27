@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
@@ -8,6 +9,9 @@ import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/performance_monitor.dart';
 import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
+import '../../../../shared/widgets/app_icon_3d.dart';
+import '../../../../shared/widgets/voice_interaction_widget.dart';
+import '../../../../core/router/app_router.dart';
 
 /// 主界面 - 时间驱动的卡片流
 /// 严格遵循极简设计原则：95%黑白灰，5%彩色焦点
@@ -106,11 +110,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      backgroundColor: AppColors.getTimeBasedBackground(),
-      body: SafeArea(
-        child: _isLoading 
-            ? _buildLoadingState() 
-            : _buildMainContent(isDark),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: AppColors.getTimeBasedGradient(), // 使用时间渐变背景
+        ),
+        child: SafeArea(
+          child: _isLoading 
+              ? _buildLoadingState() 
+              : _buildMainContent(isDark),
+        ),
       ),
       
       // 语音按钮 - 56x56px纯黑圆形
@@ -235,6 +243,27 @@ class _MainScreenState extends ConsumerState<MainScreen>
           });
         });
       },
+      onHorizontalDragEnd: (details) {
+        PerformanceMonitor.monitorGesture('HorizontalDragEnd', () {
+          // 降低阈值并添加距离判断，提高灵敏度
+          final velocity = details.velocity.pixelsPerSecond.dx;
+          final primaryVelocity = details.primaryVelocity ?? 0;
+          
+          if (velocity > 100 || primaryVelocity > 50) {
+            // 右滑 - 进入AI推荐页面（降低阈值）
+            _navigateToAIRecommendation();
+          } else if (velocity < -100 || primaryVelocity < -50) {
+            // 左滑 - 进入3D时光机（降低阈值）
+            _navigateToTimeline();
+          }
+        });
+      },
+      onHorizontalDragUpdate: (details) {
+        // 添加实时手势反馈
+        if (details.delta.dx.abs() > 2) {
+          HapticFeedback.selectionClick();
+        }
+      },
       child: Center(
         child: _buildRecipeCard(isDark),
       ),
@@ -248,55 +277,65 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return BreathingWidget(
       child: Transform.translate(
         offset: Offset(0, _dragOffset),
-        child: MinimalCard(
-          width: 320,
-          height: 400,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 3D扁平图标 - 120x120px
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(30),
+        child: GestureDetector(
+          onTap: () {
+            // 点击卡片进入烹饪模式
+            _navigateToCookingMode();
+          },
+          child: MinimalCard(
+            width: 320,
+            height: 400,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // 3D扁平图标 - 120x120px
+                AppIcon3D(
+                  type: recipe['iconType'],
+                  size: 120,
+                  isAnimated: true,
+                  onTap: () {
+                    // 点击图标也能进入烹饪模式
+                    _navigateToCookingMode();
+                  },
                 ),
-                child: Icon(
-                  recipe['icon'],
-                  size: 60,
-                  color: Colors.white,
+                
+                Space.h32,
+                
+                // 菜名
+                Text(
+                  recipe['name'],
+                  style: AppTypography.titleMediumStyle(isDark: isDark),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              
-              Space.h32,
-              
-              // 菜名
-              Text(
-                recipe['name'],
-                style: AppTypography.titleMediumStyle(isDark: isDark),
-                textAlign: TextAlign.center,
-              ),
-              
-              Space.h16,
-              
-              // 时间信息
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 18,
-                    color: AppColors.getTextSecondaryColor(isDark),
-                  ),
-                  Space.w4,
-                  Text(
-                    '${recipe['time']}分钟',
-                    style: AppTypography.timeStyle(isDark: isDark),
-                  ),
-                ],
-              ),
-            ],
+                
+                Space.h16,
+                
+                // 时间信息
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 18,
+                      color: AppColors.getTextSecondaryColor(isDark),
+                    ),
+                    Space.w4,
+                    Text(
+                      '${recipe['time']}分钟',
+                      style: AppTypography.timeStyle(isDark: isDark),
+                    ),
+                  ],
+                ),
+                
+                Space.h16,
+                
+                // 点击提示
+                Text(
+                  '点击开始烹饪',
+                  style: AppTypography.hintStyle(isDark: isDark),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -309,15 +348,43 @@ class _MainScreenState extends ConsumerState<MainScreen>
       padding: EdgeInsets.only(bottom: AppSpacing.xl),
       child: Column(
         children: [
-          Icon(
-            Icons.keyboard_arrow_up,
-            color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
-            size: 20,
+          // 手势提示图标
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.arrow_back_ios,
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+                size: 16,
+              ),
+              Space.w8,
+              Column(
+                children: [
+                  Icon(
+                    Icons.keyboard_arrow_up,
+                    color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+                    size: 20,
+                  ),
+                  Icon(
+                    Icons.keyboard_arrow_down,
+                    color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+                    size: 20,
+                  ),
+                ],
+              ),
+              Space.w8,
+              Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+                size: 16,
+              ),
+            ],
           ),
-          Space.h4,
+          Space.h8,
           Text(
-            '滑动探索',
+            '上下滑动切换菜谱 • 左滑时光机 • 右滑AI推荐',
             style: AppTypography.hintStyle(isDark: isDark),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -326,29 +393,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   /// 构建语音按钮
   Widget _buildVoiceButton() {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: const BoxDecoration(
-        color: AppColors.textPrimary, // 纯黑
-        shape: BoxShape.circle,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: () {
-            PerformanceMonitor.monitorGesture('VoiceTap', () {
-              _showVoiceInterface();
-            });
-          },
-          child: const Icon(
-            Icons.mic,
-            color: Colors.white,
-            size: 24,
-          ),
-        ),
-      ),
+    return VoiceInteractionWidget(
+      onStartListening: () {
+        PerformanceMonitor.monitorGesture('VoiceStart', () {
+          _showVoiceInterface();
+        });
+      },
     );
   }
   
@@ -411,11 +461,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 获取当前菜谱
   Map<String, dynamic> _getCurrentRecipe() {
     final recipes = [
-      {'name': '银耳莲子羹', 'time': 20, 'icon': Icons.local_cafe},
-      {'name': '番茄鸡蛋面', 'time': 15, 'icon': Icons.ramen_dining},
-      {'name': '红烧排骨', 'time': 45, 'icon': Icons.dinner_dining},
-      {'name': '蒸蛋羹', 'time': 10, 'icon': Icons.egg_alt},
-      {'name': '青椒肉丝', 'time': 25, 'icon': Icons.restaurant},
+      {'name': '银耳莲子羹', 'time': 20, 'iconType': AppIcon3DType.bowl},
+      {'name': '番茄鸡蛋面', 'time': 15, 'iconType': AppIcon3DType.spoon},
+      {'name': '红烧排骨', 'time': 45, 'iconType': AppIcon3DType.chef},
+      {'name': '蒸蛋羹', 'time': 10, 'iconType': AppIcon3DType.timer},
+      {'name': '青椒肉丝', 'time': 25, 'iconType': AppIcon3DType.recipe},
+      {'name': '爱心早餐', 'time': 30, 'iconType': AppIcon3DType.heart},
     ];
     return recipes[_currentIndex % recipes.length];
   }
@@ -453,12 +504,65 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 显示语音界面
   void _showVoiceInterface() {
     HapticFeedback.lightImpact();
-    // TODO: 实现语音界面
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('语音功能开发中...'),
-        behavior: SnackBarBehavior.floating,
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => VoiceInteractionDialog(
+        onVoiceCommand: _handleVoiceCommand,
       ),
     );
+  }
+  
+  /// 处理语音指令
+  void _handleVoiceCommand(String command) {
+    HapticFeedback.mediumImpact();
+    
+    // 简单的指令识别逻辑
+    if (command.contains('银耳莲子羹')) {
+      setState(() {
+        _currentIndex = 0; // 银耳莲子羹对应的索引
+      });
+      _cardController.forward(from: 0);
+    } else if (command.contains('番茄鸡蛋面')) {
+      setState(() {
+        _currentIndex = 1;
+      });
+      _cardController.forward(from: 0);
+    } else if (command.contains('烹饪') || command.contains('制作')) {
+      _navigateToCookingMode();
+    } else if (command.contains('推荐') || command.contains('AI')) {
+      _navigateToAIRecommendation();
+    } else if (command.contains('时光机') || command.contains('历史')) {
+      _navigateToTimeline();
+    } else {
+      // 默认显示提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已识别："$command"'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  // ==================== 导航方法 ====================
+  
+  /// 导航到AI推荐页面
+  void _navigateToAIRecommendation() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.aiRecommendation);
+  }
+  
+  /// 导航到3D时光机页面
+  void _navigateToTimeline() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.timeline);
+  }
+  
+  /// 导航到烹饪模式
+  void _navigateToCookingMode() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.cookingMode);
   }
 }

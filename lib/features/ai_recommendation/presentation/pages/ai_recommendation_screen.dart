@@ -106,7 +106,9 @@ class AiRecommendationScreen extends StatelessWidget {
                                     ),
                                     child: Text(
                                       recommendation.context,
-                                      style: AppTypography.caption.copyWith(
+                                      style: AppTypography.captionStyle(
+                                        isDark: false,
+                                      ).copyWith(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -123,7 +125,9 @@ class AiRecommendationScreen extends StatelessWidget {
                         // 故事描述
                         Text(
                           recommendation.narrative,
-                          style: AppTypography.titleMedium.copyWith(
+                          style: AppTypography.titleMediumStyle(
+                            isDark: false,
+                          ).copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w300,
                             height: 1.6,
@@ -154,7 +158,9 @@ class AiRecommendationScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   recommendation.reason,
-                                  style: AppTypography.bodySmall.copyWith(
+                                  style: AppTypography.bodySmallStyle(
+                                    isDark: false,
+                                  ).copyWith(
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
@@ -189,7 +195,9 @@ class AiRecommendationScreen extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     recommendation.nutritionTip!,
-                                    style: AppTypography.bodySmall.copyWith(
+                                    style: AppTypography.bodySmallStyle(
+                                      isDark: false,
+                                    ).copyWith(
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
@@ -249,7 +257,9 @@ class AiRecommendationScreen extends StatelessWidget {
                             ),
                             child: Text(
                               '开始烹饪',
-                              style: AppTypography.titleMedium.copyWith(
+                              style: AppTypography.titleMediumStyle(
+                                isDark: false,
+                              ).copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w300,
                               ),
@@ -294,7 +304,9 @@ class AiRecommendationScreen extends StatelessWidget {
           
           Text(
             label,
-            style: AppTypography.caption.copyWith(
+            style: AppTypography.captionStyle(
+              isDark: false,
+            ).copyWith(
               color: AppColors.textSecondary,
             ),
           ),
@@ -326,7 +338,9 @@ class AiRecommendationScreen extends StatelessWidget {
       SnackBar(
         content: Text(
           '已为你更换推荐！',
-          style: AppTypography.bodyMedium.copyWith(
+          style: AppTypography.bodyMediumStyle(
+            isDark: false,
+          ).copyWith(
             color: Colors.white,
           ),
         ),
@@ -346,7 +360,9 @@ class AiRecommendationScreen extends StatelessWidget {
       SnackBar(
         content: Text(
           '准备开始制作${recommendation.recipe}',
-          style: AppTypography.bodyMedium.copyWith(
+          style: AppTypography.bodyMediumStyle(
+            isDark: false,
+          ).copyWith(
             color: Colors.white,
           ),
         ),

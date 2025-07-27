@@ -140,9 +140,11 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
             children: [
               Text(
                 '智能助手',
-                style: AppTypography.titleMedium.copyWith(
+                style: AppTypography.titleMediumStyle(
+                  isDark: false,
+                ).copyWith(
                   color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w300, // 轻字重
+                  fontWeight: FontWeight.w300,
                 ),
               ),
               
@@ -150,7 +152,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
               
               Text(
                 '根据你的生活推荐',
-                style: AppTypography.bodySmall.copyWith(
+                style: AppTypography.bodySmallStyle(
+                  isDark: false,
+                ).copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -237,7 +241,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                     ),
                     child: Text(
                       story.context,
-                      style: AppTypography.bodySmall.copyWith(
+                      style: AppTypography.bodySmallStyle(
+                        isDark: false,
+                      ).copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w500,
                       ),
@@ -256,7 +262,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                   // 故事文案
                   Text(
                     story.narrative,
-                    style: AppTypography.titleMedium.copyWith(
+                    style: AppTypography.titleMediumStyle(
+                      isDark: false,
+                    ).copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w300,
                       height: 1.5,
@@ -293,7 +301,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                               children: [
                                 Text(
                                   story.recipe,
-                                  style: AppTypography.titleMedium.copyWith(
+                                  style: AppTypography.titleMediumStyle(
+                                    isDark: false,
+                                  ).copyWith(
                                     color: AppColors.textPrimary,
                                     fontWeight: FontWeight.w300,
                                   ),
@@ -303,7 +313,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                                 
                                 Text(
                                   story.reason,
-                                  style: AppTypography.bodySmall.copyWith(
+                                  style: AppTypography.bodySmallStyle(
+                                    isDark: false,
+                                  ).copyWith(
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
@@ -312,7 +324,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                                   Space.h4,
                                   Text(
                                     '预计 ${story.cookingTime} 分钟',
-                                    style: AppTypography.caption.copyWith(
+                                    style: AppTypography.captionStyle(
+                                      isDark: false,
+                                    ).copyWith(
                                       color: AppColors.textSecondary,
                                     ),
                                   ),
@@ -354,7 +368,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                           Expanded(
                             child: Text(
                               story.nutritionTip!,
-                              style: AppTypography.caption.copyWith(
+                              style: AppTypography.captionStyle(
+                                isDark: false,
+                              ).copyWith(
                                 color: AppColors.textSecondary,
                               ),
                             ),
@@ -412,7 +428,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
                       
                       Text(
                         '摇一摇换一个',
-                        style: AppTypography.bodySmall.copyWith(
+                        style: AppTypography.bodySmallStyle(
+                          isDark: false,
+                        ).copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w300,
                         ),
@@ -443,7 +461,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
           
           Text(
             '暂无推荐',
-            style: AppTypography.titleMedium.copyWith(
+            style: AppTypography.titleMediumStyle(
+              isDark: false,
+            ).copyWith(
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w300,
             ),
@@ -453,7 +473,9 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
           
           Text(
             '稍后会为你生成个性化推荐',
-            style: AppTypography.bodySmall.copyWith(
+            style: AppTypography.bodySmallStyle(
+              isDark: false,
+            ).copyWith(
               color: AppColors.textSecondary,
             ),
           ),
