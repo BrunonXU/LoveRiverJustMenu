@@ -11,6 +11,12 @@ import '../../features/recipe/presentation/pages/create_recipe_screen.dart';
 import '../../features/search/presentation/pages/search_screen.dart';
 import '../../features/couple/presentation/pages/couple_binding_screen.dart';
 import '../../features/couple/presentation/pages/couple_profile_screen.dart';
+import '../../features/challenge/presentation/pages/challenge_screen.dart';
+import '../../features/challenge/presentation/pages/send_challenge_screen.dart';
+import '../../features/challenge/presentation/pages/challenge_detail_screen.dart';
+import '../../features/timeline/presentation/pages/memory_detail_screen.dart';
+import '../../features/timeline/domain/models/memory.dart';
+import '../../features/challenge/domain/models/challenge.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -32,6 +38,10 @@ class AppRouter {
   static const String search = '/search';
   static const String coupleBinding = '/couple/binding';
   static const String coupleProfile = '/couple/profile';
+  static const String challenge = '/challenge';
+  static const String challengeSend = '/challenge/send';
+  static const String challengeDetail = '/challenge/:id';
+  static const String memoryDetail = '/memory/:id';
   static const String profile = '/profile';
   static const String settings = '/settings';
   
@@ -172,6 +182,75 @@ class AppRouter {
           state: state,
           transitionType: PageTransitionType.slideRight,
         ),
+      ),
+      
+      // 挑战系统路由
+      GoRoute(
+        path: challenge,
+        name: 'challenge',
+        builder: (context, state) => const ChallengeScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const ChallengeScreen(),
+          state: state,
+          transitionType: PageTransitionType.liquid,
+        ),
+      ),
+      
+      // 发送挑战路由
+      GoRoute(
+        path: challengeSend,
+        name: 'challenge-send',
+        builder: (context, state) => const SendChallengeScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const SendChallengeScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 挑战详情路由
+      GoRoute(
+        path: challengeDetail,
+        name: 'challenge-detail',
+        builder: (context, state) {
+          final challengeId = state.pathParameters['id']!;
+          return ChallengeDetailScreen(
+            challenge: _getChallengeById(challengeId),
+          );
+        },
+        pageBuilder: (context, state) {
+          final challengeId = state.pathParameters['id']!;
+          return _buildPageTransition(
+            child: ChallengeDetailScreen(
+              challenge: _getChallengeById(challengeId),
+            ),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          );
+        },
+      ),
+      
+      // 记忆详情路由
+      GoRoute(
+        path: memoryDetail,
+        name: 'memory-detail',
+        builder: (context, state) {
+          final memoryId = state.pathParameters['id']!;
+          // 这里需要根据ID获取Memory对象，暂时使用示例数据
+          return MemoryDetailScreen(
+            memory: _getMemoryById(memoryId),
+          );
+        },
+        pageBuilder: (context, state) {
+          final memoryId = state.pathParameters['id']!;
+          return _buildPageTransition(
+            child: MemoryDetailScreen(
+              memory: _getMemoryById(memoryId),
+            ),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          );
+        },
       ),
       
       // 设置页面路由
@@ -382,6 +461,46 @@ class _LiquidClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_LiquidClipper oldClipper) => progress != oldClipper.progress;
+}
+
+// ==================== 辅助方法 ====================
+
+/// 根据ID获取Memory对象的辅助方法
+/// 在实际应用中，这应该从数据层获取
+Memory _getMemoryById(String memoryId) {
+  // 示例数据 - 实际应用中应该从Provider或Repository获取
+  return Memory(
+    id: memoryId,
+    title: '经典银耳莲子羹',
+    emoji: '🥣',
+    mood: '温馨',
+    date: DateTime.now().subtract(const Duration(days: 3)),
+    description: '第一次为她做的养生甜品',
+    story: '那天她说想要养颜的甜品，我就想到了妈妈经常做的银耳莲子羹。虽然是第一次做，但看到她满足的表情，觉得一切都值得了。',
+    cookId: 'user1',
+    cookingTime: 45,
+    difficulty: 2,
+    special: true,
+  );
+}
+
+/// 根据ID获取Challenge对象的辅助方法
+/// 在实际应用中，这应该从数据层获取
+Challenge _getChallengeById(String challengeId) {
+  // 示例数据 - 实际应用中应该从Provider或Repository获取
+  return Challenge(
+    id: challengeId,
+    recipeId: 'recipe_1',
+    recipeName: '银耳莲子羹',
+    recipeIcon: '🥣',
+    senderId: 'user1',
+    receiverId: 'user2',
+    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    status: ChallengeStatus.pending,
+    message: '想看你做这道养生甜品~',
+    difficulty: 2,
+    estimatedTime: 45,
+  );
 }
 
 // ==================== 临时占位页面 ====================

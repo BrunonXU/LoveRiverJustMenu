@@ -44,10 +44,19 @@ class _ChallengeScreenState extends State<ChallengeScreen>
     );
     
     _loadChallenges();
-    _checkForNewChallenges();
+    // 移除_checkForNewChallenges调用，放到didChangeDependencies中
     
     // 启动FAB动画
     _fabAnimationController.forward();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 在dependencies准备好后检查新挑战
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForNewChallenges();
+    });
   }
 
   @override
@@ -69,13 +78,17 @@ class _ChallengeScreenState extends State<ChallengeScreen>
         .where((c) => c.status == ChallengeStatus.pending)
         .toList();
     
-    if (pendingChallenges.isNotEmpty) {
+    if (pendingChallenges.isNotEmpty && mounted) {
       setState(() {
         _hasNewChallenge = true;
       });
       
-      // 显示新挑战通知
-      _showNewChallengeNotification(pendingChallenges.first);
+      // 延迟显示新挑战通知，确保context可用
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _showNewChallengeNotification(pendingChallenges.first);
+        }
+      });
     }
   }
 

@@ -212,6 +212,62 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ),
           
+          // 挑战按钮 ⭐ 新功能入口
+          BreathingWidget(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _navigateToChallenge();
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.getBackgroundSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  // 特殊标识 - 新功能
+                  border: Border.all(
+                    color: Color(0xFF5B6FED).withOpacity(0.5),
+                    width: 2,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: Icon(
+                        Icons.sports_martial_arts,
+                        color: Color(0xFF5B6FED),
+                        size: 20,
+                      ),
+                    ),
+                    // 新功能标识点
+                    Positioned(
+                      top: 2,
+                      right: 2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Color(0xFFFF6B6B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          Space.w8,
+          
           // 情侣按钮
           BreathingWidget(
             child: GestureDetector(
@@ -505,7 +561,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
       height: 60,
       padding: const EdgeInsets.only(top: 16.0), // ✅ 整体下移一些
       child: Text(
-        '点击方向按钮导航 • 上下切换菜谱 • 左右探索功能',
+        '🎯点击挑战按钮开始厨房对决 • 上下切换菜谱 • 左右探索功能',
         style: AppTypography.hintStyle(isDark: isDark),
         textAlign: TextAlign.center,
       ),
@@ -617,7 +673,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return suggestions[timeOfDay] ?? '探索更多美味';
   }
   
-  /// 获取当前菜谱
+  /// 获取当前菜谱 - 🔧 修复菜谱多样性
   Map<String, dynamic> _getCurrentRecipe() {
     final recipes = [
       {'name': '银耳莲子羹', 'time': 20, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_1'},
@@ -626,8 +682,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
       {'name': '蒸蛋羹', 'time': 10, 'iconType': AppIcon3DType.timer, 'id': 'recipe_4'},
       {'name': '青椒肉丝', 'time': 25, 'iconType': AppIcon3DType.recipe, 'id': 'recipe_5'},
       {'name': '爱心早餐', 'time': 30, 'iconType': AppIcon3DType.heart, 'id': 'recipe_6'},
+      {'name': '宫保鸡丁', 'time': 20, 'iconType': AppIcon3DType.chef, 'id': 'recipe_7'},
+      {'name': '麻婆豆腐', 'time': 15, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_8'},
+      {'name': '糖醋里脊', 'time': 35, 'iconType': AppIcon3DType.recipe, 'id': 'recipe_9'},
+      {'name': '酸菜鱼', 'time': 40, 'iconType': AppIcon3DType.spoon, 'id': 'recipe_10'},
+      {'name': '口水鸡', 'time': 25, 'iconType': AppIcon3DType.chef, 'id': 'recipe_11'},
+      {'name': '蛋花汤', 'time': 5, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_12'},
     ];
-    return recipes[_currentIndex % recipes.length];
+    // 确保索引在有效范围内
+    final validIndex = _currentIndex % recipes.length;
+    return recipes[validIndex];
   }
   
   // ==================== 交互处理方法 ====================
@@ -682,6 +746,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
       _navigateToAIRecommendation();
     } else if (command.contains('时光机') || command.contains('历史')) {
       _navigateToTimeline();
+    } else if (command.contains('挑战') || command.contains('对决')) {
+      _navigateToChallenge();
     } else {
       // 默认显示提示
       ScaffoldMessenger.of(context).showSnackBar(
@@ -730,6 +796,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _navigateToRecipeDetail(String recipeId) {
     HapticFeedback.mediumImpact();
     context.push('${AppRouter.recipeDetail}/$recipeId'.replaceAll(':id', recipeId));
+  }
+  
+  /// 导航到挑战页面 ⭐ 新功能
+  void _navigateToChallenge() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.challenge);
   }
   
   /// 导航到情侣档案页面
