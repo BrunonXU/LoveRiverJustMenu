@@ -796,7 +796,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 导航到食谱详情页面
   void _navigateToRecipeDetail(String recipeId) {
     HapticFeedback.mediumImpact();
-    context.push('${AppRouter.recipeDetail}/$recipeId'.replaceAll(':id', recipeId));
+    // 🔧 修复路由错误：正确替换路径参数
+    context.push(AppRouter.recipeDetail.replaceAll(':id', recipeId));
   }
   
   /// 导航到挑战页面 ⭐ 新功能
