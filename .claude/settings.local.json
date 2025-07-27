@@ -10,7 +10,9 @@
       "Bash(git push:*)",
       "Bash(git remote:*)",
       "WebFetch(domain:github.com)",
-      "Bash(gh repo create:*)"
+      "Bash(gh repo create:*)",
+      "Bash(git branch:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
