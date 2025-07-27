@@ -206,13 +206,15 @@ class ChallengeCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Row(
+              // 🔧 修复越界：使用Wrap避免溢出
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
                 children: [
                   _buildInfoChip(
                     icon: Icons.timer,
                     text: '${challenge.estimatedTime}分钟',
                   ),
-                  const SizedBox(width: 8),
                   _buildInfoChip(
                     icon: Icons.star,
                     text: challenge.difficultyText,

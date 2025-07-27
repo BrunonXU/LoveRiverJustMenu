@@ -30,43 +30,13 @@ class _CookingModeScreenState extends State<CookingModeScreen>
   int _totalTime = 0;
   int _currentTime = 0;
   
-  // 示例菜谱步骤
-  final List<CookingStep> _steps = [
-    CookingStep(
-      title: '准备食材',
-      description: '洗净银耳，撕成小朵\n莲子去心，红枣去核',
-      duration: 300, // 5分钟
-      icon: '🥄',
-    ),
-    CookingStep(
-      title: '银耳处理',
-      description: '银耳用温水泡发30分钟\n撕成小块备用',
-      duration: 600, // 10分钟
-      icon: '💧',
-    ),
-    CookingStep(
-      title: '开始煮制',
-      description: '锅中加水，放入银耳\n大火煮开转小火',
-      duration: 300, // 5分钟
-      icon: '🔥',
-    ),
-    CookingStep(
-      title: '添加配料',
-      description: '加入莲子和红枣\n继续煮15分钟',
-      duration: 900, // 15分钟
-      icon: '🥄',
-    ),
-    CookingStep(
-      title: '调味收汁',
-      description: '加入冰糖调味\n煮至银耳软糯',
-      duration: 600, // 10分钟
-      icon: '✨',
-    ),
-  ];
+  // 🔧 修复：动态菜谱步骤，根据recipeId加载
+  late List<CookingStep> _steps;
   
   @override
   void initState() {
     super.initState();
+    _steps = _getCookingStepsByRecipeId(widget.recipeId ?? 'recipe_1');
     _initializeAnimations();
     _setLandscapeMode();
     _calculateTotalTime();
@@ -474,6 +444,81 @@ class _CookingModeScreenState extends State<CookingModeScreen>
       _isPlaying = !_isPlaying;
     });
     // TODO: 实现计时器逻辑
+  }
+  
+  /// 🔧 根据菜谱ID获取对应的烹饪步骤
+  List<CookingStep> _getCookingStepsByRecipeId(String recipeId) {
+    final cookingStepsData = {
+      'recipe_1': [ // 银耳莲子羹
+        CookingStep(title: '准备食材', description: '洗净银耳，撕成小朵\n莲子去心，红枣去核', duration: 300, icon: '🥄'),
+        CookingStep(title: '银耳处理', description: '银耳用温水泡发30分钟\n撕成小块备用', duration: 600, icon: '💧'),
+        CookingStep(title: '开始煮制', description: '锅中加水，放入银耳\n大火煮开转小火', duration: 300, icon: '🔥'),
+        CookingStep(title: '添加配料', description: '加入莲子和红枣\n继续煮15分钟', duration: 900, icon: '🥄'),
+        CookingStep(title: '调味收汁', description: '加入冰糖调味\n煮至银耳软糯', duration: 600, icon: '✨'),
+      ],
+      'recipe_2': [ // 番茄鸡蛋面
+        CookingStep(title: '准备食材', description: '面条100g，鸡蛋2个\n番茄2个，葱花适量', duration: 180, icon: '🥄'),
+        CookingStep(title: '处理番茄', description: '番茄去皮切块\n先炒出汁水', duration: 300, icon: '🍅'),
+        CookingStep(title: '炒制鸡蛋', description: '鸡蛋打散炒熟\n盛起备用', duration: 120, icon: '🍳'),
+        CookingStep(title: '下面条', description: '水开后下面条\n煮至8分熟', duration: 180, icon: '🍜'),
+        CookingStep(title: '汇合调味', description: '将面条、鸡蛋、番茄汇合\n最后撒上葱花', duration: 120, icon: '✨'),
+      ],
+      'recipe_3': [ // 红烧排骨
+        CookingStep(title: '准备食材', description: '排骨500g，生抽、老抽\n料酒、冰糖适量', duration: 300, icon: '🥩'),
+        CookingStep(title: '焯水处理', description: '排骨冷水下锅\n焯水去血沫', duration: 480, icon: '💧'),
+        CookingStep(title: '炒糖色', description: '热锅下冰糖\n炒出焦糖色', duration: 300, icon: '🍯'),
+        CookingStep(title: '下排骨炒色', description: '下排骨翻炒\n每面都裹上糖色', duration: 300, icon: '🔥'),
+        CookingStep(title: '加调料炖煮', description: '加生抽老抽料酒和水\n大火煮开转小火25分钟', duration: 1500, icon: '🍲'),
+      ],
+      'recipe_4': [ // 蒸蛋羹
+        CookingStep(title: '打蛋液', description: '鸡蛋2个打散\n加温水搅匀', duration: 180, icon: '🥚'),
+        CookingStep(title: '过筛去泡', description: '蛋液过筛\n去除泡沫', duration: 120, icon: '⏳'),
+        CookingStep(title: '蒸制', description: '盖保鲜膜扎孔\n水开后蒸8分钟', duration: 480, icon: '🔥'),
+      ],
+      'recipe_5': [ // 青椒肉丝
+        CookingStep(title: '切丝备料', description: '肉丝切细\n青椒切丝', duration: 480, icon: '🔪'),
+        CookingStep(title: '肉丝腌制', description: '肉丝加生抽、淀粉\n腌制10分钟', duration: 600, icon: '🥄'),
+        CookingStep(title: '炒制', description: '先炒肉丝至变色\n再下青椒丝大火快炒', duration: 420, icon: '🔥'),
+      ],
+      'recipe_6': [ // 爱心早餐
+        CookingStep(title: '准备食材', description: '面包、鸡蛋、牛奶\n新鲜水果', duration: 300, icon: '🍞'),
+        CookingStep(title: '制作煎蛋', description: '热锅煎制\n爱心形状的鸡蛋', duration: 480, icon: '💝'),
+        CookingStep(title: '搭配摆盘', description: '面包、煎蛋、水果\n艺术摆盘', duration: 720, icon: '🎨'),
+        CookingStep(title: '温牛奶', description: '加热牛奶\n至适温', duration: 300, icon: '🥛'),
+      ],
+      'recipe_7': [ // 宫保鸡丁
+        CookingStep(title: '鸡肉切丁', description: '鸡胸肉切丁\n用料酒腌制', duration: 480, icon: '🐔'),
+        CookingStep(title: '炸花生米', description: '花生米过油\n炸酥脆', duration: 300, icon: '🥜'),
+        CookingStep(title: '炒制调味', description: '下鸡丁炒熟\n加调料炒匀，撒花生米', duration: 420, icon: '🔥'),
+      ],
+      'recipe_8': [ // 麻婆豆腐
+        CookingStep(title: '豆腐处理', description: '嫩豆腐切块\n用盐水浸泡', duration: 300, icon: '⚪'),
+        CookingStep(title: '炒制肉末', description: '热锅炒肉末\n至变色', duration: 180, icon: '🥩'),
+        CookingStep(title: '下豆腐调味', description: '加豆瓣酱和豆腐块\n轻柔翻炒', duration: 420, icon: '🌶️'),
+      ],
+      'recipe_9': [ // 糖醋里脊
+        CookingStep(title: '里脊处理', description: '里脊肉切条\n用蛋液淀粉裹匀', duration: 600, icon: '🥩'),
+        CookingStep(title: '油炸定型', description: '热油炸至金黄酥脆\n二次复炸', duration: 900, icon: '🔥'),
+        CookingStep(title: '调糖醋汁', description: '糖醋汁炒至粘稠\n裹里脊', duration: 600, icon: '🍯'),
+      ],
+      'recipe_10': [ // 酸菜鱼
+        CookingStep(title: '鱼片处理', description: '草鱼切片\n用蛋清淀粉腌制', duration: 900, icon: '🐟'),
+        CookingStep(title: '炒酸菜底', description: '炒酸菜出香味\n加水煮开', duration: 600, icon: '🌶️'),
+        CookingStep(title: '煮鱼片', description: '下鱼片煮熟\n淋辣椒油', duration: 900, icon: '🔥'),
+      ],
+      'recipe_11': [ // 口水鸡
+        CookingStep(title: '煮鸡肉', description: '整鸡煮熟晾凉\n撕成丝', duration: 1200, icon: '🐔'),
+        CookingStep(title: '调制蘸料', description: '生抽、香醋、辣椒油\n调匀', duration: 180, icon: '🥄'),
+        CookingStep(title: '拌制装盘', description: '鸡丝淋蘸料\n撒花生碎和香菜', duration: 120, icon: '🥗'),
+      ],
+      'recipe_12': [ // 蛋花汤
+        CookingStep(title: '烧开水', description: '锅中加水烧开\n调味', duration: 180, icon: '💧'),
+        CookingStep(title: '淋蛋液', description: '蛋液打散\n慢慢淋入开水中', duration: 60, icon: '🥚'),
+        CookingStep(title: '出锅', description: '撒葱花\n即可出锅', duration: 60, icon: '🌿'),
+      ],
+    };
+    
+    return cookingStepsData[recipeId] ?? cookingStepsData['recipe_1']!;
   }
 }
 

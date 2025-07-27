@@ -381,7 +381,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         onTap: () {
           final recipe = _getCurrentRecipe();
           // 进入食谱详情
-          //_navigateToRecipeDetail(recipe['id'] ?? 'recipe_1');
+          _navigateToRecipeDetail(recipe['id'] ?? 'recipe_1');
         },
         child: MinimalCard(
           width: MediaQuery.of(context).size.width * 0.51, // 屏幕宽度51% (64%再缩小20%)
@@ -395,8 +395,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
                 size: 150,
                 isAnimated: true,
                 onTap: () {
-                  // 点击图标也能进入烹饪模式
-                  _navigateToCookingMode();
+                  // 🔧 修复：点击图标进入对应菜谱详情
+                  final currentRecipe = _getCurrentRecipe();
+                  _navigateToRecipeDetail(currentRecipe['id'] ?? 'recipe_1');
                 },
               ),
               

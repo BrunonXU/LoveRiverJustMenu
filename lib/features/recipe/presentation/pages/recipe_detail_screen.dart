@@ -10,6 +10,7 @@ import '../../../../core/themes/spacing.dart';
 import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
+import '../../../cooking_mode/presentation/pages/cooking_mode_screen.dart';
 
 /// 食谱详情页面
 /// 支持修改步骤、时长记录、每步骤图片上传
@@ -1016,8 +1017,12 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   }
   
   void _startCooking() {
-    // 导航到烹饪模式
-    context.push('/cooking-mode');
+    // 🔧 修复：导航到烹饪模式并传递recipeId
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CookingModeScreen(recipeId: widget.recipeId),
+      ),
+    );
   }
   
   void _toggleFavorite() {
