@@ -12,6 +12,7 @@ import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../shared/widgets/voice_interaction_widget.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/animations/physics_engine.dart';
 
 /// 主界面 - 时间驱动的卡片流
 /// 严格遵循极简设计原则：95%黑白灰，5%彩色焦点
@@ -114,10 +115,31 @@ class _MainScreenState extends ConsumerState<MainScreen>
         decoration: BoxDecoration(
           gradient: AppColors.getTimeBasedGradient(), // 使用时间渐变背景
         ),
-        child: SafeArea(
-          child: _isLoading 
-              ? _buildLoadingState() 
-              : _buildMainContent(isDark),
+        child: Stack(
+          children: [
+            // 物理粒子系统背景
+            Positioned.fill(
+              child: PhysicsParticleSystem(
+                minParticles: 15,
+                maxParticles: 25,
+                systemSize: MediaQuery.of(context).size,
+                magneticPoints: [
+                  Offset(MediaQuery.of(context).size.width * 0.5, 
+                         MediaQuery.of(context).size.height * 0.3),
+                ],
+                enableGravity: true,
+                enableMagnetic: false, // 轻微效果
+                enableCollisions: true,
+              ),
+            ),
+            
+            // 主要内容
+            SafeArea(
+              child: _isLoading 
+                  ? _buildLoadingState() 
+                  : _buildMainContent(isDark),
+            ),
+          ],
         ),
       ),
       

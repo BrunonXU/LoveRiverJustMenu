@@ -6,6 +6,7 @@ import '../../features/home/presentation/pages/main_screen.dart';
 import '../../features/timeline/presentation/pages/timeline_screen.dart';
 import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen.dart';
 import '../../features/cooking_mode/presentation/pages/cooking_mode_screen.dart';
+import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -59,7 +60,7 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageTransition(
           child: const TimelineScreen(),
           state: state,
-          transitionType: PageTransitionType.slideUp,
+          transitionType: PageTransitionType.liquid,
         ),
       ),
       
@@ -71,7 +72,7 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageTransition(
           child: const AiRecommendationScreen(),
           state: state,
-          transitionType: PageTransitionType.fade,
+          transitionType: PageTransitionType.liquid,
         ),
       ),
       
@@ -162,8 +163,8 @@ class AppRouter {
           child: child,
         );
       },
-      transitionDuration: const Duration(milliseconds: 600),
-      reverseTransitionDuration: const Duration(milliseconds: 600),
+      transitionDuration: const Duration(milliseconds: 800),
+      reverseTransitionDuration: const Duration(milliseconds: 800),
     );
   }
   
@@ -216,9 +217,10 @@ class AppRouter {
         
       case PageTransitionType.liquid:
         // 液态过渡效果 - 高级动画
-        return _LiquidTransition(
+        return LiquidTransitionBuilder(
           animation: animation,
           child: child,
+          transitionType: LiquidTransitionType.wave,
         );
     }
   }
