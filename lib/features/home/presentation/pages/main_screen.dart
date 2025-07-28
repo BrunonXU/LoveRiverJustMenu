@@ -541,6 +541,18 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ),
         ),
+        
+        // 右下角按钮 - 美食地图 ⭐ 新功能
+        Positioned(
+          right: 80,
+          bottom: 80,
+          child: _buildDirectionButton(
+            icon: Icons.map,
+            onTap: _navigateToFoodMap,
+            isDark: isDark,
+            isSpecial: true, // 使用微妙彩色
+          ),
+        ),
       ],
     );
   }
@@ -853,5 +865,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _navigateToCoupleProfile() {
     HapticFeedback.mediumImpact();
     context.push(AppRouter.coupleProfile);
+  }
+  
+  /// 导航到美食地图页面 ⭐ 新功能
+  void _navigateToFoodMap() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.foodMap);
   }
 }

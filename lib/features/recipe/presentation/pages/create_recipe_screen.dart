@@ -236,17 +236,17 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔧 修复溢出：左侧基本信息区域（占40%宽度）- 移除固定高度
+            // 🔧 优化布局：左侧基本信息区域（占50%宽度）- 扩大基本信息区域
             Expanded(
-              flex: 4,
+              flex: 5,
               child: _buildBasicInfoPanel(isDark),
             ),
             
             Space.w16, // 左右间距
             
-            // 🔧 修复溢出：右侧步骤编辑区域（占60%宽度）- 移除固定高度
+            // 🔧 优化布局：右侧步骤编辑区域（占50%宽度）- 缩小步骤区域
             Expanded(
-              flex: 6,
+              flex: 5,
               child: _buildStepsPanel(isDark),
             ),
           ],
@@ -280,40 +280,42 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 食谱图标选择
+                    // 食谱图标选择 - 🔧 增强版：更大图标，更好的用户体验
                     Center(
                       child: Column(
                         children: [
                           Text(
-                            '选择图标',
-                            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                              color: AppColors.getTextSecondaryColor(isDark),
+                            '选择食谱图标',
+                            style: AppTypography.titleMediumStyle(isDark: isDark).copyWith( // 更大标题
+                              fontWeight: AppTypography.light,
+                              color: AppColors.getTextPrimaryColor(isDark),
                             ),
                           ),
-                          Space.h12,
-                          _buildCompactIconSelector(isDark),
+                          Space.h16, // 增加间距
+                          _buildEnhancedIconSelector(isDark), // 使用增强版图标选择器
                         ],
                       ),
                     ),
                     
                     Space.h24,
                     
-                    // 食谱名称
-                    _buildCompactTextField(
+                    // 食谱名称 - 🔧 增强版：更大字体，更好的视觉效果
+                    _buildEnhancedTextField(
                       label: '菜谱名称',
                       controller: _nameController,
-                      hintText: '给菜谱起个名字...',
+                      hintText: '比如：蜜汁红烧肉、爱心蛋挞...',
                       isDark: isDark,
+                      isLarge: true, // 更大的输入框
                     ),
                     
-                    Space.h16,
+                    Space.h24, // 增加间距
                     
-                    // 食谱描述
-                    _buildCompactTextField(
+                    // 食谱描述 - 🔧 增强版：更大文本区域
+                    _buildEnhancedTextField(
                       label: '菜谱描述',  
                       controller: _descriptionController,
-                      hintText: '简单描述一下这道菜...',
-                      maxLines: 3,
+                      hintText: '描述这道菜的特色和故事...',
+                      maxLines: 4, // 增加行数
                       isDark: isDark,
                     ),
                     
@@ -1358,6 +1360,49 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   // ==================== 新的横向布局辅助方法 ====================
   
   /// 紧凑的图标选择器
+  /// 🔧 增强版图标选择器 - 更大图标，更好用户体验
+  Widget _buildEnhancedIconSelector(bool isDark) {
+    return Wrap(
+      spacing: 12, // 增加间距
+      runSpacing: 12,
+      children: AppIcon3DType.values.map((iconType) {
+        final isSelected = _selectedIconType == iconType;
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() {
+              _selectedIconType = iconType;
+            });
+          },
+          child: Container(
+            width: 60, // 更大图标容器
+            height: 60,
+            decoration: BoxDecoration(
+              gradient: isSelected ? AppColors.primaryGradient : null,
+              color: isSelected ? null : AppColors.getBackgroundSecondaryColor(isDark),
+              borderRadius: BorderRadius.circular(30),
+              border: isSelected 
+                ? null 
+                : Border.all(color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3)),
+              boxShadow: isSelected ? [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ] : null,
+            ),
+            child: AppIcon3D(
+              type: iconType,
+              size: 36, // 更大图标
+              isAnimated: false,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildCompactIconSelector(bool isDark) {
     return Wrap(
       spacing: 8,
@@ -1393,6 +1438,62 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
     );
   }
   
+  /// 🔧 增强版文本输入框 - 更大字体，更好视觉效果
+  Widget _buildEnhancedTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    required bool isDark,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    bool isLarge = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith( // 更大标签
+            color: AppColors.getTextPrimaryColor(isDark),
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        Space.h12, // 更大间距
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: AppTypography.bodyMediumStyle(isDark: isDark).copyWith( // 更大提示文字
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge), // 更大圆角
+              borderSide: BorderSide(
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+              borderSide: BorderSide(
+                color: AppColors.primary,
+                width: 2, // 更粗的聚焦边框
+              ),
+            ),
+            contentPadding: EdgeInsets.all(isLarge ? AppSpacing.lg : AppSpacing.md), // 动态内边距
+            filled: true,
+            fillColor: AppColors.getBackgroundSecondaryColor(isDark),
+          ),
+          style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith( // 更大输入文字
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
   /// 紧凑的文本输入框
   Widget _buildCompactTextField({
     required String label,
@@ -1728,37 +1829,41 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   // ==================== 🔥 新的烹饪模式风格步骤编辑方法 ====================
   
   /// 🔧 缩小的步骤标题区域
+  /// 🔧 紧凑化步骤头部 - 减少垂直空间占用，优化布局
   Widget _buildStepsHeader(bool isDark) {
-    return Row(
-      children: [
-        Text(
-          '制作步骤',
-          style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith( // 使用更小字体
-            fontWeight: AppTypography.medium,
+    return Container(
+      height: 40, // 限制头部高度
+      child: Row(
+        children: [
+          Text(
+            '制作步骤',
+            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith( // 进一步减小字体
+              fontWeight: AppTypography.medium,
+            ),
           ),
-        ),
-        const Spacer(),
-        if (_steps.isNotEmpty) ...[ 
-          // 步骤导航指示器
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-            ),
-            child: Text(
-              '${_currentStepIndex + 1}/${_steps.length}',
-              style: AppTypography.captionStyle(isDark: isDark).copyWith(
-                color: AppColors.getTextSecondaryColor(isDark),
-                fontWeight: AppTypography.medium,
+          const Spacer(),
+          if (_steps.isNotEmpty) ...[ 
+            // 步骤导航指示器 - 更紧凑
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs, // 减少内边距
+                vertical: 4, // 减少垂直内边距
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+              ),
+              child: Text(
+                '${_currentStepIndex + 1}/${_steps.length}',
+                style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                  color: AppColors.getTextSecondaryColor(isDark),
+                  fontWeight: AppTypography.medium,
+                ),
               ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
   

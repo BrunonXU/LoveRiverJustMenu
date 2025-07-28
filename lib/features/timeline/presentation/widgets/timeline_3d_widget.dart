@@ -43,6 +43,12 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       duration: const Duration(seconds: 4),
       vsync: this,
     );
+    
+    // 🔥 修复：启动旋转动画，让时光机自动旋转
+    _rotationController.repeat();
+    
+    // 🔥 修复：启动呼吸动画
+    _breathingController.repeat(reverse: true);
   }
 
   @override
@@ -135,23 +141,34 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
               final cardWidth = (constraints.maxWidth * 0.15).clamp(120.0, 200.0);
               final cardHeight = (constraints.maxHeight * 0.25).clamp(180.0, 280.0);
               
-              return Container(
-                width: cardWidth,
-                height: cardHeight,
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundColor,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: memory.special 
-                        ? AppColors.primary.withOpacity(0.3)
-                        : AppColors.shadow,
-                      blurRadius: memory.special ? 16 : 8,
-                      offset: const Offset(0, 4),
-                      spreadRadius: memory.special ? 2 : 0,
-                    ),
-                  ],
-                ),
+              return AnimatedBuilder(
+                animation: _breathingController,
+                builder: (context, child) {
+                  // 🔥 添加呼吸动画效果
+                  final breathingScale = 1.0 + (_breathingController.value * 0.05); // 轻微的缩放效果
+                  final breathingOpacity = 0.8 + (_breathingController.value * 0.2); // 透明度变化
+                  
+                  return Transform.scale(
+                    scale: breathingScale,
+                    child: Opacity(
+                      opacity: breathingOpacity,
+                      child: Container(
+                        width: cardWidth,
+                        height: cardHeight,
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundColor,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: memory.special 
+                                ? AppColors.primary.withOpacity(0.3 * breathingOpacity)
+                                : AppColors.shadow.withOpacity(breathingOpacity),
+                              blurRadius: memory.special ? 16 : 8,
+                              offset: const Offset(0, 4),
+                              spreadRadius: memory.special ? 2 : 0,
+                            ),
+                          ],
+                        ),
                 padding: const EdgeInsets.all(16),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
@@ -217,6 +234,10 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                     ],
                   ),
                 ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -246,12 +267,14 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
           _buildMinimalButton(
             icon: _rotationController.isAnimating ? Icons.pause : Icons.play_arrow,
             onTap: () {
+              // 🔥 修复：使用正确的暂停/恢复逻辑
               if (_rotationController.isAnimating) {
-                _rotationController.stop();
+                _rotationController.stop(); // 完全停止
               } else {
-                _rotationController.repeat();
+                _rotationController.repeat(); // 重新开始循环
               }
               HapticFeedback.lightImpact();
+              setState(() {}); // 更新按钮图标
             },
           ),
           

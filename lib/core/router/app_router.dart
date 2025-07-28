@@ -19,6 +19,10 @@ import '../../features/timeline/domain/models/memory.dart';
 import '../../features/challenge/domain/models/challenge.dart';
 import '../../features/profile/presentation/pages/personal_center_screen.dart';
 import '../../features/profile/presentation/pages/my_recipes_screen.dart';
+import '../../features/achievement/presentation/pages/achievement_screen.dart';
+import '../../features/food_map/presentation/pages/food_map_screen.dart';
+import '../../features/food_map/presentation/pages/province_detail_screen.dart';
+import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -46,6 +50,9 @@ class AppRouter {
   static const String memoryDetail = '/memory/:id';
   static const String personalCenter = '/personal-center';
   static const String myRecipes = '/personal-center/my-recipes';
+  static const String achievements = '/personal-center/achievements';
+  static const String foodMap = '/food-map';
+  static const String provinceDetail = '/food-map/province/:provinceId';
   static const String profile = '/profile';
   static const String settings = '/settings';
   
@@ -198,6 +205,50 @@ class AppRouter {
           state: state,
           transitionType: PageTransitionType.slideUp,
         ),
+      ),
+
+      // 成就系统路由
+      GoRoute(
+        path: achievements,
+        name: 'achievements',
+        builder: (context, state) => const AchievementScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const AchievementScreen(),
+          state: state,
+          transitionType: PageTransitionType.liquid,
+        ),
+      ),
+
+      // 美食地图路由
+      GoRoute(
+        path: foodMap,
+        name: 'food-map',
+        builder: (context, state) => const FoodMapScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const FoodMapScreen(),
+          state: state,
+          transitionType: PageTransitionType.liquid,
+        ),
+      ),
+
+      // 省份详情路由
+      GoRoute(
+        path: provinceDetail,
+        name: 'province-detail',
+        builder: (context, state) {
+          final provinceIdStr = state.pathParameters['provinceId']!;
+          final province = _getProvinceFromString(provinceIdStr);
+          return ProvinceDetailScreen(province: province);
+        },
+        pageBuilder: (context, state) {
+          final provinceIdStr = state.pathParameters['provinceId']!;
+          final province = _getProvinceFromString(provinceIdStr);
+          return _buildPageTransition(
+            child: ProvinceDetailScreen(province: province),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          );
+        },
       ),
 
       // 个人档案路由（保留兼容性）
@@ -529,6 +580,26 @@ Challenge _getChallengeById(String challengeId) {
     difficulty: 2,
     estimatedTime: 45,
   );
+}
+
+/// 根据字符串获取省份枚举的辅助方法
+ChineseProvince _getProvinceFromString(String provinceStr) {
+  switch (provinceStr.toLowerCase()) {
+    case 'sichuan': return ChineseProvince.sichuan;
+    case 'guangdong': return ChineseProvince.guangdong;
+    case 'beijing': return ChineseProvince.beijing;
+    case 'shanghai': return ChineseProvince.shanghai;
+    case 'jiangsu': return ChineseProvince.jiangsu;
+    case 'zhejiang': return ChineseProvince.zhejiang;
+    case 'fujian': return ChineseProvince.fujian;
+    case 'hunan': return ChineseProvince.hunan;
+    case 'shandong': return ChineseProvince.shandong;
+    case 'anhui': return ChineseProvince.anhui;
+    case 'xinjiang': return ChineseProvince.xinjiang;
+    case 'yunnan': return ChineseProvince.yunnan;
+    case 'xizang': return ChineseProvince.xizang;
+    default: return ChineseProvince.sichuan;
+  }
 }
 
 // ==================== 临时占位页面 ====================
