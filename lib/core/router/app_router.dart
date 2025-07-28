@@ -19,8 +19,8 @@ import '../../features/timeline/domain/models/memory.dart';
 import '../../features/challenge/domain/models/challenge.dart';
 import '../../features/profile/presentation/pages/personal_center_screen.dart';
 import '../../features/profile/presentation/pages/my_recipes_screen.dart';
-import '../../features/achievement/presentation/pages/achievement_screen.dart';
-import '../../features/food_map/presentation/pages/food_map_screen.dart';
+import '../../features/achievement/presentation/pages/achievement_screen_optimized.dart';
+import '../../features/food_map/presentation/pages/food_map_screen_optimized.dart';
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../animations/liquid_transition.dart';
@@ -207,27 +207,27 @@ class AppRouter {
         ),
       ),
 
-      // 成就系统路由
+      // 成就系统路由 - 🔧 性能优化版本
       GoRoute(
         path: achievements,
         name: 'achievements',
-        builder: (context, state) => const AchievementScreen(),
+        builder: (context, state) => const AchievementScreenOptimized(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const AchievementScreen(),
+          child: const AchievementScreenOptimized(),
           state: state,
-          transitionType: PageTransitionType.liquid,
+          transitionType: PageTransitionType.fade, // 🔧 简化过渡动画
         ),
       ),
 
-      // 美食地图路由
+      // 美食地图路由 - 🔧 性能优化版本
       GoRoute(
         path: foodMap,
         name: 'food-map',
-        builder: (context, state) => const FoodMapScreen(),
+        builder: (context, state) => const FoodMapScreenOptimized(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const FoodMapScreen(),
+          child: const FoodMapScreenOptimized(),
           state: state,
-          transitionType: PageTransitionType.liquid,
+          transitionType: PageTransitionType.fade, // 🔧 简化过渡动画  
         ),
       ),
 
