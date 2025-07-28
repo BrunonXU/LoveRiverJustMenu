@@ -207,7 +207,6 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
   Widget _buildStoryCard(StoryRecommendation story) {
     return RepaintBoundary(
       child: Container(
-        // 移除高度限制，让内容自然展开
         decoration: BoxDecoration(
           color: AppColors.backgroundColor,
           borderRadius: BorderRadius.circular(24),
@@ -219,180 +218,181 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 情境标签 - 5%彩色焦点
-            Container(
-              decoration: BoxDecoration(
-                gradient: story.gradient, // 5%彩色焦点
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(AppSpacing.radiusLarge),
-                  topRight: Radius.circular(AppSpacing.radiusLarge),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 情境标签 - 5%彩色焦点
+              Container(
+                decoration: BoxDecoration(
+                  gradient: story.gradient, // 5%彩色焦点
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(AppSpacing.radiusLarge),
+                    topRight: Radius.circular(AppSpacing.radiusLarge),
+                  ),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
+                      ),
+                      child: Text(
+                        story.context,
+                        style: AppTypography.bodySmallStyle(
+                          isDark: false,
+                        ).copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.xs,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                    ),
-                    child: Text(
-                      story.context,
-                      style: AppTypography.bodySmallStyle(
+              
+              // 故事内容 - 使用灵活布局
+              Padding(
+                padding: AppSpacing.cardContentPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 故事文案
+                    Text(
+                      story.narrative,
+                      style: AppTypography.titleMediumStyle(
                         isDark: false,
                       ).copyWith(
                         color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w300,
+                        height: 1.5,
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // 故事内容 - 移除嵌套Expanded，使用固定高度
-            Padding(
-              padding: AppSpacing.cardContentPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 故事文案
-                  Text(
-                    story.narrative,
-                    style: AppTypography.titleMediumStyle(
-                      isDark: false,
-                    ).copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w300,
-                      height: 1.5,
-                    ),
-                  ),
-                  
-                  Space.h24,
-                  
-                  // 推荐卡片 - 使用固定最小高度
-                  GestureDetector(
-                    onTap: () {
-                      widget.onRecommendationTap?.call(story);
-                      HapticFeedback.lightImpact();
-                    },
-                    child: Container(
-                      constraints: BoxConstraints(
-                        minHeight: 200, // 设置最小高度
-                      ),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundSecondary,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                      ),
-                      child: Row(
-                        children: [
-                          // 菜谱图标
-                          Text(
-                            story.icon,
-                            style: const TextStyle(fontSize: 72), // 增大图标
-                          ),
-                          
-                          Space.w16,
-                          
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  story.recipe,
-                                  style: AppTypography.titleLargeStyle( // 使用更大的字体
-                                    isDark: false,
-                                  ).copyWith(
-                                    color: AppColors.textPrimary,
-                                    fontWeight: FontWeight.w300,
-                                  ),
-                                ),
-                                
-                                Space.h12,
-                                
-                                Text(
-                                  story.reason,
-                                  style: AppTypography.bodyLargeStyle(
-                                    isDark: false,
-                                  ).copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                                
-                                if (story.cookingTime != null) ...[
-                                  Space.h12,
+                    
+                    Space.h24,
+                    
+                    // 推荐卡片 - 移除固定高度约束
+                    GestureDetector(
+                      onTap: () {
+                        widget.onRecommendationTap?.call(story);
+                        HapticFeedback.lightImpact();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundSecondary,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                        ),
+                        child: Row(
+                          children: [
+                            // 菜谱图标
+                            Text(
+                              story.icon,
+                              style: const TextStyle(fontSize: 60), // 调整图标大小
+                            ),
+                            
+                            Space.w16,
+                            
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
                                   Text(
-                                    '预计 ${story.cookingTime} 分钟',
+                                    story.recipe,
+                                    style: AppTypography.titleMediumStyle( // 调整字体大小
+                                      isDark: false,
+                                    ).copyWith(
+                                      color: AppColors.textPrimary,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                  
+                                  Space.h8,
+                                  
+                                  Text(
+                                    story.reason,
                                     style: AppTypography.bodyMediumStyle(
                                       isDark: false,
                                     ).copyWith(
                                       color: AppColors.textSecondary,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
+                                  
+                                  if (story.cookingTime != null) ...[
+                                    Space.h8,
+                                    Text(
+                                      '预计 ${story.cookingTime} 分钟',
+                                      style: AppTypography.bodySmallStyle(
+                                        isDark: false,
+                                      ).copyWith(
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
-                            ),
-                          ),
-                          
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            size: 24,
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  if (story.nutritionTip != null) ...[
-                    Space.h16,
-                    
-                    // 营养提示
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.lightbulb_outline,
-                            size: 20,
-                            color: AppColors.textSecondary,
-                          ),
-                          
-                          Space.w8,
-                          
-                          Expanded(
-                            child: Text(
-                              story.nutritionTip!,
-                              style: AppTypography.captionStyle(
-                                isDark: false,
-                              ).copyWith(
-                                color: AppColors.textSecondary,
                               ),
                             ),
-                          ),
-                        ],
+                            
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              size: 20,
+                              color: AppColors.textSecondary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                    
+                    if (story.nutritionTip != null) ...[
+                      Space.h16,
+                      
+                      // 营养提示
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.textSecondary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.lightbulb_outline,
+                              size: 20,
+                              color: AppColors.textSecondary,
+                            ),
+                            
+                            Space.w8,
+                            
+                            Expanded(
+                              child: Text(
+                                story.nutritionTip!,
+                                style: AppTypography.captionStyle(
+                                  isDark: false,
+                                ).copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    
+                    Space.h16, // 底部间距
                   ],
-                  
-                  Space.h24, // 底部间距
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
