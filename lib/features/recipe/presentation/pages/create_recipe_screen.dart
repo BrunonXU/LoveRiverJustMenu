@@ -96,6 +96,12 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
       duration: 5,
       tips: '',
     ));
+    
+    // 🔥 修复：同时创建对应的文本控制器
+    _stepControllers.add({
+      'title': TextEditingController(),
+      'description': TextEditingController(),
+    });
   }
 
   @override
@@ -1858,6 +1864,18 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   
   /// 🔥 烹饪模式风格的步骤编辑器 - 完全对齐格式
   Widget _buildCookingModeStepEditor(bool isDark) {
+    // 🔥 修复：添加安全检查
+    if (_steps.isEmpty || _stepControllers.isEmpty) {
+      return Center(
+        child: Text(
+          '暂无步骤',
+          style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextSecondaryColor(isDark),
+          ),
+        ),
+      );
+    }
+    
     return PageView.builder(
       controller: _stepPageController,
       onPageChanged: (index) {
@@ -1874,6 +1892,18 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   
   /// 🔥 单个步骤编辑器 - 完全模拟烹饪模式布局
   Widget _buildSingleStepEditor(int stepIndex, bool isDark) {
+    // 🔥 修复：添加边界检查
+    if (stepIndex >= _stepControllers.length) {
+      return Center(
+        child: Text(
+          '步骤数据错误',
+          style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+            color: Colors.red,
+          ),
+        ),
+      );
+    }
+    
     final stepControllers = _stepControllers[stepIndex];
     final titleController = stepControllers['title']!;
     final descriptionController = stepControllers['description']!;
@@ -1954,6 +1984,10 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
                           isDense: true,
                         ),
                         onChanged: (value) {
+                          // 🔥 修复：同步更新步骤数据
+                          if (stepIndex < _steps.length) {
+                            _steps[stepIndex].title = value;
+                          }
                           setState(() {}); // 更新边框颜色
                         },
                       ),
@@ -2010,6 +2044,10 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
                   contentPadding: EdgeInsets.all(AppSpacing.sm),
                 ),
                 onChanged: (value) {
+                  // 🔥 修复：同步更新步骤数据
+                  if (stepIndex < _steps.length) {
+                    _steps[stepIndex].description = value;
+                  }
                   setState(() {}); // 更新边框颜色
                 },
               ),
