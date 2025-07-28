@@ -274,8 +274,8 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
             ...unlockedAchievements.take(5).map((achievement) => 
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: const AchievementCard(
-                  achievement: null, // 简化传递
+                child: AchievementCard(
+                  achievement: achievement, // 🔧 修复：传递实际achievement
                   isCompact: true,
                 ),
               ),
@@ -308,8 +308,8 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
             ...achievements.take(3).map((achievement) => 
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: const AchievementCard(
-                  achievement: null,
+                child: AchievementCard(
+                  achievement: achievement, // 🔧 修复：传递实际achievement
                   isCompact: true,
                 ),
               ),
