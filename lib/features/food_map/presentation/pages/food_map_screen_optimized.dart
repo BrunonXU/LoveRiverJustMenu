@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
-import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../domain/models/province_cuisine.dart';
 import '../../domain/providers/food_map_provider_optimized.dart';
 import '../widgets/province_card.dart';
+import '../widgets/china_map_simple.dart';
 
 /// 🔧 性能优化版美食地图主页面
 class FoodMapScreenOptimized extends ConsumerStatefulWidget {
@@ -24,6 +24,9 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
   late TabController _tabController;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  
+  // 选中的省份
+  ChineseProvince? _selectedProvince;
 
   @override
   void initState() {
@@ -128,15 +131,15 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.primary.withOpacity(0.1),
-                AppColors.emotionGradient.colors.first.withOpacity(0.1),
+                AppColors.primary.withValues(alpha: 0.1),
+                AppColors.emotionGradient.colors.first.withValues(alpha: 0.1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.2),
+              color: AppColors.primary.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -154,7 +157,7 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
                 Container(
                   width: 1,
                   height: 40,
-                  color: AppColors.textSecondary.withOpacity(0.2),
+                  color: AppColors.textSecondary.withValues(alpha: 0.2),
                 ),
                 _buildStatItem(
                   icon: '🍜',
@@ -165,7 +168,7 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
                 Container(
                   width: 1,
                   height: 40,
-                  color: AppColors.textSecondary.withOpacity(0.2),
+                  color: AppColors.textSecondary.withValues(alpha: 0.2),
                 ),
                 _buildStatItem(
                   icon: '📈',
@@ -241,54 +244,38 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
     );
   }
 
-  /// 🔧 简化的地图视图 - 去除复杂地图组件
+  /// 🗺️ 真实的中国地图视图 - 使用地图可视化组件
   Widget _buildSimpleMapView(List<ProvinceCuisine> provinces) {
-    final unlockedProvinces = provinces.where((p) => p.isUnlocked).toList();
-    
     return RepaintBoundary(
       child: SingleChildScrollView(
         padding: AppSpacing.pagePadding,
         child: Column(
           children: [
-            // 简化的地图概览
+            // 地图标题
             MinimalCard(
               child: Column(
                 children: [
-                  Text(
-                    '美食地图概览',
-                    style: AppTypography.titleMediumStyle(isDark: false).copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 简化的进度展示
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundSecondary,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.map,
-                            size: 60,
-                            color: AppColors.primary,
-                          ),
-                          Space.h12,
-                          Text(
-                            '已解锁 ${unlockedProvinces.length} 个省份',
-                            style: AppTypography.bodyLargeStyle(isDark: false).copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '🗺️',
+                        style: const TextStyle(fontSize: 24),
                       ),
+                      Space.w8,
+                      Text(
+                        '中华美食地图',
+                        style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Space.h8,
+                  Text(
+                    '点击省份查看美食详情',
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -296,6 +283,26 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
             ),
             
             Space.h24,
+            
+            // 🚀 高性能中国地图
+            ChinaMapSimple(
+              provinces: provinces,
+              selectedProvince: _selectedProvince,
+              onProvinceSelected: (province) {
+                setState(() {
+                  _selectedProvince = _selectedProvince == province ? null : province;
+                });
+                _showProvinceDetail(province);
+              },
+            ),
+            
+            Space.h24,
+            
+            // 选中省份的详细信息
+            if (_selectedProvince != null) ...[ 
+              _buildSelectedProvinceInfo(provinces),
+              Space.h24,
+            ],
             
             // 推荐省份
             Text(
@@ -307,8 +314,8 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
             
             Space.h12,
             
-            // 显示前3个推荐省份
-            ...provinces.take(3).map((province) => 
+            // 显示推荐省份（即将解锁的）
+            ...provinces.where((p) => p.isNearUnlock).take(2).map((province) => 
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ProvinceCard(
@@ -451,7 +458,7 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
                       Container(
                         width: 1,
                         height: 30,
-                        color: AppColors.textSecondary.withOpacity(0.2),
+                        color: AppColors.textSecondary.withValues(alpha: 0.2),
                       ),
                       _buildProgressStatItem(
                         '菜品',
@@ -493,7 +500,7 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
           ),
           child: Text(
@@ -530,6 +537,132 @@ class _FoodMapScreenOptimizedState extends ConsumerState<FoodMapScreenOptimized>
           ),
         ),
       ],
+    );
+  }
+
+  /// 显示选中省份的详细信息
+  Widget _buildSelectedProvinceInfo(List<ProvinceCuisine> provinces) {
+    final selectedProvinceData = provinces.firstWhere(
+      (p) => p.province == _selectedProvince,
+      orElse: () => provinces.first,
+    );
+
+    return MinimalCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: selectedProvinceData.isUnlocked 
+                      ? LinearGradient(
+                          colors: [
+                            selectedProvinceData.themeColor,
+                            selectedProvinceData.themeColor.withValues(alpha: 0.7),
+                          ],
+                        )
+                      : null,
+                  color: selectedProvinceData.isUnlocked 
+                      ? null 
+                      : AppColors.backgroundSecondary,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    selectedProvinceData.iconEmoji,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+              
+              Space.w16,
+              
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      selectedProvinceData.provinceName,
+                      style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Space.h4,
+                    Text(
+                      selectedProvinceData.cuisineStyle,
+                      style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                        color: selectedProvinceData.themeColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: selectedProvinceData.isUnlocked 
+                      ? selectedProvinceData.themeColor.withValues(alpha: 0.1)
+                      : AppColors.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                ),
+                child: Text(
+                  selectedProvinceData.isUnlocked 
+                      ? '已解锁' 
+                      : '${selectedProvinceData.progressPercentage}%',
+                  style: AppTypography.captionStyle(isDark: false).copyWith(
+                    color: selectedProvinceData.isUnlocked 
+                        ? selectedProvinceData.themeColor
+                        : AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          Space.h16,
+          
+          Text(
+            selectedProvinceData.description,
+            style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+          
+          Space.h12,
+          
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selectedProvinceData.features.map((feature) => 
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: selectedProvinceData.themeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                ),
+                child: Text(
+                  feature,
+                  style: AppTypography.captionStyle(isDark: false).copyWith(
+                    color: selectedProvinceData.themeColor,
+                  ),
+                ),
+              ),
+            ).toList(),
+          ),
+        ],
+      ),
     );
   }
 

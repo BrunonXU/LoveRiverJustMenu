@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
-import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../domain/models/achievement.dart';
 import '../../domain/providers/achievement_provider_optimized.dart';
 import '../widgets/achievement_card.dart';
+import '../widgets/achievement_tree_simple.dart';
 
 /// 🔧 性能优化版成就系统主页面
 class AchievementScreenOptimized extends ConsumerStatefulWidget {
@@ -64,7 +64,6 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
         
         // 🔧 预计算数据，避免在build中计算
         final unlockedAchievements = achievements.where((a) => a.isUnlocked).toList();
-        final nearCompleteAchievements = achievements.where((a) => a.progress >= 0.8 && !a.isUnlocked).toList();
         
         return Scaffold(
           backgroundColor: AppColors.backgroundColor,
@@ -108,7 +107,7 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildSimpleTreeView(unlockedAchievements),
+                  _buildSimpleTreeView(achievements),
                   _buildSimpleCategoryView(achievements),
                   _buildSimpleStatsView(statistics, userLevel, unlockedAchievements),
                 ],
@@ -128,8 +127,8 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              AppColors.primary.withOpacity(0.1),
-              AppColors.emotionGradient.colors.first.withOpacity(0.1),
+              AppColors.primary.withValues(alpha: 0.1),
+              AppColors.emotionGradient.colors.first.withValues(alpha: 0.1),
             ],
           ),
           borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
@@ -210,58 +209,38 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
     );
   }
 
-  /// 🔧 简化的成长树视图 - 去除复杂3D动画
-  Widget _buildSimpleTreeView(List<Achievement> unlockedAchievements) {
+  /// 🌳 真正的成就树视图 - 使用树状可视化组件
+  Widget _buildSimpleTreeView(List<Achievement> achievements) {
     return RepaintBoundary(
       child: SingleChildScrollView(
         padding: AppSpacing.pagePadding,
         child: Column(
           children: [
-            // 简化的进度总览
+            // 成就树标题
             MinimalCard(
               child: Column(
                 children: [
-                  Text(
-                    '成长进度',
-                    style: AppTypography.titleMediumStyle(isDark: false).copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '🌳',
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                      Space.w8,
+                      Text(
+                        '成就之树',
+                        style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  
-                  Space.h16,
-                  
-                  // 简化的环形进度
-                  SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: unlockedAchievements.length / 20, // 假设总共20个成就
-                          strokeWidth: 8,
-                          backgroundColor: AppColors.backgroundSecondary,
-                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                        ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '${unlockedAchievements.length}',
-                              style: AppTypography.titleLargeStyle(isDark: false).copyWith(
-                                fontWeight: FontWeight.w300,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            Text(
-                              '个成就',
-                              style: AppTypography.captionStyle(isDark: false).copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  Space.h8,
+                  Text(
+                    '滑动查看成就，树会向上生长',
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -270,15 +249,13 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
             
             Space.h24,
             
-            // 成就列表 - 简化显示
-            ...unlockedAchievements.take(5).map((achievement) => 
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: AchievementCard(
-                  achievement: achievement, // 🔧 修复：传递实际achievement
-                  isCompact: true,
-                ),
-              ),
+            // 🚀 高性能成就树
+            AchievementTreeSimple(
+              achievements: achievements,
+              onAchievementTap: (achievement) {
+                HapticFeedback.lightImpact();
+                _showAchievementDetail(achievement);
+              },
             ),
           ],
         ),
@@ -383,6 +360,157 @@ class _AchievementScreenOptimizedState extends ConsumerState<AchievementScreenOp
           ),
         ),
       ],
+    );
+  }
+
+  /// 显示成就详情
+  void _showAchievementDetail(Achievement achievement) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundColor,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 成就图标
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  gradient: achievement.isUnlocked 
+                      ? AppColors.primaryGradient
+                      : null,
+                  color: achievement.isUnlocked 
+                      ? null 
+                      : AppColors.backgroundSecondary,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    achievement.emoji,
+                    style: TextStyle(
+                      fontSize: achievement.isUnlocked ? 36 : 28,
+                    ),
+                  ),
+                ),
+              ),
+              
+              Space.h16,
+              
+              // 成就标题
+              Text(
+                achievement.title,
+                style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              Space.h8,
+              
+              // 成就描述
+              Text(
+                achievement.description,
+                style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              Space.h16,
+              
+              // 进度或完成状态
+              if (achievement.isUnlocked) ...[ 
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4ECB71).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF4ECB71),
+                        size: 16,
+                      ),
+                      Space.w8,
+                      Text(
+                        '已完成 · ${achievement.points}积分',
+                        style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                          color: const Color(0xFF4ECB71),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                // 进度条
+                Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '进度',
+                          style: AppTypography.captionStyle(isDark: false).copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${(achievement.progress * 100).round()}%',
+                          style: AppTypography.captionStyle(isDark: false).copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Space.h8,
+                    LinearProgressIndicator(
+                      value: achievement.progress,
+                      backgroundColor: AppColors.backgroundSecondary,
+                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ],
+                ),
+              ],
+              
+              Space.h24,
+              
+              // 关闭按钮
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  '关闭',
+                  style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

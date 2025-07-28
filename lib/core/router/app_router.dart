@@ -23,6 +23,7 @@ import '../../features/achievement/presentation/pages/achievement_screen_optimiz
 import '../../features/food_map/presentation/pages/food_map_screen_optimized.dart';
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
+import '../../features/intimacy/presentation/pages/intimacy_screen.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -53,6 +54,7 @@ class AppRouter {
   static const String achievements = '/personal-center/achievements';
   static const String foodMap = '/food-map';
   static const String provinceDetail = '/food-map/province/:provinceId';
+  static const String intimacy = '/intimacy';
   static const String profile = '/profile';
   static const String settings = '/settings';
   
@@ -249,6 +251,18 @@ class AppRouter {
             transitionType: PageTransitionType.slideUp,
           );
         },
+      ),
+
+      // 亲密度系统路由 ⭐ 新功能
+      GoRoute(
+        path: intimacy,
+        name: 'intimacy',
+        builder: (context, state) => const IntimacyScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const IntimacyScreen(),
+          state: state,
+          transitionType: PageTransitionType.fade,
+        ),
       ),
 
       // 个人档案路由（保留兼容性）

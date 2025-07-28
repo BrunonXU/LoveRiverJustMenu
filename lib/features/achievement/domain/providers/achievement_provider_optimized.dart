@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/achievement.dart';
 
@@ -177,11 +178,11 @@ final userLevelProviderOptimized = Provider<Map<String, dynamic>>((ref) {
   final totalPoints = statistics['totalPoints'] as int;
   
   if (totalPoints >= 200) {
-    return {'level': '厨房新星', 'emoji': '⭐', 'color': const Color(0xFFC0C0C0)};
+    return {'level': '厨房新星', 'emoji': '⭐', 'color': Color(0xFFC0C0C0)};
   } else if (totalPoints >= 100) {
-    return {'level': '美食爱好者', 'emoji': '🍴', 'color': const Color(0xFFCD7F32)};
+    return {'level': '美食爱好者', 'emoji': '🍴', 'color': Color(0xFFCD7F32)};
   } else {
-    return {'level': '美食萌新', 'emoji': '🌱', 'color': const Color(0xFF90EE90)};
+    return {'level': '美食萌新', 'emoji': '🌱', 'color': Color(0xFF90EE90)};
   }
 });
 

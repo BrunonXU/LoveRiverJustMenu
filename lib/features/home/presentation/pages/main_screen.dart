@@ -300,6 +300,61 @@ class _MainScreenState extends ConsumerState<MainScreen>
           
           Space.w8,
           
+          // 亲密度按钮 ⭐ 新功能
+          BreathingWidget(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _navigateToIntimacy();
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.getBackgroundSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  // 特殊标识 - 新功能
+                  border: Border.all(
+                    color: Color(0xFFFF6B6B).withOpacity(0.5),
+                    width: 2,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Center(
+                      child: const Text(
+                        '💕',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                    ),
+                    // 新功能小红点
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFF6B6B),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          
+          Space.w8,
+          
           // 搜索按钮
           BreathingWidget(
             child: GestureDetector(
@@ -871,5 +926,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _navigateToFoodMap() {
     HapticFeedback.mediumImpact();
     context.push(AppRouter.foodMap);
+  }
+  
+  /// 导航到亲密度系统页面 ⭐ 新功能
+  void _navigateToIntimacy() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.intimacy);
   }
 }
