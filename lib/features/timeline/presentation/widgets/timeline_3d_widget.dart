@@ -39,13 +39,6 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       vsync: this,
     );
     
-    // 监听旋转动画值变化
-    _rotationController.addListener(() {
-      setState(() {
-        _rotationY = _rotationController.value * 2 * math.pi;
-      });
-    });
-    
     _breathingController = AnimationController(
       duration: const Duration(seconds: 4),
       vsync: this,
@@ -79,12 +72,21 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                 });
                 HapticFeedback.lightImpact();
               },
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(_rotationY)
-                  ..scale(_scale),
+              child: AnimatedBuilder(
+                animation: _rotationController,
+                builder: (context, child) {
+                  // 🔧 修复Web端渲染卡住：使用AnimatedBuilder而不是setState监听
+                  final currentRotationY = _rotationY + (_rotationController.value * 2 * math.pi);
+                  
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.001)
+                      ..rotateY(currentRotationY)
+                      ..scale(_scale),
+                    child: child!,
+                  );
+                },
                 child: Stack(
                   alignment: Alignment.center,
                   children: widget.memories.asMap().entries.map((entry) {

@@ -579,20 +579,38 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
       padding: AppSpacing.pagePadding,
       child: Column(
         children: [
-          // 食谱信息卡片
-          _buildRecipeInfo(isDark),
-          
-          Space.h24,
-          
-          // 步骤列表
+          // 🔧 修复布局比例：上框占30%高度（3:7比例）
           Expanded(
-            child: _buildStepsList(isDark),
+            flex: 3,
+            child: Column(
+              children: [
+                // 食谱信息卡片
+                Expanded(
+                  child: _buildRecipeInfo(isDark),
+                ),
+                
+                Space.h12, // 减少间距以适应新布局
+              ],
+            ),
           ),
           
-          Space.h24,
-          
-          // 底部操作栏
-          _buildBottomActions(isDark),
+          // 🔧 修复布局比例：下框占70%高度（3:7比例）
+          Expanded(
+            flex: 7,
+            child: Column(
+              children: [
+                // 步骤列表
+                Expanded(
+                  child: _buildStepsList(isDark),
+                ),
+                
+                Space.h12,
+                
+                // 底部操作栏 - 固定在底部
+                _buildBottomActions(isDark),
+              ],
+            ),
+          ),
         ],
       ),
     );

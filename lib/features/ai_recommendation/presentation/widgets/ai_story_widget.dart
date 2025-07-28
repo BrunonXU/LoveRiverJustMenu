@@ -85,19 +85,25 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
             // AI助手头部 - 极简设计
             _buildMinimalAIHeader(),
             
-            Space.h32,
+            Space.h16, // 🔧 优化：减少顶部空白，从32px减少到16px
             
-            // 故事卡片
+            // 故事卡片 - 🔧 优化：增加内容区域占比
             Expanded(
+              flex: 8, // 给内容更多空间
               child: _buildStoryCards(),
             ),
             
-            Space.h24,
-            
-            // 极简摇一摇按钮
-            _buildMinimalShakeButton(),
-            
-            Space.h48,
+            // 🔧 修复布局溢出：使用固定高度而非Expanded
+            Column(
+              children: [
+                Space.h16, // 减少间距
+                
+                // 极简摇一摇按钮
+                _buildMinimalShakeButton(),
+                
+                Space.h16, // 底部适当留白
+              ],
+            ),
           ],
         ),
       ),
