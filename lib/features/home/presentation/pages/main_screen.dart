@@ -330,6 +330,43 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ),
           
+          Space.w8,
+          
+          // 我的按钮 - 个人中心入口
+          BreathingWidget(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _navigateToPersonalCenter();
+              },
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    '我',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
           Space.w16,
           
           // 右侧时间区域
@@ -791,6 +828,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _navigateToSearch() {
     HapticFeedback.mediumImpact();
     context.push(AppRouter.search);
+  }
+  
+  /// 导航到个人中心页面
+  void _navigateToPersonalCenter() {
+    HapticFeedback.mediumImpact();
+    context.push(AppRouter.personalCenter);
   }
   
   /// 导航到食谱详情页面

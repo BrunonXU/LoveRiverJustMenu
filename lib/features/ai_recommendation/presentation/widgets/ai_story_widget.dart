@@ -93,15 +93,15 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
               child: _buildStoryCards(),
             ),
             
-            // 🔧 修复布局溢出：使用固定高度而非Expanded
+            // 🔧 修复132像素溢出：进一步压缩底部空间
             Column(
               children: [
-                Space.h16, // 减少间距
+                Space.h8, // 🔧 进一步减少间距从16到8
                 
                 // 极简摇一摇按钮
-                _buildMinimalShakeButton(),
+                _buildCompactShakeButton(), // 使用紧凑版本
                 
-                Space.h16, // 底部适当留白
+                Space.h8, // 🔧 减少底部空间
               ],
             ),
           ],
@@ -404,6 +404,65 @@ class _AIStoryWidgetState extends State<AIStoryWidget>
     );
   }
   
+  // 🔧 新增紧凑版摇一摇按钮，减少padding防止溢出
+  Widget _buildCompactShakeButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24), // 🔧 减少padding
+      child: AnimatedBuilder(
+        animation: _shakeAnimation,
+        builder: (context, child) {
+          return Transform.translate(
+            offset: Offset(_isShaking ? _shakeAnimation.value : 0, 0),
+            child: GestureDetector(
+              onTap: _shakeForNewRecommendation,
+              child: RepaintBoundary(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20, // 🔧 减少横向padding
+                    vertical: 12,   // 🔧 减少纵向padding
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(20), // 🔧 稍微减少圆角
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.refresh,
+                        size: 18, // 🔧 稍微减少图标大小
+                        color: AppColors.textPrimary,
+                      ),
+                      
+                      Space.w4, // 🔧 减少间距
+                      
+                      Text(
+                        '摇一摇换一个',
+                        style: AppTypography.captionStyle( // 🔧 使用更小的字体
+                          isDark: false,
+                        ).copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w300,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildMinimalShakeButton() {
     return Padding(
       padding: AppSpacing.pagePadding,

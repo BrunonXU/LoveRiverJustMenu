@@ -126,53 +126,75 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
       ),
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: SingleChildScrollView(
-          padding: AppSpacing.pagePadding,
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 挑战状态卡片
-              _buildStatusCard(),
+              // 🔧 修复溢出：使用Expanded包装可滚动内容
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: AppSpacing.pagePadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 挑战状态卡片
+                      _buildStatusCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 菜谱信息卡片
+                      _buildRecipeCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 挑战消息
+                      _buildMessageCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 进度追踪
+                      _buildProgressCard(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 时间信息
+                      _buildTimelineCard(),
+                      
+                      // 完成相关操作
+                      if (_shouldShowCompletionSection()) ...[ 
+                        const SizedBox(height: 24),
+                        _buildCompletionSection(),
+                      ],
+                      
+                      // 评分相关操作
+                      if (_shouldShowRatingSection()) ...[ 
+                        const SizedBox(height: 24),
+                        _buildRatingSection(),
+                      ],
+                      
+                      // 底部留白，确保按钮不被遮挡
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
               
-              const SizedBox(height: 24),
-              
-              // 菜谱信息卡片
-              _buildRecipeCard(),
-              
-              const SizedBox(height: 24),
-              
-              // 挑战消息
-              _buildMessageCard(),
-              
-              const SizedBox(height: 24),
-              
-              // 进度追踪
-              _buildProgressCard(),
-              
-              const SizedBox(height: 24),
-              
-              // 时间信息
-              _buildTimelineCard(),
-              
-              // 完成相关操作
-              if (_shouldShowCompletionSection()) ...[ 
-                const SizedBox(height: 24),
-                _buildCompletionSection(),
-              ],
-              
-              // 评分相关操作
-              if (_shouldShowRatingSection()) ...[ 
-                const SizedBox(height: 24),
-                _buildRatingSection(),
-              ],
-              
-              // 操作按钮
-              if (_shouldShowActionButtons()) ...[ 
-                const SizedBox(height: 32),
-                _buildActionButtons(),
-              ],
-              
-              const SizedBox(height: 24),
+              // 🔧 修复溢出：将操作按钮固定在底部
+              if (_shouldShowActionButtons())
+                Container(
+                  padding: EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: _buildActionButtons(),
+                ),
             ],
           ),
         ),
@@ -301,10 +323,10 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Row(
             children: [
-              // 菜谱图标
+              // 菜谱图标 - 🔧 减小尺寸以适应小屏幕
               Container(
-                width: 80,
-                height: 80,
+                width: 60, // 从80减少到60
+                height: 60,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF5B6FED), Color(0xFF8B9BF3)],
@@ -313,20 +335,20 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                   boxShadow: [
                     BoxShadow(
                       color: Color(0xFF5B6FED).withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      blurRadius: 12, // 减小阴影
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
                 child: Center(
                   child: Text(
                     _challenge.recipeIcon,
-                    style: const TextStyle(fontSize: 32),
+                    style: const TextStyle(fontSize: 24), // 减小图标
                   ),
                 ),
               ),
               
-              const SizedBox(width: 20),
+              const SizedBox(width: 16), // 减少间距
               
               // 菜谱信息
               Expanded(
@@ -335,19 +357,23 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
                   children: [
                     Text(
                       _challenge.recipeName,
-                      style: AppTypography.titleLargeStyle(isDark: false).copyWith(
+                      style: AppTypography.titleMediumStyle(isDark: false).copyWith( // 减小字体
                         fontWeight: FontWeight.w300,
                       ),
+                      maxLines: 2, // 限制行数防止溢出
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    Row(
+                    // 🔧 修复溢出：使用Wrap替代Row以支持换行
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         _buildInfoChip(
                           icon: Icons.timer,
                           text: '${_challenge.estimatedTime}分钟',
                           color: Color(0xFF5B6FED),
                         ),
-                        const SizedBox(width: 12),
                         _buildInfoChip(
                           icon: Icons.star,
                           text: _challenge.difficultyText,
@@ -436,11 +462,19 @@ class _ChallengeDetailScreenState extends State<ChallengeDetailScreen>
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              _challenge.message,
-              style: AppTypography.bodyLargeStyle(isDark: false).copyWith(
-                height: 1.5,
-                fontStyle: FontStyle.italic,
+            // 🔧 修复溢出：使用灵活布局的Text组件
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: 120, // 限制最大高度
+              ),
+              child: SingleChildScrollView(
+                child: Text(
+                  _challenge.message,
+                  style: AppTypography.bodyMediumStyle(isDark: false).copyWith( // 减小字体
+                    height: 1.4, // 减小行高
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
               ),
             ),
           ],

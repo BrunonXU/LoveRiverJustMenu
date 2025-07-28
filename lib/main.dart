@@ -7,12 +7,22 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'core/themes/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/utils/performance_monitor.dart';
+import 'features/recipe/domain/models/recipe.dart';
+import 'features/recipe/data/repositories/recipe_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // 初始化Hive本地存储
   await Hive.initFlutter();
+  
+  // 🔧 注册Hive适配器（修复数据库保存bug）
+  Hive.registerAdapter(RecipeAdapter());
+  Hive.registerAdapter(RecipeStepAdapter());
+  
+  // 初始化菜谱数据仓库
+  final recipeRepository = RecipeRepository();
+  await recipeRepository.initialize();
   
   // 设置系统UI样式 - 遵循极简设计
   SystemChrome.setSystemUIOverlayStyle(

@@ -49,7 +49,7 @@ class _ChristmasSnowEffectState extends State<ChristmasSnowEffect>
       vsync: this,
     );
     
-    _snowController.addListener(_updateSnow);
+    // 🔧 修复Web端渲染卡住：移除addListener，使用AnimatedBuilder替代
     _snowController.repeat();
   }
   
@@ -70,27 +70,7 @@ class _ChristmasSnowEffectState extends State<ChristmasSnowEffect>
     });
   }
   
-  void _updateSnow() {
-    if (!mounted) return;
-    
-    setState(() {
-      // 更新雪花位置
-      for (final snowflake in _snowflakes) {
-        snowflake.update();
-        
-        // 重置超出屏幕的雪花
-        if (snowflake.y > 1.2) {
-          snowflake.reset();
-        }
-      }
-      
-      // 更新点击特效
-      _clickEffects.removeWhere((effect) => !effect.isAlive);
-      for (final effect in _clickEffects) {
-        effect.update();
-      }
-    });
-  }
+  // 🔧 移除_updateSnow方法，改用AnimatedBuilder直接更新
   
   void _addClickEffect(Offset position, Size screenSize) {
     if (!widget.enableClickEffect) return;
@@ -144,14 +124,35 @@ class _ChristmasSnowEffectState extends State<ChristmasSnowEffect>
             ),
           ),
           
-          // 雪花层
-          CustomPaint(
-            painter: SnowPainter(
-              snowflakes: _snowflakes,
-              clickEffects: _clickEffects,
-              clickEffectColor: widget.clickEffectColor,
-            ),
-            size: Size.infinite,
+          // 雪花层 - 🔧 修复Web端渲染：使用AnimatedBuilder
+          AnimatedBuilder(
+            animation: _snowController,
+            builder: (context, child) {
+              // 在渲染时更新雪花位置，而不是在setState中
+              for (final snowflake in _snowflakes) {
+                snowflake.update();
+                
+                // 重置超出屏幕的雪花
+                if (snowflake.y > 1.2) {
+                  snowflake.reset();
+                }
+              }
+              
+              // 更新点击特效
+              _clickEffects.removeWhere((effect) => !effect.isAlive);
+              for (final effect in _clickEffects) {
+                effect.update();
+              }
+              
+              return CustomPaint(
+                painter: SnowPainter(
+                  snowflakes: _snowflakes,
+                  clickEffects: _clickEffects,
+                  clickEffectColor: widget.clickEffectColor,
+                ),
+                size: Size.infinite,
+              );
+            },
           ),
           
           // 原始内容

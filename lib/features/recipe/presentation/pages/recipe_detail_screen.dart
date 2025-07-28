@@ -11,6 +11,8 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../cooking_mode/presentation/pages/cooking_mode_screen.dart';
+import '../../domain/models/recipe.dart';
+import '../../data/repositories/recipe_repository.dart';
 
 /// 食谱详情页面
 /// 支持修改步骤、时长记录、每步骤图片上传
@@ -31,8 +33,8 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   bool _isEditing = false;
   int _currentStepIndex = 0;
   
-  // 示例食谱数据
-  late RecipeData _recipeData;
+  // 🔧 修复：使用新的Recipe模型
+  Recipe? _recipe;
   
   @override
   void initState() {
@@ -62,11 +64,37 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   }
   
   void _loadRecipeData() {
-    // 根据ID加载对应食谱数据
-    _recipeData = _getRecipeDataById(widget.recipeId);
+    // 🔧 修复：从数据库加载真实菜谱数据
+    final repository = ref.read(recipeRepositoryProvider);
+    final recipe = repository.getRecipe(widget.recipeId);
+    
+    if (recipe != null) {
+      setState(() {
+        _recipe = recipe;
+      });
+    } else {
+      // 如果找不到菜谱，显示错误或使用示例数据
+      setState(() {
+        _recipe = _getFallbackRecipeData(widget.recipeId);
+      });
+    }
   }
   
-  RecipeData _getRecipeDataById(String recipeId) {
+  // 解析图标类型字符串为枚举
+  AppIcon3DType _parseIconType(String? iconType) {
+    if (iconType == null) return AppIcon3DType.heart;
+    
+    try {
+      return AppIcon3DType.values.firstWhere(
+        (type) => type.toString() == iconType,
+        orElse: () => AppIcon3DType.heart,
+      );
+    } catch (e) {
+      return AppIcon3DType.heart;
+    }
+  }
+  
+  Recipe _getFallbackRecipeData(String recipeId) {
     final recipes = {
       'recipe_1': RecipeData(
         id: 'recipe_1',
@@ -461,7 +489,28 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
       ),
     };
     
-    return recipes[recipeId] ?? recipes['recipe_1']!;
+    // 转换旧数据结构为新Recipe模型
+    final fallbackData = recipes[recipeId] ?? recipes['recipe_1']!;
+    return Recipe(
+      id: fallbackData.id,
+      name: fallbackData.name,
+      description: fallbackData.description,
+      iconType: fallbackData.iconType.toString(),
+      totalTime: fallbackData.totalTime,
+      difficulty: fallbackData.difficulty,
+      servings: fallbackData.servings,
+      steps: fallbackData.steps.map((step) => RecipeStep(
+        title: step.title,
+        description: step.description,
+        duration: step.duration,
+        tips: step.tips,
+        imagePath: null,
+        ingredients: [],
+      )).toList(),
+      createdBy: 'system',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
   }
 
   @override
@@ -530,7 +579,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
           
           // 标题
           Text(
-            _recipeData.name,
+            _recipe?.name ?? '加载中...',
             style: AppTypography.titleLargeStyle(isDark: isDark),
           ),
           
@@ -575,43 +624,59 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   }
   
   Widget _buildMainContent(bool isDark) {
-    return Padding(
-      padding: AppSpacing.pagePadding,
-      child: Column(
-        children: [
-          // 🔧 修复布局比例：上框占30%高度（3:7比例）
-          Expanded(
-            flex: 3,
-            child: Column(
-              children: [
-                // 食谱信息卡片
-                Expanded(
-                  child: _buildRecipeInfo(isDark),
-                ),
-                
-                Space.h12, // 减少间距以适应新布局
-              ],
+    return Expanded(
+      child: Padding(
+        padding: AppSpacing.pagePadding,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔧 修复溢出：左侧菜品介绍区域（占40%宽度）- 移除固定高度
+            Expanded(
+              flex: 4,
+              child: Column(
+                children: [
+                  // 食谱信息卡片 - 使用Flexible替代固定高度
+                  Flexible(
+                    flex: 3,
+                    child: _buildRecipeInfo(isDark),
+                  ),
+                  
+                  Space.h16,
+                  
+                  // 底部操作栏 - 固定在底部
+                  _buildBottomActions(isDark),
+                ],
+              ),
             ),
-          ),
-          
-          // 🔧 修复布局比例：下框占70%高度（3:7比例）
-          Expanded(
-            flex: 7,
-            child: Column(
-              children: [
-                // 步骤列表
-                Expanded(
-                  child: _buildStepsList(isDark),
-                ),
-                
-                Space.h12,
-                
-                // 底部操作栏 - 固定在底部
-                _buildBottomActions(isDark),
-              ],
+            
+            Space.w16, // 左右间距
+            
+            // 🔧 修复溢出：右侧步骤区域（占60%宽度）- 移除固定高度
+            Expanded(
+              flex: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 步骤标题
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Text(
+                      '制作步骤',
+                      style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                        fontWeight: AppTypography.medium,
+                      ),
+                    ),
+                  ),
+                  
+                  // 可滚动步骤列表 - 使用Expanded确保占满剩余空间
+                  Expanded(
+                    child: _buildScrollableSteps(isDark),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -621,47 +686,74 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
       child: MinimalCard(
         child: Column(
           children: [
-            // 3D图标
-            AppIcon3D(
-              type: _recipeData.iconType,
-              size: 80,
-              isAnimated: true,
-            ),
-            
-            Space.h16,
-            
-            // 食谱信息
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildInfoItem(
-                  icon: Icons.access_time,
-                  label: '总时长',
-                  value: '${_recipeData.totalTime}分钟',
-                  isDark: isDark,
+            // 🔧 修复溢出：使用Expanded包装ScrollView确保不溢出
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Space.h16, // 顶部留白
+                    
+                    // 🔧 压缩图标大小以节省空间
+                    AppIcon3D(
+                      type: _parseIconType(_recipe?.iconType),
+                      size: 50, // 进一步减少到50
+                      isAnimated: true,
+                    ),
+                    
+                    Space.h12,
+                    
+                    // 食谱名称
+                    Text(
+                      _recipe?.name ?? '加载中...',
+                      style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                        fontWeight: AppTypography.medium,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    Space.h16,
+                    
+                    // 食谱信息 - 🔧 使用更紧凑的布局
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildCompactInfoItem(
+                          icon: Icons.access_time,
+                          label: '${_recipe?.totalTime ?? 0}分钟',
+                          isDark: isDark,
+                        ),
+                        _buildCompactInfoItem(
+                          icon: Icons.signal_cellular_alt,
+                          label: _recipe?.difficulty ?? '未知',
+                          isDark: isDark,
+                        ),
+                        _buildCompactInfoItem(
+                          icon: Icons.people,
+                          label: '${_recipe?.servings ?? 1}人份',
+                          isDark: isDark,
+                        ),
+                      ],
+                    ),
+                    
+                    Space.h16,
+                    
+                    // 描述 - 🔧 限制行数以控制高度
+                    Text(
+                      _recipe?.description ?? '暂无描述',
+                      style: AppTypography.bodySmallStyle(isDark: isDark),
+                      textAlign: TextAlign.center,
+                      maxLines: 3, // 增加到3行以适应内容
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    Space.h16, // 底部留白
+                  ],
                 ),
-                _buildInfoItem(
-                  icon: Icons.signal_cellular_alt,
-                  label: '难度',
-                  value: _recipeData.difficulty,
-                  isDark: isDark,
-                ),
-                _buildInfoItem(
-                  icon: Icons.people,
-                  label: '份量',
-                  value: '${_recipeData.servings}人份',
-                  isDark: isDark,
-                ),
-              ],
-            ),
-            
-            Space.h16,
-            
-            // 描述
-            Text(
-              _recipeData.description,
-              style: AppTypography.bodyMediumStyle(isDark: isDark),
-              textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
@@ -669,6 +761,33 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     );
   }
   
+  // 🔧 新增紧凑信息项方法，节省空间
+  Widget _buildCompactInfoItem({
+    required IconData icon,
+    required String label,
+    required bool isDark,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 16, // 更小的图标
+          color: AppColors.getTextSecondaryColor(isDark),
+        ),
+        
+        Space.w4,
+        
+        Text(
+          label,
+          style: AppTypography.captionStyle(isDark: isDark).copyWith(
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoItem({
     required IconData icon,
     required String label,
@@ -704,9 +823,9 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   
   Widget _buildStepsList(bool isDark) {
     return ListView.builder(
-      itemCount: _recipeData.steps.length,
+      itemCount: _recipe?.steps.length ?? 0,
       itemBuilder: (context, index) {
-        final step = _recipeData.steps[index];
+        final step = _recipe!.steps[index];
         final isActive = index == _currentStepIndex;
         
         return Padding(
@@ -717,6 +836,173 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     );
   }
   
+  /// 🔧 新增：右侧可滚动步骤列表
+  Widget _buildScrollableSteps(bool isDark) {
+    if (_recipe == null || _recipe!.steps.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long,
+              size: 48,
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+            Space.h12,
+            Text(
+              '暂无制作步骤',
+              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return BreathingWidget(
+      child: MinimalCard(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: ListView.builder(
+          physics: const BouncingScrollPhysics(),
+          itemCount: _recipe!.steps.length,
+          itemBuilder: (context, index) {
+            final step = _recipe!.steps[index];
+            final isActive = index == _currentStepIndex;
+            
+            return Padding(
+              padding: EdgeInsets.only(bottom: AppSpacing.md),
+              child: _buildCompactStepCard(step, index + 1, isActive, isDark),
+            );
+          },
+        ),
+      ),
+    );
+  }
+  
+  /// 🔧 新增：紧凑的步骤卡片（用于右侧滚动区域）
+  Widget _buildCompactStepCard(RecipeStep step, int stepNumber, bool isActive, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        setState(() {
+          _currentStepIndex = stepNumber - 1;
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive 
+            ? AppColors.primary.withOpacity(0.1)
+            : AppColors.getBackgroundSecondaryColor(isDark),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+          border: isActive 
+            ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
+            : null,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 步骤编号
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  gradient: isActive ? AppColors.primaryGradient : null,
+                  color: isActive ? null : AppColors.getTextSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    stepNumber.toString(),
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      color: Colors.white,
+                      fontWeight: AppTypography.medium,
+                    ),
+                  ),
+                ),
+              ),
+              
+              Space.w12,
+              
+              // 步骤内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 步骤标题
+                    if (step.title.isNotEmpty) ...[
+                      Text(
+                        step.title,
+                        style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                          fontWeight: AppTypography.medium,
+                          color: isActive 
+                            ? AppColors.primary 
+                            : AppColors.getTextPrimaryColor(isDark),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Space.h4,
+                    ],
+                    
+                    // 步骤描述
+                    Text(
+                      step.description,
+                      style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                        color: AppColors.getTextSecondaryColor(isDark),
+                        height: 1.4,
+                      ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    Space.h8,
+                    
+                    // 步骤信息行
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.timer,
+                          size: 14,
+                          color: AppColors.getTextSecondaryColor(isDark),
+                        ),
+                        Space.w4,
+                        Text(
+                          '${step.duration}分钟',
+                          style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                            color: AppColors.getTextSecondaryColor(isDark),
+                          ),
+                        ),
+                        
+                        if (step.tips?.isNotEmpty == true) ...[
+                          Space.w16,
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 14,
+                            color: Color(0xFFFFE66D),
+                          ),
+                          Space.w4,
+                          Text(
+                            '有小贴士',
+                            style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                              color: Color(0xFFFFE66D),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStepCard(RecipeStep step, int stepNumber, bool isActive, bool isDark) {
     return GestureDetector(
       onTap: () {
@@ -800,7 +1086,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
               style: AppTypography.bodyMediumStyle(isDark: isDark),
             ),
             
-            if (step.tips.isNotEmpty) ...[
+            if (step.tips?.isNotEmpty == true) ...[
               Space.h8,
               
               // 小贴士
@@ -822,7 +1108,7 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
                     
                     Expanded(
                       child: Text(
-                        step.tips,
+                        step.tips ?? '',
                         style: AppTypography.captionStyle(isDark: isDark).copyWith(
                           color: AppColors.getTimeBasedAccent(),
                         ),
@@ -834,9 +1120,9 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
             ],
             
             // 步骤图片
-            if (step.images.isNotEmpty) ...[
+            if (step.imagePath != null) ...[
               Space.h12,
-              _buildStepImages(step.images, isDark),
+              _buildStepImage(step.imagePath!, isDark),
             ],
           ],
         ),
@@ -866,55 +1152,30 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     );
   }
   
-  Widget _buildStepImages(List<String> images, bool isDark) {
-    return SizedBox(
-      height: 80,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length + (_isEditing ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (_isEditing && index == images.length) {
-            // 添加图片按钮
-            return Padding(
-              padding: EdgeInsets.only(right: AppSpacing.sm),
-              child: GestureDetector(
-                onTap: () => _addStepImage(_currentStepIndex),
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                    border: Border.all(
-                      color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
-                      style: BorderStyle.solid,
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.add_a_photo,
-                    color: AppColors.getTextSecondaryColor(isDark),
-                    size: 24,
-                  ),
-                ),
-              ),
-            );
-          }
-          
-          return Padding(
-            padding: EdgeInsets.only(right: AppSpacing.sm),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-              child: Container(
-                width: 80,
-                height: 80,
-                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
-                child: const Icon(Icons.image, color: Colors.grey),
-              ),
-            ),
-          );
-        },
+  Widget _buildStepImage(String imagePath, bool isDark) {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+        image: DecorationImage(
+          image: FileImage(File(imagePath)),
+          fit: BoxFit.cover,
+          onError: (exception, stackTrace) {
+            // 图片加载失败时的处理
+          },
+        ),
       ),
+      child: imagePath.isEmpty 
+        ? Center(
+            child: Icon(
+              Icons.image_outlined,
+              size: 48,
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+          )
+        : null,
     );
   }
   
@@ -992,14 +1253,10 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   void _addStepImage(int stepIndex) {
     HapticFeedback.lightImpact();
     
-    // 模拟图片上传成功
-    setState(() {
-      _recipeData.steps[stepIndex].images.add('image_${DateTime.now().millisecondsSinceEpoch}');
-    });
-    
+    // TODO: 集成图片选择器
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('图片添加成功！'),
+        content: Text('图片上传功能待完善'),
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 1),
       ),
@@ -1009,27 +1266,16 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   void _editStep(int stepIndex) {
     HapticFeedback.lightImpact();
     
-    final step = _recipeData.steps[stepIndex];
+    if (_recipe == null) return;
     
-    // 显示编辑对话框
-    showDialog(
-      context: context,
-      builder: (context) => EditStepDialog(
-        step: step,
-        stepNumber: stepIndex + 1,
-        onSave: (updatedStep) {
-          setState(() {
-            _recipeData.steps[stepIndex] = updatedStep;
-          });
-          
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('步骤更新成功！'),
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        },
+    final step = _recipe!.steps[stepIndex];
+    
+    // TODO: 实现步骤编辑对话框
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('步骤编辑功能待完善'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
       ),
     );
   }
@@ -1078,38 +1324,10 @@ class RecipeData {
   });
 }
 
-class RecipeStep {
-  String title;
-  String description;
-  int duration;
-  String tips;
-  List<String> images;
-  
-  RecipeStep({
-    required this.title,
-    required this.description,
-    required this.duration,
-    this.tips = '',
-    List<String>? images,
-  }) : images = images ?? [];
-  
-  RecipeStep copyWith({
-    String? title,
-    String? description,
-    int? duration,
-    String? tips,
-    List<String>? images,
-  }) {
-    return RecipeStep(
-      title: title ?? this.title,
-      description: description ?? this.description,
-      duration: duration ?? this.duration,
-      tips: tips ?? this.tips,
-      images: images ?? this.images,
-    );
-  }
-}
+// 旧的RecipeStep类已删除，使用域模型中的Recipe和RecipeStep
 
+// TODO: 重新实现EditStepDialog使用新的RecipeStep模型
+/*
 /// 编辑步骤对话框
 class EditStepDialog extends StatefulWidget {
   final RecipeStep step;
@@ -1478,7 +1696,8 @@ class _EditStepDialogState extends State<EditStepDialog> {
       tips: _tipsController.text,
     );
     
-    widget.onSave(updatedStep);
+    // widget.onSave(updatedStep);
     Navigator.of(context).pop();
   }
 }
+*/

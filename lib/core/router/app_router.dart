@@ -17,6 +17,8 @@ import '../../features/challenge/presentation/pages/challenge_detail_screen.dart
 import '../../features/timeline/presentation/pages/memory_detail_screen.dart';
 import '../../features/timeline/domain/models/memory.dart';
 import '../../features/challenge/domain/models/challenge.dart';
+import '../../features/profile/presentation/pages/personal_center_screen.dart';
+import '../../features/profile/presentation/pages/my_recipes_screen.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -42,6 +44,8 @@ class AppRouter {
   static const String challengeSend = '/challenge/send';
   static const String challengeDetail = '/challenge/:id';
   static const String memoryDetail = '/memory/:id';
+  static const String personalCenter = '/personal-center';
+  static const String myRecipes = '/personal-center/my-recipes';
   static const String profile = '/profile';
   static const String settings = '/settings';
   
@@ -173,6 +177,30 @@ class AppRouter {
       ),
       
       // 个人中心路由
+      GoRoute(
+        path: personalCenter,
+        name: 'personal-center',
+        builder: (context, state) => const PersonalCenterScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PersonalCenterScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideRight,
+        ),
+      ),
+
+      // 我的菜谱路由
+      GoRoute(
+        path: myRecipes,
+        name: 'my-recipes',
+        builder: (context, state) => const MyRecipesScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const MyRecipesScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+
+      // 个人档案路由（保留兼容性）
       GoRoute(
         path: profile,
         name: 'profile',

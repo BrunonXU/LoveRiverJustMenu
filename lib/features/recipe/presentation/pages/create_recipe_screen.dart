@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:ui';
+import 'dart:io';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
@@ -11,6 +12,8 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../core/utils/image_picker_helper.dart';
+import '../../domain/models/recipe.dart';
+import '../../data/repositories/recipe_repository.dart';
 
 /// 创建食谱页面
 /// 支持添加步骤、设置时长、上传图片的完整创建流程
@@ -45,6 +48,10 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   // 页面状态
   bool _isBasicInfoComplete = false;
   int _currentStepIndex = 0;
+  final PageController _stepPageController = PageController();
+  
+  // 🔥 步骤控制器管理 - 为每个步骤创建独立的文本控制器
+  final List<Map<String, TextEditingController>> _stepControllers = [];
   
   @override
   void initState() {
@@ -60,6 +67,11 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
     _descriptionController.dispose();
     _servingsController.dispose();
     _scrollController.dispose();
+    _stepPageController.dispose();
+    for (var controllers in _stepControllers) {
+      controllers['title']?.dispose();
+      controllers['description']?.dispose();
+    }
     super.dispose();
   }
   
@@ -207,19 +219,154 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   }
   
   Widget _buildMainContent(bool isDark) {
-    return Container(
-      margin: EdgeInsets.only(
-        top: 80, // AppBar高度
-        left: AppSpacing.md, // 减少边距
-        right: AppSpacing.md,
-        bottom: 0,
+    return Expanded(
+      child: Container(
+        margin: EdgeInsets.only(
+          top: 80, // AppBar高度
+          left: AppSpacing.md,
+          right: AppSpacing.md,
+          bottom: 0,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔧 修复溢出：左侧基本信息区域（占40%宽度）- 移除固定高度
+            Expanded(
+              flex: 4,
+              child: _buildBasicInfoPanel(isDark),
+            ),
+            
+            Space.w16, // 左右间距
+            
+            // 🔧 修复溢出：右侧步骤编辑区域（占60%宽度）- 移除固定高度
+            Expanded(
+              flex: 6,
+              child: _buildStepsPanel(isDark),
+            ),
+          ],
+        ),
       ),
-      child: !_isBasicInfoComplete 
-          ? _buildBasicInfoStep(isDark)
-          : _buildStepsEditingMode(isDark),
     );
   }
   
+  /// 🔧 新增：左侧基本信息面板
+  Widget _buildBasicInfoPanel(bool isDark) {
+    return BreathingWidget(
+      child: MinimalCard(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 面板标题
+            Text(
+              '基本信息',
+              style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                fontWeight: AppTypography.medium,
+              ),
+            ),
+            
+            Space.h24,
+            
+            // 内容区域 - 可滚动
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 食谱图标选择
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            '选择图标',
+                            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                              color: AppColors.getTextSecondaryColor(isDark),
+                            ),
+                          ),
+                          Space.h12,
+                          _buildCompactIconSelector(isDark),
+                        ],
+                      ),
+                    ),
+                    
+                    Space.h24,
+                    
+                    // 食谱名称
+                    _buildCompactTextField(
+                      label: '菜谱名称',
+                      controller: _nameController,
+                      hintText: '给菜谱起个名字...',
+                      isDark: isDark,
+                    ),
+                    
+                    Space.h16,
+                    
+                    // 食谱描述
+                    _buildCompactTextField(
+                      label: '菜谱描述',  
+                      controller: _descriptionController,
+                      hintText: '简单描述一下这道菜...',
+                      maxLines: 3,
+                      isDark: isDark,
+                    ),
+                    
+                    Space.h16,
+                    
+                    // 份数和难度
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildCompactTextField(
+                            label: '份数',
+                            controller: _servingsController,
+                            hintText: '几人份',
+                            keyboardType: TextInputType.number,
+                            isDark: isDark,
+                          ),
+                        ),
+                        Space.w12,
+                        Expanded(
+                          child: _buildCompactDifficultySelector(isDark),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 🔥 完全重构：与烹饪模式对齐的步骤编辑面板
+  /// 一次只显示一个步骤，占满整个页面，格式与烹饪模式完全一致
+  Widget _buildStepsPanel(bool isDark) {
+    return BreathingWidget(
+      child: MinimalCard(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔧 缩小标题区域，优化空间利用
+            _buildStepsHeader(isDark),
+            
+            Space.h12, // 减少间距
+            
+            // 🔥 全屏步骤编辑界面 - 与烹饪模式格式完全一致
+            Expanded(
+              child: _steps.isEmpty
+                  ? _buildFirstStepCreator(isDark)
+                  : _buildCookingModeStepEditor(isDark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildBasicInfoStep(bool isDark) {
     return SingleChildScrollView(
       padding: EdgeInsets.only(bottom: 100), // 底部留空避免被操作栏遮挡
@@ -1081,10 +1228,35 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
     });
   }
   
-  void _removeStep(int index) {
+  void _addNewStep() {
     HapticFeedback.lightImpact();
     setState(() {
-      _steps.removeAt(index);
+      // 添加新步骤
+      _steps.add(CreateRecipeStep(
+        title: '',
+        description: '',
+        duration: 5,
+        tips: '',
+      ));
+      
+      // 🔥 为新步骤创建控制器
+      _stepControllers.add({
+        'title': TextEditingController(),
+        'description': TextEditingController(),
+      });
+      
+      _currentStepIndex = _steps.length - 1;
+    });
+    
+    // 🔥 自动导航到新步骤（延迟执行避免构建冲突）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_stepPageController.hasClients) {
+        _stepPageController.animateToPage(
+          _currentStepIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
     });
   }
   
@@ -1141,30 +1313,956 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
     });
   }
   
-  void _saveRecipe() {
-    HapticFeedback.mediumImpact();
+  void _removeStep(int index) {
+    HapticFeedback.lightImpact();
     
-    // TODO: 实现保存到数据库
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('食谱 "${_nameController.text}" 创建成功！'),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: '查看',
-          onPressed: () {
-            // 导航到食谱详情页面
-            context.pop();
+    if (index < 0 || index >= _steps.length) return;
+    
+    setState(() {
+      // 🔥 移除步骤和对应的控制器
+      _steps.removeAt(index);
+      
+      // 销毁对应的控制器
+      if (index < _stepControllers.length) {
+        _stepControllers[index]['title']?.dispose();
+        _stepControllers[index]['description']?.dispose();
+        _stepControllers.removeAt(index);
+      }
+      
+      // 调整当前步骤索引
+      if (_currentStepIndex >= _steps.length && _steps.isNotEmpty) {
+        _currentStepIndex = _steps.length - 1;
+      } else if (_steps.isEmpty) {
+        _currentStepIndex = 0;
+      }
+    });
+    
+    // 🔥 导航到正确的步骤页面
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_stepPageController.hasClients && _steps.isNotEmpty) {
+        _stepPageController.animateToPage(
+          _currentStepIndex,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+  
+  // ==================== 新的横向布局辅助方法 ====================
+  
+  /// 紧凑的图标选择器
+  Widget _buildCompactIconSelector(bool isDark) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: AppIcon3DType.values.map((iconType) {
+        final isSelected = _selectedIconType == iconType;
+        return GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            setState(() {
+              _selectedIconType = iconType;
+            });
           },
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: isSelected ? AppColors.primaryGradient : null,
+              color: isSelected ? null : AppColors.getBackgroundSecondaryColor(isDark),
+              borderRadius: BorderRadius.circular(20),
+              border: isSelected 
+                ? null 
+                : Border.all(color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3)),
+            ),
+            child: AppIcon3D(
+              type: iconType,
+              size: 24,
+              isAnimated: false,
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
+  /// 紧凑的文本输入框
+  Widget _buildCompactTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    required bool isDark,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextSecondaryColor(isDark),
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        Space.h8,
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            hintText: hintText,
+            hintStyle: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+              borderSide: BorderSide(
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+            contentPadding: EdgeInsets.all(AppSpacing.md),
+            filled: true,
+            fillColor: AppColors.getBackgroundSecondaryColor(isDark),
+          ),
+          style: AppTypography.bodySmallStyle(isDark: isDark),
+        ),
+      ],
+    );
+  }
+  
+  /// 紧凑的难度选择器
+  Widget _buildCompactDifficultySelector(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '难度',
+          style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextSecondaryColor(isDark),
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        Space.h8,
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.getBackgroundSecondaryColor(isDark),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+            border: Border.all(
+              color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedDifficulty,
+              isExpanded: true,
+              style: AppTypography.bodySmallStyle(isDark: isDark),
+              items: _difficultyLevels.map((String difficulty) {
+                return DropdownMenuItem<String>(
+                  value: difficulty,
+                  child: Text(difficulty),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _selectedDifficulty = newValue;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// 空步骤状态
+  Widget _buildEmptyStepsState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long,
+            size: 48,
+            color: AppColors.getTextSecondaryColor(isDark),
+          ),
+          Space.h12,
+          Text(
+            '还没有添加步骤',
+            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+          ),
+          Space.h8,
+          Text(
+            '点击上方"添加步骤"开始创建',
+            style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 紧凑的步骤卡片
+  Widget _buildCompactStepCard(
+    CreateRecipeStep step,
+    int stepNumber,
+    bool isActive,
+    bool isDark, {
+    required VoidCallback onTap,
+    required VoidCallback onDelete,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isActive 
+            ? AppColors.primary.withOpacity(0.1)
+            : AppColors.getBackgroundSecondaryColor(isDark),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+          border: isActive 
+            ? Border.all(color: AppColors.primary.withOpacity(0.3))
+            : null,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.sm),
+          child: Row(
+            children: [
+              // 步骤编号
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  gradient: isActive ? AppColors.primaryGradient : null,
+                  color: isActive ? null : AppColors.getTextSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    stepNumber.toString(),
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      color: Colors.white,
+                      fontWeight: AppTypography.medium,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+              
+              Space.w8,
+              
+              // 步骤内容
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (step.title.isNotEmpty) ...[
+                      Text(
+                        step.title,
+                        style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                          fontWeight: AppTypography.medium,
+                          color: AppColors.getTextPrimaryColor(isDark),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    Text(
+                      step.description.isEmpty ? '空步骤' : step.description,
+                      style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                        color: AppColors.getTextSecondaryColor(isDark),
+                        fontSize: 10,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              
+              // 删除按钮
+              GestureDetector(
+                onTap: onDelete,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 12,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _saveRecipe() async {
+    HapticFeedback.mediumImpact();
     
-    // 延迟返回主页
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        context.pop();
+    try {
+      // 🔧 修复bug：真正保存到数据库
+      final repository = ref.read(recipeRepositoryProvider);
+      
+      // 生成唯一ID
+      final recipeId = DateTime.now().millisecondsSinceEpoch.toString();
+      
+      // 转换步骤数据
+      final List<RecipeStep> recipeSteps = [];
+      for (int i = 0; i < _steps.length; i++) {
+        final createStep = _steps[i];
+        
+        // 处理步骤图片
+        String? stepImagePath;
+        if (createStep.imageUrls.isNotEmpty) {
+          // 假设imageUrls[0]是文件路径，需要保存到应用目录
+          final imageFile = File(createStep.imageUrls[0]);
+          if (await imageFile.exists()) {
+            stepImagePath = await repository.saveImageFile(
+              imageFile, 
+              recipeId, 
+              stepId: i.toString()
+            );
+          }
+        }
+        
+        recipeSteps.add(RecipeStep(
+          title: createStep.title,
+          description: createStep.description,
+          duration: createStep.duration,
+          tips: createStep.tips.isEmpty ? null : createStep.tips,
+          imagePath: stepImagePath,
+          ingredients: [], // TODO: 后续版本可以添加食材输入
+        ));
       }
-    });
+      
+      // 计算总时长
+      final totalTime = recipeSteps.fold(0, (sum, step) => sum + step.duration);
+      
+      // 创建Recipe对象
+      final recipe = Recipe(
+        id: recipeId,
+        name: _nameController.text,
+        description: _descriptionController.text,
+        iconType: _selectedIconType.toString(), // 转换为字符串存储
+        totalTime: totalTime,
+        difficulty: _selectedDifficulty,
+        servings: int.tryParse(_servingsController.text) ?? 2,
+        steps: recipeSteps,
+        imagePath: null, // TODO: 后续版本可以添加主图
+        createdBy: 'current_user', // TODO: 集成用户系统后使用真实用户ID
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isPublic: true,
+        rating: 0.0,
+        cookCount: 0,
+      );
+      
+      // 保存到数据库
+      await repository.saveRecipe(recipe);
+      
+      // 🔧 修复bug：保存成功后跳转到菜谱详情页，而不是直接退出
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('食谱 "${recipe.name}" 创建成功！'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: '查看',
+              textColor: Colors.white,
+              onPressed: () {
+                context.go('/recipe/${recipe.id}');
+              },
+            ),
+          ),
+        );
+        
+        // 短暂延迟后自动跳转到详情页
+        Future.delayed(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            context.go('/recipe/${recipe.id}');
+          }
+        });
+      }
+      
+    } catch (e) {
+      // 错误处理
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存失败：$e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      print('保存菜谱失败: $e');
+    }
+  }
+  
+  // ==================== 🔥 新的烹饪模式风格步骤编辑方法 ====================
+  
+  /// 🔧 缩小的步骤标题区域
+  Widget _buildStepsHeader(bool isDark) {
+    return Row(
+      children: [
+        Text(
+          '制作步骤',
+          style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith( // 使用更小字体
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        const Spacer(),
+        if (_steps.isNotEmpty) ...[ 
+          // 步骤导航指示器
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+            ),
+            child: Text(
+              '${_currentStepIndex + 1}/${_steps.length}',
+              style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                color: AppColors.getTextSecondaryColor(isDark),
+                fontWeight: AppTypography.medium,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+  
+  /// 🔥 首次创建步骤界面 - 引导用户创建第一个步骤
+  Widget _buildFirstStepCreator(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 大号图标，模拟烹饪模式样式
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                '🍳',
+                style: const TextStyle(fontSize: 60), // 与烹饪模式一致的大图标
+              ),
+            ),
+          ),
+          
+          Space.h24,
+          
+          Text(
+            '开始创建第一个步骤',
+            style: AppTypography.customStyle(
+              fontSize: 32, // 接近烹饪模式的48px，但适合创建界面
+              fontWeight: AppTypography.light,
+              isDark: isDark,
+            ),
+          ),
+          
+          Space.h12,
+          
+          Text(
+            '每个步骤都会以全屏形式呈现\n就像烹饪模式一样清晰易懂',
+            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+              height: 1.8, // 与烹饪模式一致的行高
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          Space.h32,
+          
+          // 开始创建按钮
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              _addNewStep();
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.md,
+              ),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_circle_outline,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  Space.w8,
+                  Text(
+                    '创建第一步',
+                    style: AppTypography.bodyLargeStyle(isDark: false).copyWith(
+                      color: Colors.white,
+                      fontWeight: AppTypography.medium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🔥 烹饪模式风格的步骤编辑器 - 完全对齐格式
+  Widget _buildCookingModeStepEditor(bool isDark) {
+    return PageView.builder(
+      controller: _stepPageController,
+      onPageChanged: (index) {
+        setState(() {
+          _currentStepIndex = index;
+        });
+      },
+      itemCount: _steps.length,
+      itemBuilder: (context, index) {
+        return _buildSingleStepEditor(index, isDark);
+      },
+    );
+  }
+  
+  /// 🔥 单个步骤编辑器 - 完全模拟烹饪模式布局
+  Widget _buildSingleStepEditor(int stepIndex, bool isDark) {
+    final stepControllers = _stepControllers[stepIndex];
+    final titleController = stepControllers['title']!;
+    final descriptionController = stepControllers['description']!;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🔥 步骤标题区 - 完全模拟烹饪模式
+          Row(
+            children: [
+              // 步骤图标 - 减小尺寸以适应横屏布局
+              Container(
+                width: 60, // 从80减少到60
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 12, // 减小阴影
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    _getStepIcon(stepIndex),
+                    style: const TextStyle(fontSize: 30), // 减小图标
+                  ),
+                ),
+              ),
+              
+              Space.w12,
+              
+              // 步骤信息区
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '第${stepIndex + 1}步',
+                      style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                        color: AppColors.getTextSecondaryColor(isDark),
+                      ),
+                    ),
+                    
+                    Space.h4,
+                    
+                    // 步骤标题输入框 - 减小字体以适应横屏
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: titleController.text.isEmpty 
+                                ? Colors.red.withOpacity(0.3)
+                                : AppColors.primary.withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: titleController,
+                        style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith(
+                          fontWeight: AppTypography.medium,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: '步骤标题（如：准备食材）',
+                          hintStyle: AppTypography.bodyLargeStyle(isDark: isDark).copyWith(
+                            color: AppColors.getTextSecondaryColor(isDark),
+                            fontWeight: AppTypography.light,
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                          isDense: true,
+                        ),
+                        onChanged: (value) {
+                          setState(() {}); // 更新边框颜色
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          Space.h16,
+          
+          // 🔥 步骤描述区 - 与烹饪模式布局一致，但更紧凑
+          Text(
+            '详细描述',
+            style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+              fontWeight: AppTypography.medium,
+            ),
+          ),
+          
+          Space.h8,
+          
+          // 🔧 修复溢出：使用Expanded包装输入框确保不溢出
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.getBackgroundSecondaryColor(isDark),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                border: Border.all(
+                  color: descriptionController.text.isEmpty 
+                      ? Colors.red.withOpacity(0.3)
+                      : AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: TextField(
+                controller: descriptionController,
+                maxLines: null, // 自适应高度
+                expands: true, // 填满容器
+                textAlignVertical: TextAlignVertical.top,
+                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                  height: 1.4,
+                  fontWeight: AppTypography.light,
+                ),
+                decoration: InputDecoration(
+                  hintText: '详细描述操作步骤...',
+                  hintStyle: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                    color: AppColors.getTextSecondaryColor(isDark),
+                    height: 1.4,
+                    fontWeight: AppTypography.light,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(AppSpacing.sm),
+                ),
+                onChanged: (value) {
+                  setState(() {}); // 更新边框颜色
+                },
+              ),
+            ),
+          ),
+          
+          Space.h12,
+          
+          // 🔧 操作区域 - 紧凑布局
+          Row(
+            children: [
+              // 时长设置
+              Expanded(
+                child: _buildNewTimeSelector(stepIndex, isDark),
+              ),
+              
+              Space.w12,
+              
+              // 删除步骤按钮
+              if (_steps.length > 1)
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    _removeStep(stepIndex);
+                  },
+                  child: Container(
+                    width: 36, // 减小尺寸
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                      border: Border.all(
+                        color: Colors.red.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                      size: 18,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          
+          Space.h12,
+          
+          // 🔥 底部导航区域 - 与烹饪模式风格一致
+          _buildStepNavigation(stepIndex, isDark),
+        ],
+      ),
+    );
+  }
+  
+  /// 🔥 步骤导航区域 - 模拟烹饪模式的导航控制
+  Widget _buildStepNavigation(int stepIndex, bool isDark) {
+    return Row(
+      children: [
+        // 上一步按钮
+        if (stepIndex > 0)
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _stepPageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.getBackgroundSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.chevron_left,
+                      color: AppColors.getTextSecondaryColor(isDark),
+                      size: 20,
+                    ),
+                    Space.w4,
+                    Text(
+                      '上一步',
+                      style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                        color: AppColors.getTextSecondaryColor(isDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        
+        if (stepIndex > 0) Space.w12,
+        
+        // 主操作按钮
+        Expanded(
+          flex: stepIndex == _steps.length - 1 ? 2 : 1,
+          child: GestureDetector(
+            onTap: () {
+              HapticFeedback.mediumImpact();
+              if (stepIndex == _steps.length - 1) {
+                // 最后一步：添加新步骤
+                _addNewStep();
+              } else {
+                // 不是最后一步：下一步
+                _stepPageController.nextPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }
+            },
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (stepIndex == _steps.length - 1) ...[
+                    Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    Space.w4,
+                    Text(
+                      '继续添加',
+                      style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                        color: Colors.white,
+                        fontWeight: AppTypography.medium,
+                      ),
+                    ),
+                  ] else ...[
+                    Text(
+                      '下一步',
+                      style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                        color: Colors.white,
+                        fontWeight: AppTypography.medium,
+                      ),
+                    ),
+                    Space.w4,
+                    Icon(
+                      Icons.chevron_right,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// 获取步骤图标
+  String _getStepIcon(int stepIndex) {
+    final icons = ['🥄', '🔥', '🍳', '⏰', '✨', '🍽️', '💫', '🎯'];
+    return icons[stepIndex % icons.length];
+  }
+  
+  /// 新的时长选择器 - 紧凑化设计
+  Widget _buildNewTimeSelector(int stepIndex, bool isDark) {
+    final duration = _steps[stepIndex].duration;
+    
+    return Container(
+      height: 36, // 减小高度
+      decoration: BoxDecoration(
+        color: AppColors.getBackgroundSecondaryColor(isDark),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+      ),
+      child: Row(
+        children: [
+          Space.w8,
+          
+          GestureDetector(
+            onTap: () {
+              if (duration > 1) {
+                setState(() {
+                  _steps[stepIndex].duration = duration - 1;
+                });
+              }
+            },
+            child: Container(
+              width: 24, // 减小尺寸
+              height: 24,
+              decoration: BoxDecoration(
+                color: duration > 1 
+                    ? AppColors.getTextSecondaryColor(isDark).withOpacity(0.1)
+                    : AppColors.getTextSecondaryColor(isDark).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.remove,
+                size: 14,
+                color: duration > 1 
+                    ? AppColors.getTextSecondaryColor(isDark)
+                    : AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
+              ),
+            ),
+          ),
+          
+          Expanded(
+            child: Center(
+              child: Text(
+                '$duration分钟',
+                style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                  fontWeight: AppTypography.medium,
+                ),
+              ),
+            ),
+          ),
+          
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _steps[stepIndex].duration = duration + 1;
+              });
+            },
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.add,
+                size: 14,
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+            ),
+          ),
+          
+          Space.w8,
+        ],
+      ),
+    );
   }
 }
 

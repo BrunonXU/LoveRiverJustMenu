@@ -234,7 +234,7 @@ class _PhysicsParticleSystemState extends State<PhysicsParticleSystem>
       vsync: this,
     );
     
-    _controller.addListener(_updatePhysics);
+    // 🔧 修复Web端渲染卡住：移除addListener，使用AnimatedBuilder替代
     _controller.repeat();
   }
   
@@ -278,7 +278,7 @@ class _PhysicsParticleSystemState extends State<PhysicsParticleSystem>
     return colors[math.Random().nextInt(colors.length)];
   }
   
-  void _updatePhysics() {
+  void _updatePhysicsInBuild() {
     final currentTime = DateTime.now();
     final deltaTime = currentTime.difference(_lastFrameTime).inMicroseconds / 1000000.0;
     _lastFrameTime = currentTime;
@@ -308,9 +308,7 @@ class _PhysicsParticleSystemState extends State<PhysicsParticleSystem>
     // 通知更新
     widget.onParticleUpdate?.call(_particles);
     
-    if (mounted) {
-      setState(() {});
-    }
+    // 🔧 移除setState调用，直接在AnimatedBuilder中更新
   }
   
   void _handleParticleCollisions() {
@@ -333,12 +331,20 @@ class _PhysicsParticleSystemState extends State<PhysicsParticleSystem>
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: PhysicsParticlePainter(
-        particles: _particles,
-        magneticPoints: widget.magneticPoints ?? [],
-      ),
-      size: widget.systemSize ?? Size.infinite,
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        // 🔧 修复Web端渲染：在AnimatedBuilder中直接更新物理系统
+        _updatePhysicsInBuild();
+        
+        return CustomPaint(
+          painter: PhysicsParticlePainter(
+            particles: _particles,
+            magneticPoints: widget.magneticPoints ?? [],
+          ),
+          size: widget.systemSize ?? Size.infinite,
+        );
+      },
     );
   }
 }
