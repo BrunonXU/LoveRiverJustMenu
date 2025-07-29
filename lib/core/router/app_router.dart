@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/presentation/pages/main_screen.dart';
 import '../../features/timeline/presentation/pages/timeline_screen.dart';
-import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen.dart';
-import '../../features/cooking_mode/presentation/pages/cooking_mode_screen.dart';
-import '../../features/recipe/presentation/pages/recipe_detail_screen.dart';
-import '../../features/recipe/presentation/pages/create_recipe_screen.dart';
+import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen_v2.dart';
+import '../../features/cooking_mode/presentation/pages/cooking_mode_screen_v2.dart';
+import '../../features/recipe/presentation/pages/recipe_detail_screen_v2.dart';
+import '../../features/recipe/presentation/pages/create_recipe_screen_v2.dart';
 import '../../features/search/presentation/pages/search_screen.dart';
 import '../../features/couple/presentation/pages/couple_binding_screen.dart';
 import '../../features/couple/presentation/pages/couple_profile_screen.dart';
@@ -96,55 +96,61 @@ class AppRouter {
         ),
       ),
       
-      // AI推荐路由
+      // AI推荐路由 - 🤖 时间驱动界面+情境卡片+语音交互
       GoRoute(
         path: aiRecommendation,
         name: 'ai-recommendation',
-        builder: (context, state) => const AiRecommendationScreen(),
+        builder: (context, state) => const AiRecommendationScreenV2(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const AiRecommendationScreen(),
+          child: const AiRecommendationScreenV2(),
           state: state,
           transitionType: PageTransitionType.liquid,
         ),
       ),
       
-      // 烹饪模式路由
+      // 烹饪模式路由 - 🎨 使用极简大图版本
       GoRoute(
         path: cookingMode,
         name: 'cooking-mode',
-        builder: (context, state) => const CookingModeScreen(),
-        pageBuilder: (context, state) => _buildPageTransition(
-          child: const CookingModeScreen(),
-          state: state,
-          transitionType: PageTransitionType.slideRight,
-        ),
+        builder: (context, state) {
+          final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
+          return CookingModeScreenV2(recipeId: recipeId);
+        },
+        pageBuilder: (context, state) {
+          final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
+          return _buildPageTransition(
+            child: CookingModeScreenV2(recipeId: recipeId),
+            state: state,
+            transitionType: PageTransitionType.slideRight,
+          );
+        },
       ),
       
-      // 菜谱详情路由
+      // 菜谱详情路由 - 🎨 使用新的极简设计版本
       GoRoute(
         path: recipeDetail,
         name: 'recipe-detail',
         builder: (context, state) {
           final recipeId = state.pathParameters['id']!;
-          return RecipeDetailScreen(recipeId: recipeId);
+          return RecipeDetailScreenV2(recipeId: recipeId);
         },
         pageBuilder: (context, state) {
           final recipeId = state.pathParameters['id']!;
           return _buildPageTransition(
-            child: RecipeDetailScreen(recipeId: recipeId),
+            child: RecipeDetailScreenV2(recipeId: recipeId),
             state: state,
             transitionType: PageTransitionType.slideUp,
           );
         },
       ),
       
-      // 创建菜谱路由
+      // 创建菜谱路由 - 🎨 极简设计版本
       GoRoute(
         path: createRecipe,
         name: 'create-recipe',
-        builder: (context, state) => const CreateRecipeScreen(),
+        builder: (context, state) => const CreateRecipeScreenV2(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const CreateRecipeScreen(),
+          child: const CreateRecipeScreenV2(),
           state: state,
           transitionType: PageTransitionType.slideUp,
         ),

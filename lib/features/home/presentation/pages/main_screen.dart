@@ -919,9 +919,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
   
   /// 导航到烹饪模式
-  void _navigateToCookingMode() {
+  void _navigateToCookingMode({String? recipeId}) {
     HapticFeedback.mediumImpact();
-    context.push(AppRouter.cookingMode);
+    final targetRecipeId = recipeId ?? _getCurrentRecipe()['id'];
+    context.push('${AppRouter.cookingMode}?recipeId=$targetRecipeId');
   }
   
   /// 导航到创建食谱页面
