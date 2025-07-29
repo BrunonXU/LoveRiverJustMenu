@@ -51,6 +51,10 @@ dependencies:
   
   # 安全存储
   flutter_secure_storage: ^9.0.0
+  
+  # 文件分享和选择
+  share_plus: ^7.2.1
+  file_picker: ^6.1.1
 
 dev_dependencies:
   flutter_test:

@@ -215,10 +215,30 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// 我创建的菜谱列表
   Widget _buildCreatedRecipes(bool isDark) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final repository = ref.read(recipeRepositoryProvider);
-        final userRecipes = repository.getUserRecipes('current_user'); // TODO: 使用真实用户ID
+    return FutureBuilder<List<Recipe>>(
+      future: ref.read(userRecipesProvider('current_user').future),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 3,
+            ),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return _buildEmptyState(
+            isDark,
+            icon: '❌',
+            title: '加载失败',
+            description: '无法加载菜谱数据：${snapshot.error}',
+            actionText: '重试',
+            onAction: () => setState(() {}),
+          );
+        }
+        
+        final userRecipes = snapshot.data ?? [];
 
         if (userRecipes.isEmpty) {
           return _buildEmptyState(
@@ -621,17 +641,28 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           TextButton(
             onPressed: () async {
               context.pop();
-              final repository = ref.read(recipeRepositoryProvider);
-              await repository.deleteRecipe(recipe.id);
-              setState(() {}); // 刷新列表
-              
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('菜谱「${recipe.name}」已删除'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              try {
+                final repository = await ref.read(initializedRecipeRepositoryProvider.future);
+                await repository.deleteRecipe(recipe.id);
+                if (mounted) {
+                  setState(() {}); // 刷新列表
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('菜谱「${recipe.name}」已删除'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('删除失败：$e'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('删除', style: TextStyle(color: Colors.red)),

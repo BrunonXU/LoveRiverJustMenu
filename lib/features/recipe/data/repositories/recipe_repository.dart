@@ -152,21 +152,24 @@ class RecipeRepository {
 /// RecipeRepository的Provider - 🔧 修复：确保Repository被正确初始化
 final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
   final repository = RecipeRepository();
-  // 立即初始化数据库
-  repository.initialize().catchError((error) {
-    print('Failed to initialize RecipeRepository: $error');
-  });
   return repository;
 });
 
-/// 用于管理菜谱状态的Provider
+/// 异步初始化的Repository Provider
+final initializedRecipeRepositoryProvider = FutureProvider<RecipeRepository>((ref) async {
+  final repository = RecipeRepository();
+  await repository.initialize();
+  return repository;
+});
+
+/// 用于管理菜谱状态的Provider - 🔧 使用异步初始化的Repository
 final recipesProvider = FutureProvider<List<Recipe>>((ref) async {
-  final repository = ref.read(recipeRepositoryProvider);
+  final repository = await ref.watch(initializedRecipeRepositoryProvider.future);
   return repository.getAllRecipes();
 });
 
-/// 用户菜谱Provider
+/// 用户菜谱Provider - 🔧 使用异步初始化的Repository
 final userRecipesProvider = FutureProvider.family<List<Recipe>, String>((ref, userId) async {
-  final repository = ref.read(recipeRepositoryProvider);
+  final repository = await ref.watch(initializedRecipeRepositoryProvider.future);
   return repository.getUserRecipes(userId);
 });

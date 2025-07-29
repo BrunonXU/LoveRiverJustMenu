@@ -20,10 +20,6 @@ void main() async {
   Hive.registerAdapter(RecipeAdapter());
   Hive.registerAdapter(RecipeStepAdapter());
   
-  // 初始化菜谱数据仓库
-  final recipeRepository = RecipeRepository();
-  await recipeRepository.initialize();
-  
   // 设置系统UI样式 - 遵循极简设计
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -39,9 +35,21 @@ void main() async {
     PerformanceMonitor.init();
   }
   
+  // 创建ProviderContainer并预先初始化Repository
+  final container = ProviderContainer();
+  
+  // 🔧 关键修复：预先初始化Repository，避免LateInitializationError
+  try {
+    await container.read(initializedRecipeRepositoryProvider.future);
+    print('✅ RecipeRepository 初始化成功');
+  } catch (e) {
+    print('❌ RecipeRepository 初始化失败: $e');
+  }
+  
   runApp(
-    const ProviderScope(
-      child: LoveRecipeApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const LoveRecipeApp(),
     ),
   );
 }

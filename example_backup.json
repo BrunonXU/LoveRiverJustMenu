@@ -1,0 +1,100 @@
+{
+  "app": "爱心食谱",
+  "version": "1.0.0",
+  "exportDate": "2024-01-15T10:30:00.000Z",
+  "totalRecipes": 2,
+  "recipes": [
+    {
+      "id": "1705312200000",
+      "name": "红烧排骨",
+      "description": "软糯香甜，肥而不腻的经典家常菜",
+      "iconType": "AppIcon3DType.chef",
+      "totalTime": 60,
+      "difficulty": "中等",
+      "servings": 4,
+      "steps": [
+        {
+          "title": "准备食材",
+          "description": "排骨500g，生抽、老抽、料酒、冰糖适量",
+          "duration": 10,
+          "tips": "排骨要选择带点肥肉的，口感更好",
+          "imagePath": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&h=600&fit=crop",
+          "ingredients": ["排骨500g", "生抽30ml", "老抽15ml", "料酒20ml", "冰糖25g"]
+        },
+        {
+          "title": "焯水处理",
+          "description": "排骨冷水下锅焯水去血沫",
+          "duration": 8,
+          "tips": "焯水时加几片姜去腥效果更好",
+          "imagePath": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop",
+          "ingredients": []
+        },
+        {
+          "title": "炒糖色",
+          "description": "热锅下冰糖炒出焦糖色",
+          "duration": 5,
+          "tips": "小火慢炒，糖色不要炒过头变苦",
+          "imagePath": null,
+          "ingredients": []
+        },
+        {
+          "title": "红烧调味",
+          "description": "加入调料，小火慢炖40分钟",
+          "duration": 40,
+          "tips": "最后大火收汁，颜色更诱人",
+          "imagePath": null,
+          "ingredients": []
+        }
+      ],
+      "imagePath": "https://images.unsplash.com/photo-1598514982901-ae62764ae74e?w=800&h=600&fit=crop",
+      "createdBy": "current_user",
+      "createdAt": "2024-01-15T08:00:00.000Z",
+      "updatedAt": "2024-01-15T08:00:00.000Z",
+      "isPublic": true,
+      "rating": 4.8,
+      "cookCount": 12
+    },
+    {
+      "id": "1705312300000",
+      "name": "银耳莲子羹",
+      "description": "滋补养颜，润燥清热的经典甜品",
+      "iconType": "AppIcon3DType.bowl",
+      "totalTime": 45,
+      "difficulty": "简单",
+      "servings": 2,
+      "steps": [
+        {
+          "title": "准备食材",
+          "description": "银耳15g，莲子20g，红枣6颗，冰糖适量",
+          "duration": 5,
+          "tips": "银耳要提前泡发，去除黄根部分",
+          "imagePath": "https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=800&h=600&fit=crop",
+          "ingredients": ["银耳15g", "莲子20g", "红枣6颗", "冰糖适量"]
+        },
+        {
+          "title": "银耳处理",
+          "description": "将泡发的银耳撕成小朵，莲子去芯",
+          "duration": 10,
+          "tips": "银耳撕得越小，煮出来越粘稠",
+          "imagePath": "https://images.unsplash.com/photo-1594736797933-d0e3b5e8181a?w=800&h=600&fit=crop",
+          "ingredients": []
+        },
+        {
+          "title": "开始炖煮",
+          "description": "锅中加水，放入银耳大火煮开转小火炖煮30分钟",
+          "duration": 30,
+          "tips": "水要一次性加够，中途不要加水",
+          "imagePath": "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop",
+          "ingredients": []
+        }
+      ],
+      "imagePath": "https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=800&h=600&fit=crop",
+      "createdBy": "current_user",
+      "createdAt": "2024-01-15T09:15:00.000Z",
+      "updatedAt": "2024-01-15T09:15:00.000Z",
+      "isPublic": true,
+      "rating": 4.5,
+      "cookCount": 8
+    }
+  ]
+}

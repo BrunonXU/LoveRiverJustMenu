@@ -24,6 +24,7 @@ import '../../features/food_map/presentation/pages/food_map_screen_optimized.dar
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../../features/intimacy/presentation/pages/intimacy_screen.dart';
+import '../../features/profile/presentation/pages/settings_screen.dart';
 import '../animations/liquid_transition.dart';
 
 /// 路由配置提供者
@@ -631,14 +632,4 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
-      body: const Center(child: Text('设置页面')),
-    );
-  }
-}
+// SettingsScreen已从 features/profile/presentation/pages/settings_screen.dart 导入

@@ -63,17 +63,25 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     _controller.forward();
   }
   
-  void _loadRecipeData() {
-    // 🔧 修复：从数据库加载真实菜谱数据
-    final repository = ref.read(recipeRepositoryProvider);
-    final recipe = repository.getRecipe(widget.recipeId);
-    
-    if (recipe != null) {
-      setState(() {
-        _recipe = recipe;
-      });
-    } else {
-      // 如果找不到菜谱，显示错误或使用示例数据
+  void _loadRecipeData() async {
+    try {
+      // 🔧 修复：使用异步初始化的Repository避免LateInitializationError
+      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
+      final recipe = repository.getRecipe(widget.recipeId);
+      
+      if (recipe != null) {
+        setState(() {
+          _recipe = recipe;
+        });
+      } else {
+        // 如果找不到菜谱，显示错误或使用示例数据
+        setState(() {
+          _recipe = _getFallbackRecipeData(widget.recipeId);
+        });
+      }
+    } catch (e) {
+      print('❌ 加载菜谱数据失败: $e');
+      // 出错时使用示例数据
       setState(() {
         _recipe = _getFallbackRecipeData(widget.recipeId);
       });

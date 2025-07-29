@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爱心食谱 - 图像驱动设计</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Source Han Sans", sans-serif;
+            background: #FFFFFF;
+            color: #000000;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 300;
+            margin-bottom: 48px;
+            text-align: center;
+            letter-spacing: 0.02em;
+        }
+
+        .design-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 48px;
+            margin-bottom: 80px;
+        }
+
+        /* 手机框架 */
+        .phone-frame {
+            width: 360px;
+            height: 720px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            box-shadow: 0 16px 64px rgba(0,0,0,0.12);
+            margin: 0 auto;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid #F7F7F7;
+        }
+
+        /* 状态栏和导航 */
+        .status-bar {
+            height: 44px;
+            background: #FFFFFF;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 1px solid #F7F7F7;
+        }
+
+        .nav-bar {
+            height: 64px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            position: absolute;
+            top: 44px;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .nav-back {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .nav-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #000000;
+        }
+
+        .nav-action {
+            font-size: 16px;
+            color: #666666;
+            cursor: pointer;
+        }
+
+        /* 页面1: 菜谱详情页 - 图像驱动设计 */
+        .recipe-detail {
+            height: calc(720px - 44px);
+            overflow-y: auto;
+        }
+
+        .recipe-hero {
+            height: 300px;
+            background: linear-gradient(135deg, #5B6FED, #8B9BF3);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .recipe-hero-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .recipe-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%);
+            z-index: 1;
+        }
+
+        .recipe-hero-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .recipe-hero-title {
+            font-size: 32px;
+            font-weight: 300;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .recipe-hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .recipe-content {
+            padding: 32px 24px;
+            background: #FFFFFF;
+        }
+
+        .recipe-description {
+            font-size: 16px;
+            color: #666666;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        /* 步骤区域 - 每步都有图片 */
+        .steps-container {
+            margin-bottom: 32px;
+        }
+
+        .steps-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: #000000;
+        }
+
+        .step-card {
+            background: #FFFFFF;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+
+        .step-image {
+            width: 100%;
+            height: 160px;
+            background: linear-gradient(135deg, #F7F7F7, #E0E0E0);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .step-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .step-number-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 32px;
+            height: 32px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .step-info {
+            padding: 20px;
+        }
+
+        .step-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #000000;
+        }
+
+        .step-description {
+            font-size: 14px;
+            color: #666666;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .step-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .step-time {
+            font-size: 12px;
+            color: #999999;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .step-tip {
+            font-size: 12px;
+            color: #5B6FED;
+            background: rgba(91, 111, 237, 0.1);
+            padding: 4px 8px;
+            border-radius: 8px;
+        }
+
+        /* 页面2: 烹饪模式 - 大图片显示 */
+        .cooking-mode {
+            height: calc(720px - 108px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cooking-image-area {
+            height: 300px;
+            background: linear-gradient(135deg, #F7F7F7, #E0E0E0);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cooking-main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .cooking-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 50%, rgba(0,0,0,0.3) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+        }
+
+        .cooking-step-header {
+            color: white;
+            text-align: center;
+        }
+
+        .cooking-step-indicator {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+
+        .cooking-step-title {
+            font-size: 24px;
+            font-weight: 300;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .cooking-controls-overlay {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .overlay-control-btn {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .overlay-control-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+
+        .cooking-content {
+            flex: 1;
+            padding: 24px;
+            background: #FFFFFF;
+            overflow-y: auto;
+        }
+
+        .cooking-instructions {
+            background: #F7F7F7;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instruction-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: #000000;
+        }
+
+        .instruction-text {
+            font-size: 14px;
+            color: #333333;
+            line-height: 1.6;
+        }
+
+        .cooking-tips {
+            background: linear-gradient(135deg, rgba(91, 111, 237, 0.1), rgba(139, 155, 243, 0.1));
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .tips-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #5B6FED;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tips-content {
+            font-size: 13px;
+            color: #666666;
+            line-height: 1.5;
+        }
+
+        /* 进度和计时器 */
+        .cooking-progress {
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #F7F7F7;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #5B6FED, #8B9BF3);
+            width: 20%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #999999;
+            text-align: center;
+        }
+
+        .timer-display {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .timer-circle {
+            width: 80px;
+            height: 80px;
+            border: 3px solid #F7F7F7;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 300;
+            margin: 0 auto 8px;
+            position: relative;
+        }
+
+        .timer-circle.active {
+            border-color: #5B6FED;
+            color: #5B6FED;
+        }
+
+        /* 页面3: 创建菜谱 - 图片上传功能 */
+        .create-recipe {
+            height: calc(720px - 108px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .create-tabs {
+            display: flex;
+            background: #F7F7F7;
+            border-radius: 12px;
+            margin: 16px 24px;
+            padding: 4px;
+        }
+
+        .create-tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .create-tab.active {
+            background: #FFFFFF;
+            color: #000000;
+            font-weight: 500;
+        }
+
+        .create-content {
+            flex: 1;
+            padding: 0 24px 24px;
+            overflow-y: auto;
+        }
+
+        /* 基本信息页 */
+        .basic-info-section {
+            margin-bottom: 24px;
+        }
+
+        .cover-upload {
+            margin-bottom: 24px;
+        }
+
+        .upload-area {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #E0E0E0;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #FAFAFA;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #5B6FED;
+            background: rgba(91, 111, 237, 0.02);
+        }
+
+        .upload-area.has-image {
+            border-style: solid;
+            border-color: #E0E0E0;
+        }
+
+        .upload-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+
+        .upload-placeholder {
+            text-align: center;
+            color: #999999;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .upload-actions {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .upload-area:hover .upload-actions {
+            opacity: 1;
+        }
+
+        .upload-action-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #000000;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #F7F7F7;
+            border-radius: 12px;
+            font-size: 14px;
+            background: #FFFFFF;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #5B6FED;
+        }
+
+        .form-textarea {
+            height: 80px;
+            resize: vertical;
+        }
+
+        /* 步骤编辑页 */
+        .step-editor-container {
+            margin-bottom: 24px;
+        }
+
+        .step-editor-card {
+            background: #FFFFFF;
+            border: 2px solid #F7F7F7;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .step-editor-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .step-editor-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #5B6FED, #8B9BF3);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .step-editor-title {
+            flex: 1;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            background: transparent;
+            color: #000000;
+        }
+
+        .step-editor-title:focus {
+            outline: none;
+        }
+
+        .step-image-upload {
+            margin-bottom: 16px;
+        }
+
+        .step-upload-area {
+            width: 100%;
+            height: 120px;
+            border: 2px dashed #E0E0E0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #FAFAFA;
+        }
+
+        .step-upload-area:hover {
+            border-color: #5B6FED;
+            background: rgba(91, 111, 237, 0.02);
+        }
+
+        .step-upload-placeholder {
+            text-align: center;
+            color: #999999;
+        }
+
+        .step-upload-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        .step-upload-text {
+            font-size: 12px;
+        }
+
+        .step-description-input {
+            width: 100%;
+            height: 60px;
+            border: 2px solid #F7F7F7;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+
+        .step-meta-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .time-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .time-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            border-radius: 50%;
+            background: #F7F7F7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .time-display {
+            font-size: 14px;
+            font-weight: 500;
+            color: #000000;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .step-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .step-action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .step-action-btn.delete {
+            background: rgba(245, 101, 101, 0.1);
+            color: #F56565;
+        }
+
+        .step-action-btn.duplicate {
+            background: rgba(91, 111, 237, 0.1);
+            color: #5B6FED;
+        }
+
+        .add-step-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #5B6FED, #8B9BF3);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .add-step-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(91, 111, 237, 0.3);
+        }
+
+        /* 底部保存按钮 */
+        .save-button {
+            background: #FFFFFF;
+            border-top: 1px solid #F7F7F7;
+            padding: 16px 24px;
+        }
+
+        .save-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #5B6FED, #8B9BF3);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(91, 111, 237, 0.3);
+        }
+
+        /* 页面4: 图片画廊模式 */
+        .gallery-mode {
+            height: calc(720px - 108px);
+            background: #000000;
+            position: relative;
+        }
+
+        .gallery-main-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .gallery-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            padding: 40px 24px 24px;
+        }
+
+        .gallery-thumbnails {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .gallery-thumbnail {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .gallery-thumbnail.active {
+            opacity: 1;
+            border: 2px solid white;
+        }
+
+        .gallery-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .gallery-info {
+            color: white;
+            text-align: center;
+        }
+
+        .gallery-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .gallery-step {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .design-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 页面指示器 */
+        .page-indicator {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.05);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #666666;
+            font-weight: 500;
+        }
+
+        /* 呼吸动画 */
+        @keyframes breathe {
+            0%, 100% { 
+                transform: scale(1); 
+                opacity: 0.9; 
+            }
+            50% { 
+                transform: scale(1.02); 
+                opacity: 1; 
+            }
+        }
+
+        .breathing {
+            animation: breathe 4s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="section-title">爱心食谱 - 图像驱动的完整设计</h1>
+        
+        <div class="design-grid">
+            
+            <!-- 页面1: 菜谱详情页 - 图像为核心 -->
+            <div class="phone-frame">
+                <div class="status-bar">
+                    <span class="status-left">9:41</span>
+                    <span class="status-right">100%</span>
+                </div>
+                <div class="nav-bar">
+                    <div class="nav-back">←</div>
+                    <div class="nav-title">银耳莲子羹</div>
+                    <div class="nav-action">✏</div>
+                </div>
+                <div class="recipe-detail">
+                    <!-- 大图封面 -->
+                    <div class="recipe-hero">
+                        <img class="recipe-hero-image" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 300'><defs><linearGradient id='food' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%23FFE66D'/><stop offset='100%' stop-color='%23FF6B6B'/></linearGradient></defs><rect width='360' height='300' fill='url(%23food)'/><circle cx='180' cy='120' r='60' fill='%23ffffff' opacity='0.9'/><circle cx='180' cy='120' r='40' fill='%23f0f0f0'/><text x='180' y='200' text-anchor='middle' fill='%23ffffff' font-size='16' opacity='0.8'>银耳莲子羹成品图</text></svg>" alt="银耳莲子羹">
+                        <div class="recipe-hero-content">
+                            <h2 class="recipe-hero-title">银耳莲子羹</h2>
+                            <div class="recipe-hero-meta">
+                                <span>⏱ 45分钟</span>
+                                <span>👥 2人份</span>
+                                <span>📊 简单</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recipe-content">
+                        <p class="recipe-description">滋补养颜，润燥清热的经典甜品。银耳富含胶质，莲子清心安神，红枣补血益气。</p>
+                        
+                        <div class="steps-container">
+                            <h3 class="steps-title">制作步骤</h3>
+                            
+                            <!-- 步骤1 - 带图片 -->
+                            <div class="step-card">
+                                <div class="step-image">
+                                    <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 160'><rect width='300' height='160' fill='%23f7f7f7'/><circle cx='80' cy='80' r='25' fill='%23ffffff'/><circle cx='150' cy='80' r='20' fill='%23ffdddd'/><circle cx='220' cy='80' r='18' fill='%23ffe6e6'/><text x='150' y='130' text-anchor='middle' fill='%23999999' font-size='12'>准备食材图片</text></svg>" alt="准备食材">
+                                    <div class="step-number-overlay">1</div>
+                                </div>
+                                <div class="step-info">
+                                    <h4 class="step-title">准备食材</h4>
+                                    <p class="step-description">银耳15g提前泡发，莲子20g去芯，红枣6颗去核，冰糖适量备用</p>
+                                    <div class="step-meta">
+                                        <div class="step-time">⏱ 5分钟</div>
+                                        <div class="step-tip">💡 贴士</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 步骤2 - 带图片 -->
+                            <div class="step-card">
+                                <div class="step-image">
+                                    <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 160'><rect width='300' height='160' fill='%23f7f7f7'/><path d='M50 80 Q150 40 250 80 Q150 120 50 80' fill='%23ffffff' opacity='0.8'/><circle cx='100' cy='70' r='8' fill='%23ffeeee'/><circle cx='180' cy='90' r='6' fill='%23ffeeee'/><text x='150' y='130' text-anchor='middle' fill='%23999999' font-size='12'>银耳处理过程</text></svg>" alt="银耳处理">
+                                    <div class="step-number-overlay">2</div>
+                                </div>
+                                <div class="step-info">
+                                    <h4 class="step-title">银耳处理</h4>
+                                    <p class="step-description">将泡发的银耳撕成小朵，去除黄色根部，莲子用牙签去除绿芯</p>
+                                    <div class="step-meta">
+                                        <div class="step-time">⏱ 10分钟</div>
+                                        <div class="step-tip">💡 技巧</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 步骤3 - 带图片 -->
+                            <div class="step-card">
+                                <div class="step-image">
+                                    <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 160'><rect width='300' height='160' fill='%23f7f7f7'/><ellipse cx='150' cy='80' rx='80' ry='40' fill='%23e0e0e0'/><path d='M70 80 Q150 60 230 80' stroke='%23cccccc' stroke-width='2' fill='none'/><circle cx='120' cy='75' r='4' fill='%23ffdddd'/><circle cx='180' cy='85' r='3' fill='%23ffffff'/><text x='150' y='130' text-anchor='middle' fill='%23999999' font-size='12'>炖煮过程图</text></svg>" alt="开始炖煮">
+                                    <div class="step-number-overlay">3</div>
+                                </div>
+                                <div class="step-info">
+                                    <h4 class="step-title">开始炖煮</h4>
+                                    <p class="step-description">锅中加水1000ml，放入银耳大火煮开后转小火炖煮20分钟</p>
+                                    <div class="step-meta">
+                                        <div class="step-time">⏱ 20分钟</div>
+                                        <div class="step-tip">💡 火候</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="page-indicator">菜谱详情 - 图像驱动</div>
+            </div>
+
+            <!-- 页面2: 烹饪模式 - 大图显示 -->
+            <div class="phone-frame">
+                <div class="status-bar">
+                    <span class="status-left">9:41</span>
+                    <span class="status-right">100%</span>
+                </div>
+                <div class="nav-bar">
+                    <div class="nav-back">←</div>
+                    <div class="nav-title"></div>
+                    <div class="nav-action"></div>
+                </div>
+                <div class="cooking-mode">
+                    <!-- 大图显示区域 -->
+                    <div class="cooking-image-area">
+                        <img class="cooking-main-image" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 300'><rect width='360' height='300' fill='%23f7f7f7'/><ellipse cx='180' cy='150' rx='100' ry='60' fill='%23e0e0e0'/><circle cx='130' cy='130' r='15' fill='%23ffffff' opacity='0.9'/><circle cx='200' cy='140' r='12' fill='%23ffdddd' opacity='0.8'/><circle cx='160' cy='170' r='10' fill='%23ffe6e6' opacity='0.7'/><text x='180' y='250' text-anchor='middle' fill='%23999999' font-size='14'>当前步骤实时图片</text></svg>" alt="当前步骤">
+                        <div class="cooking-overlay">
+                            <div class="cooking-step-header">
+                                <div class="cooking-step-indicator">🥄 第1步</div>
+                                <h2 class="cooking-step-title">准备食材</h2>
+                            </div>
+                            <div class="cooking-controls-overlay">
+                                <button class="overlay-control-btn">⏸</button>
+                                <button class="overlay-control-btn">▶</button>
+                                <button class="overlay-control-btn">⏭</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 详细信息区域 -->
+                    <div class="cooking-content">
+                        <div class="cooking-instructions">
+                            <h4 class="instruction-title">操作说明</h4>
+                            <p class="instruction-text">银耳15g提前用温水泡发2小时，莲子20g去芯，红枣6颗去核切半，冰糖备用。确保所有食材清洗干净。</p>
+                        </div>
+                        
+                        <div class="cooking-tips">
+                            <div class="tips-title">💡 专业贴士</div>
+                            <div class="tips-content">
+                                • 银耳要充分泡发，体积增大3-4倍<br>
+                                • 莲子芯务必去除，避免苦味<br>
+                                • 红枣去核可防止燥热上火
+                            </div>
+                        </div>
+                        
+                        <div class="cooking-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill"></div>
+                            </div>
+                            <div class="progress-text">步骤 1/5 - 准备阶段</div>
+                        </div>
+                        
+                        <div class="timer-display">
+                            <div class="timer-circle active">05:00</div>
+                            <div style="font-size: 12px; color: #999999; margin-top: 8px;">建议用时</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="page-indicator">烹饪模式 - 大图指导</div>
+            </div>
+
+            <!-- 页面3: 创建菜谱 - 图片上传功能 -->
+            <div class="phone-frame">
+                <div class="status-bar">
+                    <span class="status-left">9:41</span>
+                    <span class="status-right">100%</span>
+                </div>
+                <div class="nav-bar">
+                    <div class="nav-back">←</div>
+                    <div class="nav-title">创建食谱</div>
+                    <div class="nav-action">预览</div>
+                </div>
+                <div class="create-recipe">
+                    <!-- 标签切换 -->
+                    <div class="create-tabs">
+                        <div class="create-tab active">基本信息</div>
+                        <div class="create-tab">制作步骤</div>
+                    </div>
+                    
+                    <div class="create-content">
+                        <!-- 基本信息页面 -->
+                        <div class="basic-info-section">
+                            <!-- 封面图片上传 -->
+                            <div class="cover-upload">
+                                <label class="form-label">菜谱封面图片</label>
+                                <div class="upload-area">
+                                    <div class="upload-placeholder">
+                                        <div class="upload-icon">📷</div>
+                                        <div class="upload-text">点击上传封面图片</div>
+                                        <div class="upload-hint">建议尺寸 4:3，最大5MB</div>
+                                    </div>
+                                    <div class="upload-actions">
+                                        <button class="upload-action-btn">📷</button>
+                                        <button class="upload-action-btn">🖼</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">菜谱名称</label>
+                                <input type="text" class="form-input" placeholder="比如：蜜汁红烧肉、爱心蛋挞..." value="银耳莲子羹">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">菜谱描述</label>
+                                <textarea class="form-input form-textarea" placeholder="描述这道菜的特色、口感、营养价值...">滋补养颜的经典甜品，适合秋冬季节食用</textarea>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px;">
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label">制作时间</label>
+                                    <input type="text" class="form-input" placeholder="分钟" value="45">
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label">难度</label>
+                                    <select class="form-input">
+                                        <option>简单</option>
+                                        <option>中等</option>
+                                        <option>困难</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="flex: 1;">
+                                    <label class="form-label">份量</label>
+                                    <input type="text" class="form-input" placeholder="人份" value="2">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 步骤编辑区域 -->
+                        <div class="step-editor-container">
+                            <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 16px; color: #000000;">制作步骤</h3>
+                            
+                            <!-- 步骤1 -->
+                            <div class="step-editor-card">
+                                <div class="step-editor-header">
+                                    <div class="step-editor-number">1</div>
+                                    <input type="text" class="step-editor-title" placeholder="步骤标题" value="准备食材">
+                                </div>
+                                
+                                <!-- 步骤图片上传 -->
+                                <div class="step-image-upload">
+                                    <div class="step-upload-area">
+                                        <div class="step-upload-placeholder">
+                                            <div class="step-upload-icon">📸</div>
+                                            <div class="step-upload-text">上传步骤图片</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <textarea class="step-description-input" placeholder="详细描述这个步骤的操作方法...">银耳15g提前泡发，莲子20g去芯，红枣6颗去核，冰糖适量备用</textarea>
+                                
+                                <div class="step-meta-controls">
+                                    <div class="time-control">
+                                        <button class="time-btn">−</button>
+                                        <div class="time-display">5分钟</div>
+                                        <button class="time-btn">+</button>
+                                    </div>
+                                    <div class="step-actions">
+                                        <button class="step-action-btn duplicate">复制</button>
+                                        <button class="step-action-btn delete">删除</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 步骤2 -->
+                            <div class="step-editor-card">
+                                <div class="step-editor-header">
+                                    <div class="step-editor-number">2</div>
+                                    <input type="text" class="step-editor-title" placeholder="步骤标题" value="银耳处理">
+                                </div>
+                                
+                                <div class="step-image-upload">
+                                    <div class="step-upload-area has-image">
+                                        <img class="upload-preview" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120'><rect width='300' height='120' fill='%23f0f0f0'/><path d='M50 60 Q150 30 250 60 Q150 90 50 60' fill='%23ffffff' opacity='0.8'/><text x='150' y='100' text-anchor='middle' fill='%23999999' font-size='12'>银耳处理图片</text></svg>" alt="银耳处理">
+                                        <div class="upload-actions">
+                                            <button class="upload-action-btn">✏</button>
+                                            <button class="upload-action-btn">🗑</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <textarea class="step-description-input" placeholder="详细描述这个步骤的操作方法...">将泡发的银耳撕成小朵，去除黄色根部</textarea>
+                                
+                                <div class="step-meta-controls">
+                                    <div class="time-control">
+                                        <button class="time-btn">−</button>
+                                        <div class="time-display">10分钟</div>
+                                        <button class="time-btn">+</button>
+                                    </div>
+                                    <div class="step-actions">
+                                        <button class="step-action-btn duplicate">复制</button>
+                                        <button class="step-action-btn delete">删除</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 添加步骤按钮 -->
+                            <button class="add-step-btn">
+                                <span>+</span>
+                                <span>添加新步骤</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 底部保存按钮 -->
+                    <div class="save-button">
+                        <button class="save-btn">保存菜谱</button>
+                    </div>
+                </div>
+                <div class="page-indicator">创建菜谱 - 图片上传</div>
+            </div>
+
+            <!-- 页面4: 图片画廊模式 -->
+            <div class="phone-frame">
+                <div class="status-bar">
+                    <span class="status-left">9:41</span>
+                    <span class="status-right">100%</span>
+                </div>
+                <div class="nav-bar" style="background: rgba(0,0,0,0.8); color: white;">
+                    <div class="nav-back" style="background: rgba(255,255,255,0.2); color: white;">←</div>
+                    <div class="nav-title">图片详情</div>
+                    <div class="nav-action" style="color: white;">分享</div>
+                </div>
+                <div class="gallery-mode">
+                    <img class="gallery-main-image" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 360 612'><rect width='360' height='612' fill='%23000000'/><rect x='30' y='50' width='300' height='200' rx='12' fill='%23f7f7f7'/><circle cx='100' cy='120' r='25' fill='%23ffffff'/><circle cx='180' cy='140' r='20' fill='%23ffdddd'/><circle cx='260' cy='130' r='18' fill='%23ffe6e6'/><text x='180' y='180' text-anchor='middle' fill='%23999999' font-size='14'>高清步骤图片</text><rect x='30' y='300' width='300' height='200' rx='12' fill='%23e8f4fd'/><ellipse cx='180' cy='380' rx='80' ry='40' fill='%23ffffff' opacity='0.8'/><circle cx='150' cy='370' r='8' fill='%23ffeeee'/><circle cx='210' cy='390' r='6' fill='%23ffeeee'/><text x='180' y='450' text-anchor='middle' fill='%23666666' font-size='14'>制作过程图</text></svg>" alt="高清图片">
+                    
+                    <div class="gallery-controls">
+                        <div class="gallery-thumbnails">
+                            <div class="gallery-thumbnail active">
+                                <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23f7f7f7'/><circle cx='30' cy='30' r='15' fill='%23ffffff'/></svg>" alt="步骤1">
+                            </div>
+                            <div class="gallery-thumbnail">
+                                <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23e8f4fd'/><circle cx='30' cy='30' r='12' fill='%23ffffff'/></svg>" alt="步骤2">
+                            </div>
+                            <div class="gallery-thumbnail">
+                                <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23fff8e1'/><circle cx='30' cy='30' r='10' fill='%23ffffff'/></svg>" alt="步骤3">
+                            </div>
+                            <div class="gallery-thumbnail">
+                                <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><rect width='60' height='60' fill='%23f3e5f5'/><circle cx='30' cy='30' r='8' fill='%23ffffff'/></svg>" alt="成品">
+                            </div>
+                        </div>
+                        
+                        <div class="gallery-info">
+                            <div class="gallery-title">准备食材</div>
+                            <div class="gallery-step">第1步 · 银耳莲子羹</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="page-indicator">图片画廊模式</div>
+            </div>
+        </div>
+
+        <!-- 设计说明 -->
+        <div style="background: #F7F7F7; padding: 48px; border-radius: 24px; margin-top: 48px;">
+            <h2 style="font-size: 24px; font-weight: 300; margin-bottom: 32px; text-align: center;">📸 图像驱动设计核心</h2>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
+                <div style="background: white; padding: 24px; border-radius: 16px;">
+                    <h4 style="color: #5B6FED; margin-bottom: 16px;">🖼️ 菜谱详情 - 视觉冲击</h4>
+                    <p style="color: #666666; font-size: 14px; line-height: 1.6;">
+                        • 大尺寸封面图片占据300px高度<br>
+                        • 每个步骤都配有160px高的指导图片<br>
+                        • 图片上叠加步骤编号和元信息<br>
+                        • 保持极简的图文排版
+                    </p>
+                </div>
+                
+                <div style="background: white; padding: 24px; border-radius: 16px;">
+                    <h4 style="color: #5B6FED; margin-bottom: 16px;">👨‍🍳 烹饪模式 - 大图指导</h4>
+                    <p style="color: #666666; font-size: 14px; line-height: 1.6;">
+                        • 300px全屏显示当前步骤图片<br>
+                        • 图片上叠加控制按钮和标题<br>
+                        • 底部显示详细操作说明<br>
+                        • 支持图片缩放和全屏查看
+                    </p>
+                </div>
+                
+                <div style="background: white; padding: 24px; border-radius: 16px;">
+                    <h4 style="color: #5B6FED; margin-bottom: 16px;">📷 创建菜谱 - 拍照上传</h4>
+                    <p style="color: #666666; font-size: 14px; line-height: 1.6;">
+                        • 200px高度的封面图片上传区<br>
+                        • 每个步骤120px的图片上传功能<br>
+                        • 支持拍照、相册选择、编辑裁剪<br>
+                        • 实时预览和替换功能
+                    </p>
+                </div>
+                
+                <div style="background: white; padding: 24px; border-radius: 16px;">
+                    <h4 style="color: #5B6FED; margin-bottom: 16px;">🎭 图片画廊 - 沉浸体验</h4>
+                    <p style="color: #666666; font-size: 14px; line-height: 1.6;">
+                        • 全屏黑色背景展示高清图片<br>
+                        • 底部缩略图快速切换<br>
+                        • 支持捏合缩放查看细节<br>
+                        • 图片信息叠加显示
+                    </p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 32px; padding: 24px; background: white; border-radius: 16px;">
+                <h3 style="font-size: 18px; margin-bottom: 16px; color: #000000;">现在真正实现了</h3>
+                <p style="font-size: 24px; font-weight: 300; color: #5B6FED; margin-bottom: 16px;">图像驱动 × 功能完整 × 极简美学</p>
+                <div style="display: flex; justify-content: center; gap: 32px; color: #666666; font-size: 14px;">
+                    <span>✅ 每个功能都有图片支持</span>
+                    <span>✅ 图片上传和管理完整</span>
+                    <span>✅ 保持95%黑白灰设计</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 图片上传区域交互
+        document.querySelectorAll('.upload-area, .step-upload-area').forEach(area => {
+            area.addEventListener('click', function() {
+                // 模拟图片选择
+                if (!this.classList.contains('has-image')) {
+                    // 添加上传效果
+                    this.style.borderColor = '#5B6FED';
+                    this.style.background = 'rgba(91, 111, 237, 0.05)';
+                    
+                    setTimeout(() => {
+                        this.style.borderColor = '#E0E0E0';
+                        this.style.background = '#FAFAFA';
+                    }, 300);
+                }
+            });
+        });
+
+        // 画廊缩略图切换
+        document.querySelectorAll('.gallery-thumbnail').forEach((thumb, index) => {
+            thumb.addEventListener('click', function() {
+                document.querySelectorAll('.gallery-thumbnail').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 更新主图和信息
+                const steps = ['准备食材', '银耳处理', '开始炖煮', '完成出锅'];
+                const stepNumber = ['第1步', '第2步', '第3步', '成品'];
+                
+                document.querySelector('.gallery-title').textContent = steps[index];
+                document.querySelector('.gallery-step').textContent = stepNumber[index] + ' · 银耳莲子羹';
+            });
+        });
+
+        // 标签切换
+        document.querySelectorAll('.create-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.create-tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // 时间控制
+        document.querySelectorAll('.time-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const display = this.parentNode.querySelector('.time-display');
+                const isPlus = this.textContent === '+';
+                let time = parseInt(display.textContent);
+                
+                if (isPlus) {
+                    time += 5;
+                } else {
+                    time = Math.max(5, time - 5);
+                }
+                
+                display.textContent = time + '分钟';
+            });
+        });
+
+        // 按钮点击效果
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'scale(1)';
+                }, 150);
+            });
+        });
+    </script>
+</body>
+</html>

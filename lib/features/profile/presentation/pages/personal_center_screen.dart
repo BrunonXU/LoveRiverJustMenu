@@ -201,7 +201,7 @@ class _PersonalCenterScreenState extends ConsumerState<PersonalCenterScreen>
         title: '设置中心',
         description: '个性化设置',
         color: const Color(0xFF95A5A6),
-        onTap: () => context.push('/personal-center/settings'),
+        onTap: () => context.push('/settings'),
       ),
       _ModuleItem(
         icon: '📊',

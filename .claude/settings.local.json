@@ -20,7 +20,9 @@
       "Bash(grep:*)",
       "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\features\\timeline\\presentation\\widgets\\timeline_3d_widget_new.dart\")",
       "Bash(find:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git checkout:*)",
+      "Bash(q)"
     ],
     "deny": []
   }
