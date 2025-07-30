@@ -30,7 +30,10 @@ class Recipe extends HiveObject {
   List<RecipeStep> steps;
 
   @HiveField(8)
-  String? imagePath; // 🔧 新增：菜谱主图路径
+  String? imagePath; // 🔧 新增：菜谱主图路径（已废弃）
+
+  @HiveField(15)
+  String? imageBase64; // 📷 Base64图片数据 - 确保部署后不丢失
 
   @HiveField(9)
   String createdBy; // 🔧 新增：创建者ID
@@ -60,6 +63,7 @@ class Recipe extends HiveObject {
     required this.servings,
     required this.steps,
     this.imagePath,
+    this.imageBase64, // 📷 Base64图片数据
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
@@ -82,6 +86,7 @@ class Recipe extends HiveObject {
           .map((step) => RecipeStep.fromJson(step))
           .toList(),
       imagePath: json['imagePath'],
+      imageBase64: json['imageBase64'], // 📷 Base64图片数据
       createdBy: json['createdBy'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
@@ -103,6 +108,7 @@ class Recipe extends HiveObject {
       'servings': servings,
       'steps': steps.map((step) => step.toJson()).toList(),
       'imagePath': imagePath,
+      'imageBase64': imageBase64, // 📷 Base64图片数据
       'createdBy': createdBy,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -123,6 +129,7 @@ class Recipe extends HiveObject {
     int? servings,
     List<RecipeStep>? steps,
     String? imagePath,
+    String? imageBase64, // 📷 Base64图片数据
     String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -140,6 +147,7 @@ class Recipe extends HiveObject {
       servings: servings ?? this.servings,
       steps: steps ?? this.steps,
       imagePath: imagePath ?? this.imagePath,
+      imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -166,7 +174,10 @@ class RecipeStep extends HiveObject {
   String? tips; // 小贴士
 
   @HiveField(4)
-  String? imagePath; // 🔧 新增：步骤图片路径
+  String? imagePath; // 🔧 新增：步骤图片路径（已废弃）
+
+  @HiveField(6)
+  String? imageBase64; // 📷 Base64图片数据 - 确保部署后不丢失
 
   @HiveField(5)
   List<String> ingredients; // 🔧 新增：此步骤需要的食材
@@ -177,6 +188,7 @@ class RecipeStep extends HiveObject {
     required this.duration,
     this.tips,
     this.imagePath,
+    this.imageBase64, // 📷 Base64图片数据
     this.ingredients = const [],
   });
 
@@ -188,6 +200,7 @@ class RecipeStep extends HiveObject {
       duration: json['duration'],
       tips: json['tips'],
       imagePath: json['imagePath'],
+      imageBase64: json['imageBase64'], // 📷 Base64图片数据
       ingredients: List<String>.from(json['ingredients'] ?? []),
     );
   }
@@ -200,6 +213,7 @@ class RecipeStep extends HiveObject {
       'duration': duration,
       'tips': tips,
       'imagePath': imagePath,
+      'imageBase64': imageBase64, // 📷 Base64图片数据
       'ingredients': ingredients,
     };
   }
@@ -211,6 +225,7 @@ class RecipeStep extends HiveObject {
     int? duration,
     String? tips,
     String? imagePath,
+    String? imageBase64, // 📷 Base64图片数据
     List<String>? ingredients,
   }) {
     return RecipeStep(
@@ -219,6 +234,7 @@ class RecipeStep extends HiveObject {
       duration: duration ?? this.duration,
       tips: tips ?? this.tips,
       imagePath: imagePath ?? this.imagePath,
+      imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据
       ingredients: ingredients ?? this.ingredients,
     );
   }

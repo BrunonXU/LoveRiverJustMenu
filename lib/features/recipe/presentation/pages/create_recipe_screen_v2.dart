@@ -7,14 +7,19 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
-import '../../../../core/utils/image_picker_helper.dart';
+import '../../../../core/utils/image_base64_helper.dart';
+import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../domain/models/recipe.dart';
 import '../../data/repositories/recipe_repository.dart';
 
-/// 🎨 极简创建菜谱页面 - 单步骤编辑设计
-/// 虚线框上传+极简输入框+专注单步骤体验
+/// 🎨 极简创建菜谱页面 V2.1 - 垂直滚动设计
+/// 所有内容在一页展示，垂直滚动浏览
+/// 包含：300px封面上传+菜谱信息+所有步骤编辑
+/// ✏️ 支持编辑模式：通过editId参数加载现有菜谱数据
 class CreateRecipeScreenV2 extends ConsumerStatefulWidget {
-  const CreateRecipeScreenV2({super.key});
+  final String? editId; // ✏️ 编辑模式：传入菜谱ID
+  
+  const CreateRecipeScreenV2({super.key, this.editId});
 
   @override
   ConsumerState<CreateRecipeScreenV2> createState() => _CreateRecipeScreenV2State();
@@ -25,28 +30,111 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
   
   final _recipeNameController = TextEditingController();
   final _recipeDescriptionController = TextEditingController();
-  final _pageController = PageController();
+  final _scrollController = ScrollController(); // 改用滚动控制器
+  
+  // 新增的表单控制器
+  final _totalTimeController = TextEditingController();
+  final _servingsController = TextEditingController();
   
   // ==================== 状态变量 ====================
   
-  String? _coverImagePath;
+  String? _coverImagePath; // 已废弃，保留兼容性
+  String? _coverImageBase64; // 📷 Base64封面图片数据
   final List<RecipeStepData> _steps = [];
-  int _currentStepIndex = 0;
   bool _isLoading = false;
+  String _selectedDifficulty = '简单'; // 默认难度
+  
+  // ✏️ 编辑模式相关状态
+  bool get _isEditMode => widget.editId != null;
+  Recipe? _editingRecipe;
+  
+  // UI 尺寸常量
+  static const double _coverImageHeight = 300.0; // 封面图片高度
+  static const double _stepImageHeight = 120.0;  // 步骤图片高度
+  static const double _pageHorizontalPadding = 24.0; // 页面水平边距
+  static const double _sectionSpacing = 24.0; // 区块间距
   
   @override
   void initState() {
     super.initState();
-    // 初始化第一个步骤
-    _addNewStep();
+    
+    // ✏️ 根据模式进行不同的初始化
+    if (_isEditMode) {
+      _loadRecipeForEdit();
+    } else {
+      // 创建模式：初始化第一个步骤
+      _addNewStep();
+    }
   }
   
   @override
   void dispose() {
     _recipeNameController.dispose();
     _recipeDescriptionController.dispose();
-    _pageController.dispose();
+    _scrollController.dispose();
+    _totalTimeController.dispose();
+    _servingsController.dispose();
     super.dispose();
+  }
+  
+  // ✏️ 编辑模式：加载菜谱数据并预填充表单
+  void _loadRecipeForEdit() async {
+    if (widget.editId == null) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
+      final recipe = repository.getRecipe(widget.editId!);
+      
+      if (recipe != null) {
+        setState(() {
+          _editingRecipe = recipe;
+          // 预填充基本信息
+          _recipeNameController.text = recipe.name;
+          _recipeDescriptionController.text = recipe.description ?? '';
+          _totalTimeController.text = recipe.totalTime.toString();
+          _servingsController.text = recipe.servings.toString();
+          _selectedDifficulty = recipe.difficulty;
+          _coverImagePath = recipe.imagePath;
+          _coverImageBase64 = recipe.imageBase64; // 📷 加载Base64图片数据
+          
+          // 清空现有步骤，重新添加
+          _steps.clear();
+          for (final step in recipe.steps) {
+            final stepData = RecipeStepData();
+            stepData.titleController.text = step.title;
+            stepData.descriptionController.text = step.description;
+            stepData.duration = step.duration;
+            stepData.imagePath = step.imagePath;
+            stepData.imageBase64 = step.imageBase64; // 📷 加载Base64图片数据
+            // 注意：当前RecipeStepData不支持tips，暂时跳过
+            _steps.add(stepData);
+          }
+          
+          // 如果没有步骤，至少添加一个空步骤
+          if (_steps.isEmpty) {
+            _addNewStep();
+          }
+          
+          _isLoading = false;
+        });
+      } else {
+        // 菜谱不存在，回退到创建模式
+        setState(() {
+          _isLoading = false;
+        });
+        _addNewStep();
+      }
+    } catch (e) {
+      print('❌ 加载编辑菜谱失败: $e');
+      setState(() {
+        _isLoading = false;
+      });
+      _addNewStep();
+    }
   }
   
   // ==================== 界面构建 ====================
@@ -83,39 +171,45 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 🎨 主要内容
+  /// 🎨 主要内容 - 垂直滚动设计
   Widget _buildMainContent() {
-    if (_steps.isEmpty) {
-      return const Center(child: Text('无步骤数据'));
-    }
-    
     return Column(
       children: [
-        // 🎨 极简顶部导航
-        _buildMinimalAppBar(),
+        // 🎨 顶部导航栏
+        _buildAppBar(),
         
-        // 🎨 菜谱基本信息（仅第一页显示）
-        if (_currentStepIndex == 0) _buildRecipeBasicInfo(),
-        
-        // 🎨 步骤编辑区域
+        // 🎨 主要内容区域
         Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentStepIndex = index;
-              });
-              HapticFeedback.lightImpact();
-            },
-            itemCount: _steps.length,
-            itemBuilder: (context, index) {
-              return _buildStepEditPage(_steps[index], index + 1);
-            },
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            padding: const EdgeInsets.all(_pageHorizontalPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🖼️ 封面图片上传区域
+                _buildCoverImageUpload(),
+                
+                const SizedBox(height: _sectionSpacing),
+                
+                // 📝 菜谱基本信息
+                _buildRecipeBasicInfo(),
+                
+                const SizedBox(height: _sectionSpacing),
+                
+                // 📊 菜谱元数据
+                _buildRecipeMetadata(),
+                
+                const SizedBox(height: _sectionSpacing),
+                
+                // 📋 所有步骤编辑
+                _buildAllStepsEdit(),
+                
+                // 底部安全区域
+                const SizedBox(height: 100),
+              ],
+            ),
           ),
         ),
-        
-        // 🎨 底部操作按钮
-        _buildBottomActions(),
       ],
     );
   }
@@ -582,7 +676,442 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 🎨 底部操作按钮
+  /// 🎨 构建顶部导航栏
+  Widget _buildAppBar() {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // 取消按钮
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.pop();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: const Text(
+                '取消',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
+                ),
+              ),
+            ),
+          ),
+          
+          // 中央标题 - 根据编辑模式动态显示
+          Expanded(
+            child: Center(
+              child: Text(
+                _isEditMode ? '编辑菜谱' : '创建菜谱',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          
+          // 保存按钮
+          GestureDetector(
+            onTap: _saveRecipe,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF5B6FED),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                '保存',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🎨 构建封面图片上传区域 - 300px高度
+  Widget _buildCoverImageUpload() {
+    return GestureDetector(
+      onTap: _selectCoverImage,
+      child: Container(
+        height: _coverImageHeight,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.grey[50],
+        ),
+        child: Base64ImageUploadWidget(
+          base64Data: _coverImageBase64,
+          width: double.infinity,
+          height: _coverImageHeight,
+          onTap: _selectCoverImage,
+          uploadHint: '添加封面图片',
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+  
+  /// 🎨 默认封面上传界面（已废弃，由Base64ImageUploadWidget替代）
+  
+  /// 🎨 构建菜谱元数据（时间、难度、份量）
+  Widget _buildRecipeMetadata() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 制作时间
+        Row(
+          children: [
+            const Text(
+              '制作时间',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _totalTimeController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+                decoration: const InputDecoration(
+                  hintText: '45',
+                  suffixText: '分钟',
+                  border: UnderlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                onChanged: (value) => HapticFeedback.selectionClick(),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // 难度选择
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '难度',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: ['简单', '中等', '困难'].map((difficulty) {
+                final isSelected = _selectedDifficulty == difficulty;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedDifficulty = difficulty;
+                    });
+                    HapticFeedback.lightImpact();
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF5B6FED) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.white : Colors.grey[400],
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          difficulty,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isSelected ? Colors.white : Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // 份量
+        Row(
+          children: [
+            const Text(
+              '份量',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _servingsController,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+                decoration: const InputDecoration(
+                  hintText: '2',
+                  suffixText: '人份',
+                  border: UnderlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                onChanged: (value) => HapticFeedback.selectionClick(),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+  
+  /// 🎨 构建所有步骤编辑区域
+  Widget _buildAllStepsEdit() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 步骤标题
+        Row(
+          children: [
+            const Text(
+              '制作步骤',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const Spacer(),
+            // 添加步骤按钮
+            GestureDetector(
+              onTap: _addNewStep,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B6FED).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.add,
+                      size: 16,
+                      color: Color(0xFF5B6FED),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '添加步骤',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF5B6FED),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // 步骤列表
+        if (_steps.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(32),
+            child: const Center(
+              child: Text(
+                '还没有添加步骤\\n点击上方按钮开始添加',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          )
+        else
+          ...List.generate(_steps.length, (index) {
+            final step = _steps[index];
+            final stepNumber = index + 1;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 24),
+              child: _buildStepEditItem(step, stepNumber, index),
+            );
+          }),
+      ],
+    );
+  }
+  
+  /// 🎨 单个步骤编辑项
+  Widget _buildStepEditItem(RecipeStepData stepData, int stepNumber, int index) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 步骤标题行
+          Row(
+            children: [
+              // 步骤编号
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF5B6FED),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$stepNumber',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // 删除按钮
+              const Spacer(),
+              if (_steps.length > 1)
+                GestureDetector(
+                  onTap: () => _removeStep(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Colors.red[400],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // 步骤图片上传区域
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 图片上传区域
+              GestureDetector(
+                onTap: () => _selectStepImage(stepData),
+                child: Container(
+                  width: _stepImageHeight,
+                  height: _stepImageHeight,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                    color: Colors.white,
+                  ),
+                  child: Base64ImageUploadWidget(
+                    base64Data: stepData.imageBase64,
+                    width: _stepImageHeight,
+                    height: _stepImageHeight,
+                    onTap: () => _selectStepImage(stepData),
+                    uploadHint: '+ 图片',
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 16),
+              
+              // 步骤信息输入区域
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 步骤说明
+                    TextField(
+                      controller: stepData.descriptionController,
+                      maxLines: 4,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.black87,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '步骤说明...',
+                        hintStyle: TextStyle(color: Colors.grey),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      onChanged: (value) => HapticFeedback.selectionClick(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🎨 默认步骤图片上传（已废弃，由Base64ImageUploadWidget替代）
+  
+  /// 🎨 底部操作按钮 (已废弃，改为顶部保存)
   Widget _buildBottomActions() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -657,19 +1186,72 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
   void _addNewStep() {
     setState(() {
       _steps.add(RecipeStepData());
-      _currentStepIndex = _steps.length - 1;
     });
     
     // 滚动到新步骤
-    if (_pageController.hasClients) {
-      _pageController.animateToPage(
-        _currentStepIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
     
     HapticFeedback.mediumImpact();
+  }
+  
+  /// 删除步骤
+  void _removeStep(int index) {
+    if (_steps.length <= 1) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除步骤'),
+        content: const Text('确定要删除这个步骤吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _steps[index].dispose();
+                _steps.removeAt(index);
+              });
+              HapticFeedback.mediumImpact();
+            },
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 📷 选择封面图片 - 真正的Base64存储
+  void _selectCoverImage() async {
+    final base64Data = await ImageBase64Helper.showImagePickerDialog(context);
+    
+    if (base64Data != null) {
+      setState(() {
+        _coverImageBase64 = base64Data;
+        _coverImagePath = null; // 清空旧的路径数据
+      });
+      HapticFeedback.mediumImpact();
+      
+      // 显示上传成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('封面图片上传成功！大小: ${ImageBase64Helper.getBase64Size(base64Data).toStringAsFixed(1)} KB'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
   
   /// 复制步骤
@@ -679,9 +1261,10 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     newStep.descriptionController.text = stepData.descriptionController.text;
     newStep.duration = stepData.duration;
     newStep.imagePath = stepData.imagePath;
+    newStep.imageBase64 = stepData.imageBase64; // 📷 复制Base64图片数据
     
     setState(() {
-      _steps.insert(_currentStepIndex + 1, newStep);
+      _steps.add(newStep);
     });
     
     HapticFeedback.mediumImpact();
@@ -709,9 +1292,7 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
                 _steps.remove(stepData);
                 stepData.dispose();
                 
-                if (_currentStepIndex >= _steps.length) {
-                  _currentStepIndex = _steps.length - 1;
-                }
+                // 在垂直滚动设计中不需要当前步骤索引
               });
               HapticFeedback.mediumImpact();
             },
@@ -722,41 +1303,25 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 选择步骤图片
+  /// 📷 选择步骤图片 - 真正的Base64存储
   void _selectStepImage(RecipeStepData stepData) async {
-    // 使用内置的图片选择对话框
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择图片'),
-        content: const Text('请选择图片来源'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, 'gallery');
-            },
-            child: const Text('相册'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, 'camera');
-            },
-            child: const Text('拍照'),
-          ),
-        ],
-      ),
-    );
+    final base64Data = await ImageBase64Helper.showImagePickerDialog(context);
     
-    if (result != null) {
-      // 模拟图片路径（实际使用时需要集成图片选择器）
+    if (base64Data != null) {
       setState(() {
-        stepData.imagePath = 'assets/images/placeholder_step.jpg';
+        stepData.imageBase64 = base64Data;
+        stepData.imagePath = null; // 清空旧的路径数据
       });
       HapticFeedback.mediumImpact();
+      
+      // 显示上传成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('步骤图片上传成功！大小: ${ImageBase64Helper.getBase64Size(base64Data).toStringAsFixed(1)} KB'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
   
@@ -779,7 +1344,7 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
       return;
     }
     
-    if (_steps.isEmpty || _steps.first.titleController.text.trim().isEmpty) {
+    if (_steps.isEmpty || _steps.first.descriptionController.text.trim().isEmpty) {
       _showErrorDialog('请至少添加一个步骤');
       return;
     }
@@ -795,22 +1360,27 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
         name: _recipeNameController.text.trim(),
         description: _recipeDescriptionController.text.trim(),
         iconType: 'AppIcon3DType.recipe',
-        totalTime: _steps.fold(0, (sum, step) => sum + step.duration),
-        difficulty: '中等', // 默认中等难度
-        servings: 2, // 默认2人份
+        totalTime: int.tryParse(_totalTimeController.text) ?? 
+                  _steps.fold(0, (sum, step) => sum + step.duration),
+        difficulty: _selectedDifficulty,
+        servings: int.tryParse(_servingsController.text) ?? 2,
         steps: _steps.map((stepData) => RecipeStep(
-          title: stepData.titleController.text.trim(),
+          title: stepData.descriptionController.text.trim().isNotEmpty 
+                 ? stepData.descriptionController.text.trim() 
+                 : '步骤${_steps.indexOf(stepData) + 1}',
           description: stepData.descriptionController.text.trim(),
           duration: stepData.duration,
-          imagePath: stepData.imagePath,
+          imagePath: stepData.imagePath, // 保留兼容性
+          imageBase64: stepData.imageBase64, // 📷 使用Base64数据
         )).toList(),
-        imagePath: _coverImagePath, // 使用imagePath而不是coverImagePath
-        createdBy: 'user1', // 默认创建者
+        imagePath: _coverImagePath, // 保留兼容性
+        imageBase64: _coverImageBase64, // 📷 使用Base64数据
+        createdBy: 'current_user',
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
-        isPublic: false, // 默认私有
-        rating: 0.0, // 默认评分
-        cookCount: 0, // 默认制作次数
+        isPublic: false,
+        rating: 0.0,
+        cookCount: 0,
       );
       
       // 保存到数据库
@@ -888,7 +1458,8 @@ class RecipeStepData {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   int duration = 10; // 默认10分钟
-  String? imagePath;
+  String? imagePath; // 保留兼容性
+  String? imageBase64; // 📷 Base64图片数据
   
   void dispose() {
     titleController.dispose();

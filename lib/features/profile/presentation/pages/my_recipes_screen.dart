@@ -215,8 +215,9 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// 我创建的菜谱列表
   Widget _buildCreatedRecipes(bool isDark) {
+    // 📊 调试模式：显示所有菜谱数据供用户查看
     return FutureBuilder<List<Recipe>>(
-      future: ref.read(userRecipesProvider('current_user').future),
+      future: ref.read(recipesProvider.future), // 显示所有菜谱而不是过滤用户的
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -244,14 +245,22 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           return _buildEmptyState(
             isDark,
             icon: '📝',
-            title: '还没有创建菜谱',
-            description: '点击右上角加号创建你的第一个菜谱吧',
+            title: '数据库为空',
+            description: '还没有任何菜谱数据',
             actionText: '立即创建',
             onAction: () => context.push('/create-recipe'),
           );
         }
 
-        return _buildRecipeList(userRecipes, isDark);
+        return Column(
+          children: [
+            // 📊 数据库统计信息
+            _buildDatabaseStats(userRecipes, isDark),
+            const SizedBox(height: AppSpacing.md),
+            // 菜谱列表
+            Expanded(child: _buildRecipeList(userRecipes, isDark)),
+          ],
+        );
       },
     );
   }
@@ -266,6 +275,87 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
       description: '在菜谱详情页点击爱心收藏喜欢的菜谱',
       actionText: '去发现',
       onAction: () => context.go('/'),
+    );
+  }
+
+  /// 📊 数据库统计信息
+  Widget _buildDatabaseStats(List<Recipe> recipes, bool isDark) {
+    final userGroups = <String, int>{};
+    for (var recipe in recipes) {
+      userGroups[recipe.createdBy] = (userGroups[recipe.createdBy] ?? 0) + 1;
+    }
+    
+    return Padding(
+      padding: AppSpacing.pagePadding,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.getBackgroundSecondaryColor(isDark),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.storage,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '数据库状况',
+                  style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: [
+                _buildStatChip('📊 总计: ${recipes.length}个菜谱', isDark),
+                ...userGroups.entries.map((entry) => 
+                  _buildStatChip('👤 ${entry.key}: ${entry.value}个', isDark)
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 统计信息芯片
+  Widget _buildStatChip(String text, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        text,
+        style: AppTypography.captionStyle(isDark: isDark).copyWith(
+          color: AppColors.primary,
+          fontWeight: AppTypography.medium,
+        ),
+      ),
     );
   }
 
@@ -342,6 +432,16 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                         _buildMetaChip('👥 ${recipe.servings}人份', isDark),
                         const SizedBox(width: AppSpacing.sm),
                         _buildMetaChip('⭐ ${recipe.difficulty}', isDark),
+                      ],
+                    ),
+                    
+                    // 📊 调试信息：显示数据库详细信息
+                    const SizedBox(height: AppSpacing.xs),
+                    Row(
+                      children: [
+                        _buildMetaChip('👤 ${recipe.createdBy}', isDark),
+                        const SizedBox(width: AppSpacing.sm),
+                        _buildMetaChip('📊 ID: ${recipe.id.substring(0, 8)}...', isDark),
                       ],
                     ),
                   ],

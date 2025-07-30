@@ -8,11 +8,16 @@ import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../shared/pages/image_gallery_screen.dart';
+import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../domain/models/recipe.dart';
 import '../../data/repositories/recipe_repository.dart';
 
-/// 🎨 极简菜谱详情页面 - 单页显示设计
-/// 每次只显示一个步骤，像幻灯片一样浏览
+/// 🎨 极简菜谱详情页面 - 垂直滚动设计 V2.1
+/// 所有步骤在同一页面展示，通过垂直滚动浏览
+/// UI规格：
+/// - 封面图片：300px 高度
+/// - 步骤图片：200px 高度
+/// - 间距系统：使用 8 的倍数
 class RecipeDetailScreenV2 extends ConsumerStatefulWidget {
   final String recipeId;
   
@@ -25,17 +30,23 @@ class RecipeDetailScreenV2 extends ConsumerStatefulWidget {
 class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2> 
     with TickerProviderStateMixin {
   Recipe? _recipe;
-  int _currentStepIndex = 0;
-  late PageController _pageController;
+  late ScrollController _scrollController; // 改用 ScrollController 实现垂直滚动
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   bool _isLoading = true;
   String? _errorMessage;
   
+  // UI 尺寸常量定义
+  static const double _coverImageHeight = 300.0; // 封面图片高度
+  static const double _stepImageHeight = 200.0;  // 步骤图片高度
+  static const double _pageHorizontalPadding = 24.0; // 页面水平内边距
+  static const double _sectionSpacing = 32.0; // 区块间距
+  static const double _itemSpacing = 16.0; // 项目间距
+  
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    _scrollController = ScrollController(); // 初始化滚动控制器
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -50,7 +61,7 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
   
   @override
   void dispose() {
-    _pageController.dispose();
+    _scrollController.dispose(); // 释放滚动控制器
     _fadeController.dispose();
     super.dispose();
   }
@@ -367,42 +378,120 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
     
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 🎨 极简顶部导航栏
-            _buildMinimalAppBar(),
-            
-            // 🎨 步骤内容区域 - PageView实现滑动切换
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentStepIndex = index;
-                  });
+      floatingActionButton: _buildCookingModeButton(), // 🍳 开始烹饪浮动按钮
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // 🎨 顶部导航栏 + 封面图片（使用 SliverAppBar 实现沉浸式效果）
+          SliverAppBar(
+            pinned: true, // 固定在顶部
+            expandedHeight: _coverImageHeight + 56, // 封面图片高度 + 导航栏高度
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: () {
                   HapticFeedback.lightImpact();
+                  context.pop();
                 },
-                itemCount: _recipe!.steps.length,
-                itemBuilder: (context, index) {
-                  return _buildStepPage(_recipe!.steps[index], index + 1);
-                },
+                icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
               ),
             ),
-            
-            // 🎨 底部进度指示器
-            _buildProgressIndicator(),
-          ],
-        ),
+            // ✏️ 添加编辑按钮
+            actions: [
+              Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _navigateToEditRecipe();
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
+                  tooltip: '编辑菜谱',
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 封面图片
+                  _buildCoverImage(),
+                  // 渐变遮罩，确保顶部文字可读
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // 🎨 主要内容区域
+          SliverToBoxAdapter(
+            child: AnimatedBuilder(
+              animation: _fadeAnimation,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(_pageHorizontalPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 📝 菜谱基本信息区域
+                        _buildRecipeHeader(),
+                        
+                        const SizedBox(height: _sectionSpacing),
+                        
+                        // 📊 菜谱元数据（时间、难度、份量）
+                        _buildRecipeMetadata(),
+                        
+                        const SizedBox(height: _sectionSpacing),
+                        
+                        // 📋 所有步骤列表（垂直展示）
+                        _buildAllSteps(),
+                        
+                        // 底部安全区域
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      
-      // 🎨 烹饪模式浮动按钮
-      floatingActionButton: _buildCookingModeButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
   
-  /// 🎨 极简顶部导航栏
+  // 注意：以下方法已被新的垂直滚动设计取代，保留供参考
+  
+  /// 🎨 极简顶部导航栏 (已废弃)
   Widget _buildMinimalAppBar() {
     return Container(
       height: 56,
@@ -475,7 +564,7 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
           const Spacer(flex: 1),
           
           // 🎨 步骤过程标题（可选）
-          if (_currentStepIndex == 0)
+          if (true) // 在垂直滚动设计中总是显示过程标题
             Container(
               margin: const EdgeInsets.only(bottom: 32),
               child: Text(
@@ -768,7 +857,7 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
         children: [
           // 页面指示点
           ...List.generate(_recipe!.steps.length, (index) {
-            final isActive = index == _currentStepIndex;
+            final isActive = true; // 在垂直滚动设计中所有步骤都是激活状态
             return Container(
               width: isActive ? 24 : 8,
               height: 8,
@@ -780,6 +869,357 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
             );
           }),
         ],
+      ),
+    );
+  }
+  
+  /// 📷 构建封面图片 - 300px高度，支持Base64图片
+  Widget _buildCoverImage() {
+    // 优先使用Base64数据，对于旧数据保留imagePath兼容性
+    final imageBase64 = _recipe!.imageBase64;
+    final imagePath = _recipe!.imagePath;
+    
+    // 如果有Base64数据，优先使用
+    if (imageBase64 != null && imageBase64.isNotEmpty) {
+      return Base64ImageWidget(
+        base64Data: imageBase64,
+        width: double.infinity,
+        height: _coverImageHeight,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.zero,
+        errorWidget: _buildDefaultCoverImage(),
+      );
+    }
+    
+    // 兼容旧数据：如果有imagePath，使用传统方式显示
+    if (imagePath != null && imagePath.isNotEmpty) {
+      return imagePath.startsWith('http')
+          ? Image.network(
+              imagePath,
+              height: _coverImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultCoverImage();
+              },
+            )
+          : Image.asset(
+              imagePath,
+              height: _coverImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultCoverImage();
+              },
+            );
+    }
+    
+    return _buildDefaultCoverImage();
+  }
+  
+  /// 🎨 默认封面图片
+  Widget _buildDefaultCoverImage() {
+    return Container(
+      height: _coverImageHeight,
+      width: double.infinity,
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.restaurant_menu,
+          size: 80,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+  
+  /// 🎨 构建菜谱头部信息
+  Widget _buildRecipeHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 菜谱名称 - 大标题
+        Text(
+          _recipe!.name,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // 分隔线
+        Container(
+          height: 1,
+          width: 60,
+          color: Colors.grey[300],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // 菜谱描述
+        if (_recipe!.description.isNotEmpty)
+          Text(
+            _recipe!.description,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
+          ),
+      ],
+    );
+  }
+  
+  /// 🎨 构建菜谱元数据（时间、难度、份量）
+  Widget _buildRecipeMetadata() {
+    return Row(
+      children: [
+        // 制作时间
+        _buildMetadataItem(
+          icon: Icons.access_time,
+          label: '${_recipe!.totalTime}分钟',
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 难度
+        _buildMetadataItem(
+          icon: Icons.signal_cellular_alt,
+          label: _recipe!.difficulty,
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 份量
+        _buildMetadataItem(
+          icon: Icons.people_outline,
+          label: '${_recipe!.servings}人份',
+        ),
+      ],
+    );
+  }
+  
+  /// 🎨 单个元数据项
+  Widget _buildMetadataItem({
+    required IconData icon,
+    required String label,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: Colors.grey[600],
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// 🎨 构建所有步骤列表 - 垂直展示
+  Widget _buildAllSteps() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 步骤标题
+        const Text(
+          '制作步骤',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        
+        const SizedBox(height: 20),
+        
+        // 步骤列表
+        ...List.generate(_recipe!.steps.length, (index) {
+          final step = _recipe!.steps[index];
+          final stepNumber = index + 1;
+          
+          return Container(
+            margin: const EdgeInsets.only(bottom: 32),
+            child: _buildStepItem(step, stepNumber),
+          );
+        }),
+      ],
+    );
+  }
+  
+  /// 🎨 单个步骤项 - 垂直布局设计
+  Widget _buildStepItem(RecipeStep step, int stepNumber) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 步骤标题行
+        Row(
+          children: [
+            // 步骤编号
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF5B6FED),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$stepNumber',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // 步骤标题
+            Expanded(
+              child: Text(
+                step.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // 步骤图片 - 200px高度（支持Base64和imagePath）
+        if ((step.imageBase64 != null && step.imageBase64!.isNotEmpty) || 
+            (step.imagePath != null && step.imagePath!.isNotEmpty))
+          _buildStepImage(step, stepNumber),
+        
+        // 步骤描述
+        if (step.description.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            step.description,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[700],
+              height: 1.6,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+  
+  /// 📷 构建步骤图片 - 支持Base64图片和点击查看大图
+  Widget _buildStepImage(RecipeStep step, int stepNumber) {
+    // 收集所有步骤的图片数据（优先Base64，然后路径）
+    final allStepImages = _recipe!.steps
+        .where((s) => (s.imageBase64 != null && s.imageBase64!.isNotEmpty) || 
+                     (s.imagePath != null && s.imagePath!.isNotEmpty))
+        .map((s) => s.imageBase64 ?? s.imagePath!)
+        .toList();
+    
+    final currentImage = step.imageBase64 ?? step.imagePath!;
+    
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        // 打开图片画廊（如果支持Base64数据）
+        if (allStepImages.isNotEmpty) {
+          // TODO: 更新ImageGalleryScreen以支持Base64数据
+          // 目前先显示提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('图片放大功能开发中...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Hero(
+        tag: 'step_image_v2_${stepNumber}',
+        child: Container(
+          height: _stepImageHeight,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey[200],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _buildStepImageContent(step),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// 📷 构建步骤图片内容（支持Base64和传统路径）
+  Widget _buildStepImageContent(RecipeStep step) {
+    // 优先使用Base64数据
+    if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
+      return Base64ImageWidget(
+        base64Data: step.imageBase64,
+        width: double.infinity,
+        height: _stepImageHeight,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.zero, // 已经在父容器中应用了圆角
+        errorWidget: _buildDefaultStepImage(),
+      );
+    }
+    
+    // 兼容旧数据：使用imagePath
+    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
+      return step.imagePath!.startsWith('http')
+          ? Image.network(
+              step.imagePath!,
+              height: _stepImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepImage();
+              },
+            )
+          : Image.asset(
+              step.imagePath!,
+              height: _stepImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepImage();
+              },
+            );
+    }
+    
+    return _buildDefaultStepImage();
+  }
+  
+  /// 🎨 默认步骤图片
+  Widget _buildDefaultStepImage() {
+    return Container(
+      height: _stepImageHeight,
+      width: double.infinity,
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 60,
+          color: Colors.grey[400],
+        ),
       ),
     );
   }
@@ -819,5 +1259,10 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
   /// 导航到烹饪模式
   void _navigateToCookingMode() {
     context.push('/cooking-mode?recipeId=${widget.recipeId}');
+  }
+  
+  /// ✏️ 导航到编辑菜谱页面
+  void _navigateToEditRecipe() {
+    context.push('/create-recipe?editId=${widget.recipeId}');
   }
 }

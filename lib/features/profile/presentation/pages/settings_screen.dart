@@ -86,24 +86,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       children: [
                         // 数据管理板块
                         _buildSectionTitle('数据管理', isDark),
-                        Space.h16,
+                        const SizedBox(height: AppSpacing.md),
                         _buildDataManagementSection(isDark),
                         
-                        Space.h32,
+                        const SizedBox(height: AppSpacing.xl),
                         
                         // 应用设置板块
                         _buildSectionTitle('应用设置', isDark),
-                        Space.h16,
+                        const SizedBox(height: AppSpacing.md),
                         _buildAppSettingsSection(isDark),
                         
-                        Space.h32,
+                        const SizedBox(height: AppSpacing.xl),
                         
                         // 关于板块
                         _buildSectionTitle('关于', isDark),
-                        Space.h16,
+                        const SizedBox(height: AppSpacing.md),
                         _buildAboutSection(isDark),
                         
-                        Space.h48,
+                        const SizedBox(height: AppSpacing.xxl),
                       ],
                     ),
                   ),
@@ -189,7 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           onTap: _isProcessing ? null : () => _exportData(),
         ),
         
-        Space.h12,
+        const SizedBox(height: AppSpacing.sm),
         
         // 导入数据
         _buildSettingItem(
@@ -201,7 +201,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           onTap: _isProcessing ? null : () => _importData(),
         ),
         
-        Space.h12,
+        const SizedBox(height: AppSpacing.sm),
         
         // 快速备份
         _buildSettingItem(
@@ -213,7 +213,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           onTap: _isProcessing ? null : () => _quickBackup(),
         ),
         
-        Space.h12,
+        const SizedBox(height: AppSpacing.sm),
         
         // 清空数据
         _buildSettingItem(
@@ -245,7 +245,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           ),
         ),
         
-        Space.h12,
+        const SizedBox(height: AppSpacing.sm),
         
         // 通知设置
         _buildSettingItem(
@@ -273,7 +273,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           isDark: isDark,
         ),
         
-        Space.h12,
+        const SizedBox(height: AppSpacing.sm),
         
         // 隐私政策
         _buildSettingItem(
@@ -320,7 +320,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               ),
             ),
             
-            Space.w16,
+            const SizedBox(width: AppSpacing.md),
             
             // 文字内容
             Expanded(
@@ -333,7 +333,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       fontWeight: AppTypography.medium,
                     ),
                   ),
-                  Space.h4,
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     subtitle,
                     style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
@@ -393,7 +393,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('合并：保留现有菜谱，添加新菜谱'),
-            Space.h8,
+            const SizedBox(height: AppSpacing.sm),
             Text('覆盖：删除所有现有菜谱，完全替换'),
           ],
         ),
