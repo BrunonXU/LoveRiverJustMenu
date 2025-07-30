@@ -20,6 +20,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/app_user.dart';
 import '../../exceptions/auth_exceptions.dart';
+import '../../firestore/repositories/user_repository.dart';
 
 /// 🛡️ 认证服务类
 /// 
@@ -35,6 +36,9 @@ class AuthService {
   /// 本地用户数据存储
   late Box<AppUser> _userBox;
   
+  /// Firestore 用户数据仓库
+  final UserRepository _userRepository;
+  
   /// 当前用户状态流控制器
   final StreamController<AppUser?> _userStateController = StreamController<AppUser?>.broadcast();
   
@@ -45,15 +49,18 @@ class AuthService {
   /// 
   /// [firebaseAuth] Firebase Auth 实例（可选，用于测试）
   /// [googleSignIn] Google 登录实例（可选，用于测试）
+  /// [userRepository] Firestore 用户数据仓库（可选，用于测试）
   AuthService({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
+    UserRepository? userRepository,
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn ?? GoogleSignIn(
           scopes: ['email', 'profile'],
           // Web 平台配置
           clientId: kIsWeb ? 'your-web-client-id.googleusercontent.com' : null,
-        );
+        ),
+        _userRepository = userRepository ?? UserRepository();
   
   /// 🚀 初始化认证服务
   /// 
@@ -124,6 +131,15 @@ class AuthService {
       // 保存到本地
       await _saveUserLocally(appUser);
       
+      // 🔥 保存到Firestore云端
+      try {
+        await _userRepository.saveUser(appUser);
+        debugPrint('☁️ 用户数据已同步到云端');
+      } catch (e) {
+        debugPrint('⚠️ 云端同步失败，但不影响注册: $e');
+        // 云端同步失败不应该阻止注册流程
+      }
+      
       // 发送邮箱验证
       if (!credential.user!.emailVerified) {
         await credential.user!.sendEmailVerification();
@@ -166,8 +182,28 @@ class AuthService {
         throw AuthException('登录失败，用户不存在', 'USER_NOT_FOUND');
       }
       
-      // 创建或更新应用用户对象
-      final appUser = AppUser.fromFirebaseUser(credential.user!);
+      // 🔥 尝试从云端获取用户数据
+      AppUser appUser;
+      try {
+        final cloudUser = await _userRepository.getUser(credential.user!.uid);
+        if (cloudUser != null) {
+          // 使用云端数据，更新Firebase用户信息
+          appUser = cloudUser.copyWith(
+            displayName: credential.user!.displayName ?? cloudUser.displayName,
+            photoURL: credential.user!.photoURL ?? cloudUser.photoURL,
+            updatedAt: DateTime.now(),
+          );
+          debugPrint('☁️ 已从云端获取用户数据');
+        } else {
+          // 云端没有数据，创建新用户对象
+          appUser = AppUser.fromFirebaseUser(credential.user!);
+          await _userRepository.saveUser(appUser);
+          debugPrint('☁️ 新用户数据已保存到云端');
+        }
+      } catch (e) {
+        debugPrint('⚠️ 云端数据获取失败，使用本地数据: $e');
+        appUser = AppUser.fromFirebaseUser(credential.user!);
+      }
       
       // 保存到本地
       await _saveUserLocally(appUser);
@@ -217,8 +253,28 @@ class AuthService {
         throw AuthException('Google 登录失败', 'GOOGLE_SIGN_IN_FAILED');
       }
       
-      // 创建应用用户对象
-      final appUser = AppUser.fromFirebaseUser(userCredential.user!);
+      // 🔥 尝试从云端获取用户数据
+      AppUser appUser;
+      try {
+        final cloudUser = await _userRepository.getUser(userCredential.user!.uid);
+        if (cloudUser != null) {
+          // 使用云端数据，更新Firebase用户信息
+          appUser = cloudUser.copyWith(
+            displayName: userCredential.user!.displayName ?? cloudUser.displayName,
+            photoURL: userCredential.user!.photoURL ?? cloudUser.photoURL,
+            updatedAt: DateTime.now(),
+          );
+          debugPrint('☁️ 已从云端获取用户数据');
+        } else {
+          // 云端没有数据，创建新用户对象
+          appUser = AppUser.fromFirebaseUser(userCredential.user!);
+          await _userRepository.saveUser(appUser);
+          debugPrint('☁️ 新用户数据已保存到云端');
+        }
+      } catch (e) {
+        debugPrint('⚠️ 云端数据获取失败，使用本地数据: $e');
+        appUser = AppUser.fromFirebaseUser(userCredential.user!);
+      }
       
       // 保存到本地
       await _saveUserLocally(appUser);
@@ -382,6 +438,15 @@ class AuthService {
       );
       
       await _saveUserLocally(updatedUser);
+      
+      // 🔥 同步到Firestore云端
+      try {
+        await _userRepository.updateUserPreferences(updatedUser.uid, preferences);
+        debugPrint('☁️ 用户偏好设置已同步到云端');
+      } catch (e) {
+        debugPrint('⚠️ 偏好设置云端同步失败: $e');
+        // 云端同步失败不影响本地更新
+      }
       
       debugPrint('✅ 用户偏好设置更新成功');
       return updatedUser;

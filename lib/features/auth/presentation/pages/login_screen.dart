@@ -22,6 +22,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
+import '../../../../core/auth/models/app_user.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/exceptions/auth_exceptions.dart';
 import '../../../../shared/widgets/breathing_widget.dart';
