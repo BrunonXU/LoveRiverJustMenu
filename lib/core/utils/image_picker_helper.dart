@@ -10,6 +10,16 @@ import '../themes/spacing.dart';
 /// 图片选择工具类
 /// 支持相机拍照和相册选择
 class ImagePickerHelper {
+  /// 🎨 直接从相机拍照（公共方法）
+  static Future<String?> takePhotoFromCamera(BuildContext context) async {
+    return await _takePhoto();
+  }
+  
+  /// 🎨 直接从相册选择（公共方法）
+  static Future<String?> pickImageFromGallery(BuildContext context) async {
+    return await _pickFromGallery();
+  }
+  
   /// 显示图片选择对话框
   static Future<String?> showImagePickerDialog(BuildContext context) async {
     final isDark = Theme.of(context).brightness == Brightness.dark;

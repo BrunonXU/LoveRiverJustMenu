@@ -14,6 +14,8 @@ import '../../../../shared/widgets/voice_interaction_widget.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/animations/physics_engine.dart';
 import '../../../../core/animations/christmas_snow_effect.dart';
+import '../../../recipe/data/repositories/recipe_repository.dart';
+import '../../../recipe/domain/models/recipe.dart';
 
 /// 主界面 - 时间驱动的卡片流
 /// 严格遵循极简设计原则：95%黑白灰，5%彩色焦点
@@ -38,6 +40,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   int _currentIndex = 0;
   bool _isLoading = true;
+  List<Recipe> _allRecipes = []; // 🔧 从数据库加载的所有菜谱
   
   // ==================== 生命周期 ====================
   
@@ -92,13 +95,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _loadInitialData() async {
     final stopwatch = PerformanceMonitor.startOperation('LoadInitialData');
     
-    // 模拟数据加载
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+    try {
+      // 🔧 从数据库加载真实菜谱数据
+      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
+      final allRecipes = repository.getAllRecipes();
+      
+      if (mounted) {
+        setState(() {
+          _allRecipes = allRecipes;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('加载菜谱数据失败: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
     
     PerformanceMonitor.endOperation(stopwatch, 'LoadInitialData');
@@ -778,9 +792,34 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return suggestions[timeOfDay] ?? '探索更多美味';
   }
   
-  /// 获取当前菜谱 - 🔧 修复菜谱多样性
+  /// 获取当前菜谱 - 🔧 优先使用数据库数据，fallback到示例数据
   Map<String, dynamic> _getCurrentRecipe() {
-    final recipes = [
+    // 如果有数据库中的菜谱，优先使用
+    if (_allRecipes.isNotEmpty) {
+      final validIndex = _currentIndex % _allRecipes.length;
+      final recipe = _allRecipes[validIndex];
+      
+      // 解析图标类型
+      AppIcon3DType iconType;
+      try {
+        iconType = AppIcon3DType.values.firstWhere(
+          (type) => type.toString() == recipe.iconType,
+          orElse: () => AppIcon3DType.heart,
+        );
+      } catch (e) {
+        iconType = AppIcon3DType.heart;
+      }
+      
+      return {
+        'name': recipe.name,
+        'time': recipe.totalTime,
+        'iconType': iconType,
+        'id': recipe.id,
+      };
+    }
+    
+    // 如果数据库中没有菜谱，使用示例数据作为fallback
+    final fallbackRecipes = [
       {'name': '银耳莲子羹', 'time': 20, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_1'},
       {'name': '番茄鸡蛋面', 'time': 15, 'iconType': AppIcon3DType.spoon, 'id': 'recipe_2'},
       {'name': '红烧排骨', 'time': 45, 'iconType': AppIcon3DType.chef, 'id': 'recipe_3'},
@@ -794,9 +833,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
       {'name': '口水鸡', 'time': 25, 'iconType': AppIcon3DType.chef, 'id': 'recipe_11'},
       {'name': '蛋花汤', 'time': 5, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_12'},
     ];
-    // 确保索引在有效范围内
-    final validIndex = _currentIndex % recipes.length;
-    return recipes[validIndex];
+    
+    final validIndex = _currentIndex % fallbackRecipes.length;
+    return fallbackRecipes[validIndex];
   }
   
   // ==================== 交互处理方法 ====================
@@ -880,9 +919,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
   }
   
   /// 导航到烹饪模式
-  void _navigateToCookingMode() {
+  void _navigateToCookingMode({String? recipeId}) {
     HapticFeedback.mediumImpact();
-    context.push(AppRouter.cookingMode);
+    final targetRecipeId = recipeId ?? _getCurrentRecipe()['id'];
+    context.push('${AppRouter.cookingMode}?recipeId=$targetRecipeId');
   }
   
   /// 导航到创建食谱页面

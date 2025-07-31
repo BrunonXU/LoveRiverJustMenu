@@ -45,6 +45,9 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   // 步骤列表
   List<CreateRecipeStep> _steps = [];
   
+  // 🎨 新增：封面图片管理
+  String? _coverImagePath;
+  
   // 页面状态
   bool _isBasicInfoComplete = false;
   int _currentStepIndex = 0;
@@ -296,6 +299,11 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
                         ],
                       ),
                     ),
+                    
+                    Space.h24,
+                    
+                    // 🎨 新增：封面图片上传区域 - 200px高度
+                    _buildCoverImageUpload(isDark),
                     
                     Space.h24,
                     
@@ -907,15 +915,15 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   
   Widget _buildImageUploadArea(CreateRecipeStep step, bool isDark) {
     return Container(
-      height: 80,
+      height: 120, // 🎨 从80px调整为120px，符合1.html设计
       child: Row(
         children: [
-          // 添加图片按钮
+          // 添加图片按钮 - 🎨 调整为120px高度
           GestureDetector(
             onTap: () => _addImageToStep(step),
             child: Container(
-              width: 80,
-              height: 80,
+              width: 120, // 🎨 从80px调整为120px
+              height: 120, // 🎨 从80px调整为120px
               decoration: BoxDecoration(
                 color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
@@ -953,8 +961,8 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
                           child: Container(
-                            width: 80,
-                            height: 80,
+                            width: 120, // 🎨 从80px调整为120px
+                            height: 120, // 🎨 从80px调整为120px
                             decoration: BoxDecoration(
                               border: Border.all(
                                 color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
@@ -1726,8 +1734,8 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
     HapticFeedback.mediumImpact();
     
     try {
-      // 🔧 修复bug：真正保存到数据库
-      final repository = ref.read(recipeRepositoryProvider);
+      // 🔧 修复bug：使用异步初始化的Repository确保数据库已准备好
+      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
       
       // 生成唯一ID
       final recipeId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -1761,6 +1769,19 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
         ));
       }
       
+      // 🎨 处理封面图片保存
+      String? savedCoverImagePath;
+      if (_coverImagePath != null) {
+        final coverImageFile = File(_coverImagePath!);
+        if (await coverImageFile.exists()) {
+          savedCoverImagePath = await repository.saveImageFile(
+            coverImageFile, 
+            recipeId,
+            // 不传stepId，将保存为主图片（cover）
+          );
+        }
+      }
+      
       // 计算总时长
       final totalTime = recipeSteps.fold(0, (sum, step) => sum + step.duration);
       
@@ -1774,7 +1795,7 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
         difficulty: _selectedDifficulty,
         servings: int.tryParse(_servingsController.text) ?? 2,
         steps: recipeSteps,
-        imagePath: null, // TODO: 后续版本可以添加主图
+        imagePath: savedCoverImagePath, // 🎨 保存封面图片路径
         createdBy: 'current_user', // TODO: 集成用户系统后使用真实用户ID
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -2327,6 +2348,375 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen>
   String _getStepIcon(int stepIndex) {
     final icons = ['🥄', '🔥', '🍳', '⏰', '✨', '🍽️', '💫', '🎯'];
     return icons[stepIndex % icons.length];
+  }
+  
+  // ==================== 🎨 封面图片上传功能 ====================
+  
+  /// 🎨 封面图片上传区域 - 200px高度，符合1.html设计
+  Widget _buildCoverImageUpload(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '菜谱封面图片',
+          style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextPrimaryColor(isDark),
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        Space.h12,
+        
+        GestureDetector(
+          onTap: _selectCoverImage,
+          child: Container(
+            width: double.infinity,
+            height: 200, // 🎨 200px高度，符合1.html设计
+            decoration: BoxDecoration(
+              color: _coverImagePath == null 
+                  ? AppColors.getBackgroundSecondaryColor(isDark)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+              border: Border.all(
+                color: _coverImagePath == null
+                    ? AppColors.getTextSecondaryColor(isDark).withOpacity(0.3)
+                    : AppColors.primary.withOpacity(0.3),
+                width: 2,
+                style: _coverImagePath == null ? BorderStyle.solid : BorderStyle.solid,
+              ),
+            ),
+            child: _coverImagePath == null
+                ? _buildCoverUploadPlaceholder(isDark)
+                : _buildCoverImagePreview(isDark),
+          ),
+        ),
+        
+        if (_coverImagePath != null) ...[
+          Space.h8,
+          Text(
+            '💡 点击图片可重新选择或编辑',
+            style: AppTypography.captionStyle(isDark: isDark).copyWith(
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+  
+  /// 封面上传占位符
+  Widget _buildCoverUploadPlaceholder(bool isDark) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient.scale(0.3),
+            borderRadius: BorderRadius.circular(32),
+          ),
+          child: Icon(
+            Icons.add_a_photo,
+            size: 32,
+            color: AppColors.primary,
+          ),
+        ),
+        
+        Space.h16,
+        
+        Text(
+          '点击上传封面图片',
+          style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextPrimaryColor(isDark),
+            fontWeight: AppTypography.medium,
+          ),
+        ),
+        
+        Space.h4,
+        
+        Text(
+          '建议尺寸 4:3，最大5MB',
+          style: AppTypography.captionStyle(isDark: isDark).copyWith(
+            color: AppColors.getTextSecondaryColor(isDark),
+          ),
+        ),
+        
+        Space.h12,
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildUploadActionButton('📷', '拍照', isDark, () => _selectCoverImage(useCamera: true)),
+            Space.w16,
+            _buildUploadActionButton('🖼️', '相册', isDark, () => _selectCoverImage(useCamera: false)),
+          ],
+        ),
+      ],
+    );
+  }
+  
+  /// 封面图片预览
+  Widget _buildCoverImagePreview(bool isDark) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppSpacing.radiusLarge - 2),
+      child: Stack(
+        children: [
+          // 图片显示
+          _coverImagePath!.startsWith('data:') || _coverImagePath!.startsWith('http')
+              ? Image.network(
+                  _coverImagePath!,
+                  width: double.infinity,
+                  height: 200,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error, color: Colors.red, size: 32),
+                            Space.h8,
+                            Text('图片加载失败', style: AppTypography.captionStyle(isDark: isDark)),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / 
+                                loadingProgress.expectedTotalBytes!
+                              : null,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : Container(
+                  color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
+                  child: Center(
+                    child: Icon(Icons.image, color: Colors.grey, size: 48),
+                  ),
+                ),
+          
+          // 操作按钮浮层
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              children: [
+                _buildFloatingActionButton(
+                  Icons.edit,
+                  '编辑',
+                  () => _selectCoverImage(),
+                ),
+                Space.w8,
+                _buildFloatingActionButton(
+                  Icons.delete,
+                  '删除',
+                  _removeCoverImage,
+                  isDestructive: true,
+                ),
+              ],
+            ),
+          ),
+          
+          // 图片信息浮层
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.6),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Text(
+                '菜谱封面图片',
+                style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                  color: Colors.white,
+                  fontWeight: AppTypography.medium,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 上传操作按钮
+  Widget _buildUploadActionButton(
+    String icon, 
+    String label, 
+    bool isDark, 
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              icon,
+              style: TextStyle(fontSize: 16),
+            ),
+            Space.w4,
+            Text(
+              label,
+              style: AppTypography.captionStyle(isDark: isDark).copyWith(
+                color: AppColors.primary,
+                fontWeight: AppTypography.medium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 浮动操作按钮
+  Widget _buildFloatingActionButton(
+    IconData icon,
+    String tooltip,
+    VoidCallback onTap, {
+    bool isDestructive = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: isDestructive 
+              ? Colors.red.withOpacity(0.9)
+              : Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: isDestructive 
+                  ? Colors.red.withOpacity(0.3)
+                  : Colors.black.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+  
+  /// 选择封面图片
+  void _selectCoverImage({bool? useCamera}) async {
+    HapticFeedback.lightImpact();
+    
+    try {
+      String? imageUrl;
+      
+      if (useCamera == true) {
+        // 强制使用相机
+        imageUrl = await ImagePickerHelper.takePhotoFromCamera(context);
+      } else if (useCamera == false) {
+        // 强制使用相册
+        imageUrl = await ImagePickerHelper.pickImageFromGallery(context);
+      } else {
+        // 显示选择对话框
+        imageUrl = await ImagePickerHelper.showImagePickerDialog(context);
+      }
+      
+      if (imageUrl != null) {
+        setState(() {
+          _coverImagePath = imageUrl;
+        });
+        
+        // 显示成功反馈
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                Space.w8,
+                Text('封面图片设置成功！'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // 显示错误反馈
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white, size: 20),
+              Space.w8,
+              Text('图片选择失败，请重试'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+  
+  /// 删除封面图片
+  void _removeCoverImage() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _coverImagePath = null;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info, color: Colors.white, size: 20),
+            Space.w8,
+            Text('封面图片已移除'),
+          ],
+        ),
+        backgroundColor: AppColors.getTextSecondaryColor(Theme.of(context).brightness == Brightness.dark),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
   
   /// 新的时长选择器 - 紧凑化设计

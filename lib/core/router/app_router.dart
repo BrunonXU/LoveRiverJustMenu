@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/presentation/pages/main_screen.dart';
 import '../../features/timeline/presentation/pages/timeline_screen.dart';
-import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen.dart';
-import '../../features/cooking_mode/presentation/pages/cooking_mode_screen.dart';
-import '../../features/recipe/presentation/pages/recipe_detail_screen.dart';
-import '../../features/recipe/presentation/pages/create_recipe_screen.dart';
+import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen_v2.dart';
+import '../../features/cooking_mode/presentation/pages/cooking_mode_screen_v2.dart';
+import '../../features/recipe/presentation/pages/recipe_detail_screen_v2.dart';
+import '../../features/recipe/presentation/pages/create_recipe_screen_v2.dart';
 import '../../features/search/presentation/pages/search_screen.dart';
 import '../../features/couple/presentation/pages/couple_binding_screen.dart';
 import '../../features/couple/presentation/pages/couple_profile_screen.dart';
@@ -24,11 +25,19 @@ import '../../features/food_map/presentation/pages/food_map_screen_optimized.dar
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../../features/intimacy/presentation/pages/intimacy_screen.dart';
+import '../../features/profile/presentation/pages/settings_screen.dart';
+import '../../features/auth/presentation/pages/welcome_screen.dart';
+import '../../features/auth/presentation/pages/login_methods_screen.dart';
+import '../../features/auth/presentation/pages/register_methods_screen.dart';
 import '../animations/liquid_transition.dart';
+import '../auth/providers/auth_providers.dart';
 
 /// 路由配置提供者
+/// 
+/// 提供带有认证守卫的路由配置实例
+/// 根据用户登录状态自动重定向到相应页面
 final appRouterProvider = Provider<GoRouter>((ref) {
-  return AppRouter.router;
+  return AppRouter._createRouter(ref);
 });
 
 /// 应用路由配置
@@ -36,7 +45,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 class AppRouter {
   // ==================== 路由路径常量 ====================
   
-  static const String home = '/';
+  // 认证相关路由
+  static const String welcome = '/welcome';
+  static const String login = '/auth/login';
+  static const String register = '/auth/register';
+  
+  // 应用主要路由
+  static const String home = '/home';
   static const String timeline = '/timeline';
   static const String aiRecommendation = '/ai-recommendation';
   static const String cookingMode = '/cooking-mode';
@@ -60,18 +75,109 @@ class AppRouter {
   
   // ==================== 路由配置 ====================
   
-  static final GoRouter router = GoRouter(
-    // 初始路由
-    initialLocation: home,
-    
-    // 调试日志
-    debugLogDiagnostics: true,
-    
-    // 错误处理
-    errorBuilder: (context, state) => _ErrorScreen(error: state.error),
-    
-    // 路由定义
-    routes: [
+  /// 🔐 创建带有认证守卫的路由器
+  /// 
+  /// [ref] Riverpod 引用，用于访问认证状态
+  /// 返回配置完成的 GoRouter 实例
+  static GoRouter _createRouter(Ref ref) {
+    return GoRouter(
+      // 初始路由 - 从欢迎页面开始
+      initialLocation: welcome,
+      
+      // 调试日志
+      debugLogDiagnostics: true,
+      
+      // 错误处理
+      errorBuilder: (context, state) => _ErrorScreen(error: state.error),
+      
+      // 🛡️ 路由重定向逻辑 - 认证守卫（支持游客模式）
+      redirect: (context, state) {
+        try {
+          // 安全地获取当前用户状态
+          final authState = ref.read(authStateProvider);
+          final isLoggedIn = authState.maybeWhen(
+            data: (user) => user != null,
+            orElse: () => false,
+          );
+          
+          // 当前访问的路径
+          final currentPath = state.uri.toString();
+          
+          // 认证相关路径（无需登录即可访问）
+          final authPaths = [welcome, login, register];
+          
+          // 🎯 游客模式支持 - 允许访问主页和其他功能页面
+          final guestAllowedPaths = [home, timeline, aiRecommendation, search];
+          
+          // 如果用户未登录且不在认证相关页面，检查是否是游客允许的页面
+          if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
+            // 🎮 游客模式：允许访问主要功能页面
+            if (guestAllowedPaths.any((path) => currentPath.startsWith(path))) {
+              return null; // 允许访问
+            }
+            return welcome; // 其他页面需要登录
+          }
+          
+          // 如果用户已登录且在认证相关页面，重定向到主页
+          if (isLoggedIn && (authPaths.contains(currentPath) || currentPath.startsWith('/auth/'))) {
+            return home;
+          }
+          
+          // 如果访问根路径 "/" 重定向到欢迎页面或主页
+          if (currentPath == '/') {
+            return isLoggedIn ? home : welcome;
+          }
+          
+          // 其他情况不重定向
+          return null;
+        } catch (e) {
+          // 如果获取认证状态失败，默认跳转到欢迎页面
+          debugPrint('⚠️ 路由重定向时获取认证状态失败: $e');
+          return welcome;
+        }
+      },
+      
+      // 路由定义
+      routes: [
+        // ==================== 认证相关路由 ====================
+        
+        // 欢迎页面路由
+        GoRoute(
+          path: welcome,
+          name: 'welcome',
+          builder: (context, state) => const WelcomeScreen(),
+          pageBuilder: (context, state) => _buildPageTransition(
+            child: const WelcomeScreen(),
+            state: state,
+            transitionType: PageTransitionType.fade,
+          ),
+        ),
+        
+        // 登录页面路由
+        GoRoute(
+          path: login,
+          name: 'login',
+          builder: (context, state) => const LoginMethodsScreen(),
+          pageBuilder: (context, state) => _buildPageTransition(
+            child: const LoginMethodsScreen(),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          ),
+        ),
+        
+        // 注册页面路由
+        GoRoute(
+          path: register,
+          name: 'register',
+          builder: (context, state) => const RegisterMethodsScreen(),
+          pageBuilder: (context, state) => _buildPageTransition(
+            child: const RegisterMethodsScreen(),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          ),
+        ),
+        
+        // ==================== 应用主要路由 ====================
       // 主页路由
       GoRoute(
         path: home,
@@ -95,58 +201,70 @@ class AppRouter {
         ),
       ),
       
-      // AI推荐路由
+      // AI推荐路由 - 🤖 时间驱动界面+情境卡片+语音交互
       GoRoute(
         path: aiRecommendation,
         name: 'ai-recommendation',
-        builder: (context, state) => const AiRecommendationScreen(),
+        builder: (context, state) => const AiRecommendationScreenV2(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const AiRecommendationScreen(),
+          child: const AiRecommendationScreenV2(),
           state: state,
           transitionType: PageTransitionType.liquid,
         ),
       ),
       
-      // 烹饪模式路由
+      // 烹饪模式路由 - 🎨 使用极简大图版本
       GoRoute(
         path: cookingMode,
         name: 'cooking-mode',
-        builder: (context, state) => const CookingModeScreen(),
-        pageBuilder: (context, state) => _buildPageTransition(
-          child: const CookingModeScreen(),
-          state: state,
-          transitionType: PageTransitionType.slideRight,
-        ),
+        builder: (context, state) {
+          final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
+          return CookingModeScreenV2(recipeId: recipeId);
+        },
+        pageBuilder: (context, state) {
+          final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
+          return _buildPageTransition(
+            child: CookingModeScreenV2(recipeId: recipeId),
+            state: state,
+            transitionType: PageTransitionType.slideRight,
+          );
+        },
       ),
       
-      // 菜谱详情路由
+      // 菜谱详情路由 - 🎨 使用新的极简设计版本
       GoRoute(
         path: recipeDetail,
         name: 'recipe-detail',
         builder: (context, state) {
           final recipeId = state.pathParameters['id']!;
-          return RecipeDetailScreen(recipeId: recipeId);
+          return RecipeDetailScreenV2(recipeId: recipeId);
         },
         pageBuilder: (context, state) {
           final recipeId = state.pathParameters['id']!;
           return _buildPageTransition(
-            child: RecipeDetailScreen(recipeId: recipeId),
+            child: RecipeDetailScreenV2(recipeId: recipeId),
             state: state,
             transitionType: PageTransitionType.slideUp,
           );
         },
       ),
       
-      // 创建菜谱路由
+      // 创建菜谱路由 - 🎨 极简设计版本，支持编辑模式
       GoRoute(
         path: createRecipe,
         name: 'create-recipe',
-        builder: (context, state) => const CreateRecipeScreen(),
-        pageBuilder: (context, state) => _buildPageTransition(
-          child: const CreateRecipeScreen(),
-          state: state,
-          transitionType: PageTransitionType.slideUp,
-        ),
+        builder: (context, state) {
+          final editId = state.uri.queryParameters['editId'];
+          return CreateRecipeScreenV2(editId: editId);
+        },
+        pageBuilder: (context, state) {
+          final editId = state.uri.queryParameters['editId'];
+          return _buildPageTransition(
+            child: CreateRecipeScreenV2(editId: editId),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          );
+        },
       ),
       
       // 搜索页面路由
@@ -358,7 +476,8 @@ class AppRouter {
         ),
       ),
     ],
-  );
+    );
+  }
   
   // ==================== 页面过渡动画 ====================
   
@@ -631,14 +750,4 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
-      body: const Center(child: Text('设置页面')),
-    );
-  }
-}
+// SettingsScreen已从 features/profile/presentation/pages/settings_screen.dart 导入

@@ -173,23 +173,265 @@ class _CookingModeScreenState extends State<CookingModeScreen>
         
         Space.h32,
         
-        // 步骤描述
-        Text(
-          currentStepData.description,
-          style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-            height: 1.8,
-            fontWeight: AppTypography.light,
-          ),
+        // 🔧 横向布局：步骤描述（左）+ 烹饪小贴士（右）
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 左侧：步骤描述
+            Expanded(
+              flex: 3,
+              child: Text(
+                currentStepData.description,
+                style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                  height: 1.8,
+                  fontWeight: AppTypography.light,
+                ),
+              ),
+            ),
+            
+            // 右侧：烹饪小贴士
+            if (currentStepData.tips.isNotEmpty) ...[
+              Space.w24,
+              Expanded(
+                flex: 2,
+                child: _buildStepTips(currentStepData.tips, isDark),
+              ),
+            ],
+          ],
         ),
         
-        Space.h48,
+        Space.h32,
         
-        // 步骤进度
-        _buildStepProgress(isDark),
+        // 🖼️ 步骤图片展示区（占用剩余空间）
+        Expanded(
+          child: Column(
+            children: [
+              // 图片区域（如果有图片）
+              if (currentStepData.imagePath != null) ...[
+                Expanded(
+                  child: _buildStepImage(currentStepData.imagePath!, isDark),
+                ),
+                Space.h24,
+              ],
+              
+              // 底部固定的步骤进度
+              _buildStepProgress(isDark),
+            ],
+          ),
+        ),
       ],
     );
   }
   
+  /// 🖼️ 构建步骤图片展示区 - 横屏优化布局，自适应高度
+  Widget _buildStepImage(String imagePath, bool isDark) {
+    return BreathingWidget(
+      child: Container(
+        width: double.infinity,
+        // 移除固定高度，让容器自适应Expanded空间
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          child: Stack(
+            children: [
+              // 主图片
+              Container(
+                width: double.infinity,
+                height: double.infinity,
+                child: _buildImageWidget(imagePath),
+              ),
+              
+              // 渐变遮罩（增强文字可读性）
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              
+              // 图片标签
+              Positioned(
+                bottom: 12,
+                left: 16,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                  ),
+                  child: Text(
+                    '步骤参考图',
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🔧 智能图片组件 - 支持多种图片源
+  Widget _buildImageWidget(String imagePath) {
+    // 网络图片
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return Image.network(
+        imagePath,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppColors.backgroundSecondary,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.primary,
+                strokeWidth: 3,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageError();
+        },
+      );
+    }
+    
+    // 本地文件图片
+    else if (imagePath.isNotEmpty) {
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageError();
+        },
+      );
+    }
+    
+    // 默认占位符
+    else {
+      return _buildImageError();
+    }
+  }
+
+  /// 🖼️ 图片加载错误占位符
+  Widget _buildImageError() {
+    return Container(
+      color: AppColors.backgroundSecondary,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_not_supported,
+            size: 48,
+            color: AppColors.textSecondary,
+          ),
+          Space.h8,
+          Text(
+            '图片加载失败',
+            style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 💡 构建烹饪小贴士区域
+  Widget _buildStepTips(List<String> tips, bool isDark) {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.emotionGradient.colors.first.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
+        border: Border.all(
+          color: AppColors.emotionGradient.colors.first.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb,
+                size: 20,
+                color: AppColors.emotionGradient.colors.first,
+              ),
+              Space.w8,
+              Text(
+                '烹饪小贴士',
+                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.emotionGradient.colors.first,
+                ),
+              ),
+            ],
+          ),
+          
+          Space.h8,
+          
+          ...tips.map((tip) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '• ',
+                  style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                    color: AppColors.emotionGradient.colors.first,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    tip,
+                    style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStepProgress(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,11 +700,44 @@ class _CookingModeScreenState extends State<CookingModeScreen>
   List<CookingStep> _getCookingStepsByRecipeId(String recipeId) {
     final cookingStepsData = {
       'recipe_1': [ // 银耳莲子羹
-        CookingStep(title: '准备食材', description: '洗净银耳，撕成小朵\n莲子去心，红枣去核', duration: 300, icon: '🥄'),
-        CookingStep(title: '银耳处理', description: '银耳用温水泡发30分钟\n撕成小块备用', duration: 600, icon: '💧'),
-        CookingStep(title: '开始煮制', description: '锅中加水，放入银耳\n大火煮开转小火', duration: 300, icon: '🔥'),
-        CookingStep(title: '添加配料', description: '加入莲子和红枣\n继续煮15分钟', duration: 900, icon: '🥄'),
-        CookingStep(title: '调味收汁', description: '加入冰糖调味\n煮至银耳软糯', duration: 600, icon: '✨'),
+        CookingStep(
+          title: '准备食材', 
+          description: '洗净银耳，撕成小朵\n莲子去心，红枣去核', 
+          duration: 300, 
+          icon: '🥄',
+          imagePath: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=800&h=600&fit=crop',
+          tips: ['银耳选择颜色偏白、朵形完整的', '莲子去心可以减少苦味', '红枣去核防止上火'],
+        ),
+        CookingStep(
+          title: '银耳处理', 
+          description: '银耳用温水泡发30分钟\n撕成小块备用', 
+          duration: 600, 
+          icon: '💧',
+          imagePath: 'https://images.unsplash.com/photo-1594736797933-d0e3b5e8181a?w=800&h=600&fit=crop',
+          tips: ['泡发时间不宜过长', '撕成小块更容易出胶质'],
+        ),
+        CookingStep(
+          title: '开始煮制', 
+          description: '锅中加水，放入银耳\n大火煮开转小火', 
+          duration: 300, 
+          icon: '🔥',
+          imagePath: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop',
+          tips: ['水量要足够，避免干锅', '大火煮开后立即转小火'],
+        ),
+        CookingStep(
+          title: '添加配料', 
+          description: '加入莲子和红枣\n继续煮15分钟', 
+          duration: 900, 
+          icon: '🥄',
+          tips: ['先加莲子，后加红枣', '保持小火慢炖'],
+        ),
+        CookingStep(
+          title: '调味收汁', 
+          description: '加入冰糖调味\n煮至银耳软糯', 
+          duration: 600, 
+          icon: '✨',
+          tips: ['冰糖用量根据个人喜好', '银耳出胶质即可'],
+        ),
       ],
       'recipe_2': [ // 番茄鸡蛋面
         CookingStep(title: '准备食材', description: '面条100g，鸡蛋2个\n番茄2个，葱花适量', duration: 180, icon: '🥄'),
@@ -536,12 +811,16 @@ class CookingStep {
   final String description;
   final int duration; // 秒
   final String icon;
+  final String? imagePath; // 🖼️ 新增：步骤图片路径
+  final List<String> tips; // 🔧 新增：烹饪小贴士
   
   const CookingStep({
     required this.title,
     required this.description,
     required this.duration,
     required this.icon,
+    this.imagePath,
+    this.tips = const [],
   });
 }
 
