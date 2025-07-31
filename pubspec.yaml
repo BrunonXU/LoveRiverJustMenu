@@ -56,14 +56,14 @@ dependencies:
   share_plus: ^7.2.1
   file_picker: ^6.1.1
   
-  # Firebase 云服务套件
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.15.3
-  cloud_firestore: ^4.13.6
-  firebase_storage: ^11.5.6
+  # Firebase 云服务套件 - 更新到最新兼容版本
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.3
+  firebase_storage: ^12.3.2
   
   # Google 登录
-  google_sign_in: ^6.1.6
+  google_sign_in: ^6.2.0
 
 dev_dependencies:
   flutter_test:

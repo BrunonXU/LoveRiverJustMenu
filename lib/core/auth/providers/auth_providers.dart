@@ -20,34 +20,19 @@ import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../../exceptions/auth_exceptions.dart';
 
-/// 🚀 Firebase 初始化 Provider
+/// 🚀 Firebase 应用实例 Provider
 /// 
-/// 确保 Firebase 在认证服务使用前已正确初始化
-/// 这是一个 FutureProvider，返回初始化状态
-final firebaseInitializationProvider = FutureProvider<FirebaseApp>((ref) async {
+/// 获取已初始化的 Firebase 应用实例
+/// 假设 Firebase 已在 main.dart 中初始化完成
+final firebaseAppProvider = Provider<FirebaseApp>((ref) {
   try {
-    debugPrint('🔥 开始初始化 Firebase');
-    
-    // 初始化 Firebase（如果尚未初始化）
-    final app = await Firebase.initializeApp(
-      // Web 平台配置
-      options: kIsWeb ? const FirebaseOptions(
-        apiKey: "your-api-key",
-        authDomain: "your-project.firebaseapp.com", 
-        projectId: "your-project-id",
-        storageBucket: "your-project.appspot.com",
-        messagingSenderId: "your-sender-id",
-        appId: "your-app-id",
-        measurementId: "your-measurement-id",
-      ) : null,
-    );
-    
-    debugPrint('✅ Firebase 初始化完成');
+    // 获取默认的 Firebase 应用实例
+    final app = Firebase.app();
+    debugPrint('✅ 获取 Firebase 应用实例成功');
     return app;
-    
   } catch (e) {
-    debugPrint('❌ Firebase 初始化失败: $e');
-    throw AuthException('Firebase 初始化失败', 'FIREBASE_INIT_FAILED');
+    debugPrint('❌ 获取 Firebase 应用实例失败: $e');
+    throw AuthException('Firebase 未初始化', 'FIREBASE_NOT_INITIALIZED');
   }
 });
 
@@ -65,8 +50,8 @@ final authServiceProvider = Provider<AuthService>((ref) {
 /// 返回已初始化的认证服务实例
 final initializedAuthServiceProvider = FutureProvider<AuthService>((ref) async {
   try {
-    // 等待 Firebase 初始化完成
-    await ref.watch(firebaseInitializationProvider.future);
+    // 确保 Firebase 应用实例可用
+    ref.watch(firebaseAppProvider);
     
     // 获取认证服务实例并初始化
     final authService = ref.watch(authServiceProvider);
@@ -212,10 +197,10 @@ final userStatsProvider = Provider<UserStats>((ref) {
 /// 🎯 认证操作 Provider
 /// 
 /// 提供认证相关操作的封装方法
-/// 这是一个 StateNotifierProvider，管理认证操作的状态
+/// 立即可用，无需等待异步初始化 - 彻底解决时机冲突问题
 final authActionsProvider = StateNotifierProvider<AuthActionsNotifier, AuthActionState>((ref) {
-  final authService = ref.watch(authServiceProvider);
-  return AuthActionsNotifier(authService);
+  // 直接创建AuthService实例，无任何异步依赖
+  return AuthActionsNotifier(AuthService());
 });
 
 /// 🎬 认证操作状态
@@ -235,6 +220,7 @@ enum AuthActionState {
 /// 🎭 认证操作状态管理器
 /// 
 /// 管理各种认证操作（登录、注册、登出等）的状态
+/// 采用最简单的同步架构，彻底避免时机问题
 class AuthActionsNotifier extends StateNotifier<AuthActionState> {
   /// 认证服务实例
   final AuthService _authService;
@@ -245,10 +231,23 @@ class AuthActionsNotifier extends StateNotifier<AuthActionState> {
   /// 构造函数
   /// 
   /// [authService] 认证服务实例
-  AuthActionsNotifier(this._authService) : super(AuthActionState.idle);
+  AuthActionsNotifier(this._authService) : super(AuthActionState.idle) {
+    // 异步初始化服务，但不阻塞构造函数
+    _initializeService();
+  }
   
   /// 获取最后的错误信息
   AuthException? get lastError => _lastError;
+  
+  /// 🚀 异步初始化服务（后台进行，不阻塞UI）
+  void _initializeService() async {
+    try {
+      await _authService.initialize();
+      debugPrint('✅ AuthService 后台初始化完成');
+    } catch (e) {
+      debugPrint('⚠️ AuthService 初始化失败，将在使用时重试: $e');
+    }
+  }
   
   /// 🔐 邮箱密码登录
   /// 

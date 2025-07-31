@@ -11,8 +11,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/recipe_repository.dart';
 import '../../auth/models/app_user.dart';
-import '../../features/recipe/domain/models/recipe.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../../features/recipe/domain/models/recipe.dart';
 
 // ==================== 基础服务提供者 ====================
 
@@ -39,20 +39,18 @@ final recipeRepositoryProvider = Provider<RecipeRepository>((ref) {
 /// 
 /// 监听当前登录用户的云端数据变化
 final currentUserFirestoreProvider = StreamProvider<AppUser?>((ref) async* {
-  // 先获取当前用户ID
-  final authState = ref.watch(authStateProvider);
+  // 直接监听当前用户状态
+  final currentUser = ref.watch(currentUserProvider);
   
-  await for (final user in authState) {
-    if (user == null) {
-      yield null;
-      continue;
-    }
-    
-    // 监听用户的Firestore数据
-    final userRepository = ref.read(userRepositoryProvider);
-    await for (final firestoreUser in userRepository.watchUser(user.uid)) {
-      yield firestoreUser ?? user; // 如果云端没有数据，使用本地用户数据
-    }
+  if (currentUser == null) {
+    yield null;
+    return;
+  }
+  
+  // 监听用户的Firestore数据
+  final userRepository = ref.read(userRepositoryProvider);
+  await for (final firestoreUser in userRepository.watchUser(currentUser.uid)) {
+    yield firestoreUser ?? currentUser; // 如果云端没有数据，使用本地用户数据
   }
 });
 

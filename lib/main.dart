@@ -10,9 +10,9 @@ import 'core/themes/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/utils/performance_monitor.dart';
 import 'features/recipe/domain/models/recipe.dart';
-import 'features/recipe/data/repositories/recipe_repository.dart';
 import 'core/auth/models/app_user.dart';
 import 'core/auth/providers/auth_providers.dart';
+import 'core/firestore/providers/firestore_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,18 +62,28 @@ void main() async {
   
   // 🔧 关键修复：预先初始化Repository，避免LateInitializationError
   try {
-    await container.read(initializedRecipeRepositoryProvider.future);
+    // 初始化Firestore服务，确保在使用前已连接
+    final firestoreInstance = container.read(firestoreProvider);
+    debugPrint('✅ FirebaseFirestore 实例初始化成功');
+    
+    // 初始化Recipe Repository
+    final recipeRepo = container.read(recipeRepositoryProvider);
     debugPrint('✅ RecipeRepository 初始化成功');
   } catch (e) {
     debugPrint('❌ RecipeRepository 初始化失败: $e');
   }
   
-  // 🔐 预先初始化认证服务
+  // 🔐 预先初始化认证服务 + 认证操作Provider
   try {
     await container.read(initializedAuthServiceProvider.future);
     debugPrint('✅ AuthService 初始化成功');
+    
+    // 🎯 关键修复：预初始化认证操作Provider，避免页面访问时的时机冲突
+    final authActions = container.read(authActionsProvider.notifier);
+    debugPrint('✅ AuthActionsProvider 预初始化完成 - 用户可立即使用登录功能');
+    
   } catch (e) {
-    debugPrint('❌ AuthService 初始化失败: $e');
+    debugPrint('❌ 认证系统初始化失败: $e');
     // 认证服务初始化失败不应该阻止应用启动，用户可以使用游客模式
   }
   

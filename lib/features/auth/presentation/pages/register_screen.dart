@@ -93,14 +93,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   /// 上滑动画
   late Animation<Offset> _slideAnimation;
 
+  /// 是否已经开始监听认证状态
+  bool _hasStartedListening = false;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
     _startAnimations();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     
-    // 监听认证状态变化
-    _listenToAuthState();
+    // 安全地开始监听认证状态变化（只监听一次）
+    if (!_hasStartedListening) {
+      _hasStartedListening = true;
+      _listenToAuthState();
+    }
   }
 
   @override

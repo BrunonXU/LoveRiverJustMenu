@@ -8,7 +8,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import '../../features/recipe/domain/models/recipe.dart';
+import '../../../features/recipe/domain/models/recipe.dart';
 
 /// 菜谱数据仓库
 /// 
@@ -305,28 +305,27 @@ class RecipeRepository {
     return {
       'name': recipe.name,
       'description': recipe.description,
-      'coverImageBase64': recipe.coverImageBase64,
+      'iconType': recipe.iconType,
+      'imageBase64': recipe.imageBase64,
+      'totalTime': recipe.totalTime,
       'difficulty': recipe.difficulty,
       'servings': recipe.servings,
-      'cookTime': recipe.cookTime,
-      'preparationTime': recipe.preparationTime,
-      'ingredients': recipe.ingredients,
       'steps': recipe.steps.map((step) => {
+        'title': step.title,
         'description': step.description,
-        'imageBase64': step.imageBase64,
         'duration': step.duration,
-        'temperature': step.temperature,
         'tips': step.tips,
+        'imageBase64': step.imageBase64,
+        'ingredients': step.ingredients,
       }).toList(),
-      'tags': recipe.tags,
-      'nutritionInfo': recipe.nutritionInfo,
       'createdBy': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'sharedWith': <String>[], // 初始为空，后续可以添加共享用户
-      'isPublic': false, // 默认私有
+      'isPublic': recipe.isPublic,
+      'rating': recipe.rating,
+      'cookCount': recipe.cookCount,
       'viewCount': 0,
-      'cookCount': 0,
       'favoriteCount': 0,
     };
   }
@@ -337,30 +336,32 @@ class RecipeRepository {
       id: id,
       name: data['name'] as String,
       description: data['description'] as String? ?? '',
-      coverImageBase64: data['coverImageBase64'] as String? ?? '',
+      iconType: data['iconType'] as String? ?? 'food',
+      totalTime: data['totalTime'] as int? ?? 30,
       difficulty: data['difficulty'] as String? ?? '简单',
       servings: data['servings'] as int? ?? 2,
-      cookTime: data['cookTime'] as int? ?? 30,
-      preparationTime: data['preparationTime'] as int? ?? 15,
-      ingredients: List<String>.from(data['ingredients'] as List? ?? []),
+      imageBase64: data['imageBase64'] as String?,
       steps: (data['steps'] as List? ?? []).map((stepData) {
         final step = stepData as Map<String, dynamic>;
         return RecipeStep(
+          title: step['title'] as String? ?? '',
           description: step['description'] as String,
-          imageBase64: step['imageBase64'] as String? ?? '',
           duration: step['duration'] as int? ?? 0,
-          temperature: step['temperature'] as String? ?? '',
-          tips: step['tips'] as String? ?? '',
+          tips: step['tips'] as String?,
+          imageBase64: step['imageBase64'] as String?,
+          ingredients: List<String>.from(step['ingredients'] as List? ?? []),
         );
       }).toList(),
-      tags: List<String>.from(data['tags'] as List? ?? []),
-      nutritionInfo: data['nutritionInfo'] as String? ?? '',
+      createdBy: data['createdBy'] as String? ?? '',
       createdAt: data['createdAt'] is Timestamp 
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
       updatedAt: data['updatedAt'] is Timestamp 
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
+      isPublic: data['isPublic'] as bool? ?? true,
+      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+      cookCount: data['cookCount'] as int? ?? 0,
     );
   }
 }

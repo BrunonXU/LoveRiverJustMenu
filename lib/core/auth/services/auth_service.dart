@@ -56,9 +56,10 @@ class AuthService {
     UserRepository? userRepository,
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn ?? GoogleSignIn(
-          scopes: ['email', 'profile'],
-          // Web 平台配置
-          clientId: kIsWeb ? 'your-web-client-id.googleusercontent.com' : null,
+          scopes: ['email', 'profile'],  // 🔥 完整云服务：请求完整用户信息权限
+          // Web 平台配置 - 企业级完整实现
+          // 从 Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration 获取
+          clientId: kIsWeb ? '266340306948-mmb2pl94494p4pcaj88chlr500jkl43b.apps.googleusercontent.com' : null,
         ),
         _userRepository = userRepository ?? UserRepository();
   
@@ -230,6 +231,9 @@ class AuthService {
     try {
       debugPrint('🌐 开始 Google 登录');
       
+      // 🔧 先清除之前的登录状态，避免权限冲突
+      await _googleSignIn.signOut();
+      
       // Google 登录流程
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
@@ -237,8 +241,14 @@ class AuthService {
         throw AuthException('Google 登录已取消', 'GOOGLE_SIGN_IN_CANCELLED');
       }
       
+      debugPrint('✅ Google 账号认证成功: ${googleUser.email}');
+      
       // 获取认证详情
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+        throw AuthException('Google 认证令牌获取失败', 'GOOGLE_TOKEN_FAILED');
+      }
       
       // 创建 Firebase 凭证
       final credential = GoogleAuthProvider.credential(
@@ -252,6 +262,8 @@ class AuthService {
       if (userCredential.user == null) {
         throw AuthException('Google 登录失败', 'GOOGLE_SIGN_IN_FAILED');
       }
+      
+      debugPrint('✅ Firebase 认证成功: ${userCredential.user!.uid}');
       
       // 🔥 尝试从云端获取用户数据
       AppUser appUser;
@@ -287,6 +299,12 @@ class AuthService {
       throw AuthException(_getErrorMessage(e.code), e.code);
     } catch (e) {
       debugPrint('❌ Google 登录异常: $e');
+      
+      // 🔧 添加具体的错误处理，帮助诊断People API问题
+      if (e.toString().contains('People API')) {
+        throw AuthException('Google服务配置错误，请联系管理员', 'GOOGLE_API_CONFIG_ERROR');
+      }
+      
       throw AuthException('Google 登录过程中发生错误', 'GOOGLE_SIGN_IN_ERROR');
     }
   }

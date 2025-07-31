@@ -3,8 +3,6 @@
 /// 为不同平台提供Firebase初始化配置
 /// 这个文件通常由 Firebase CLI 自动生成
 /// 当前使用占位符配置，实际部署时需要替换为真实的Firebase项目配置
-/// 
-/// 作者: Claude Code
 /// 创建时间: 2025-01-30
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
@@ -43,53 +41,53 @@ class DefaultFirebaseOptions {
 
   /// 🌐 Web平台配置
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyC8Q0Q9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z',
-    appId: '1:123456789:web:abcdef123456789',
-    messagingSenderId: '123456789',
-    projectId: 'love-recipe-app',
-    authDomain: 'love-recipe-app.firebaseapp.com',
-    storageBucket: 'love-recipe-app.appspot.com',
-    measurementId: 'G-MEASUREMENT_ID',
+    apiKey: 'AIzaSyAzYwWDZakrqXJk_IkKYT0jV7je63GZkTw',
+    appId: '1:266340306948:web:faf50d11802a43323f2551',
+    messagingSenderId: '266340306948',
+    projectId: 'loverecipejournal-41ad5',
+    authDomain: 'loverecipejournal-41ad5.firebaseapp.com',
+    storageBucket: 'loverecipejournal-41ad5.firebasestorage.app',
+    measurementId: 'G-VD0S2317RR',
   );
 
   /// 🤖 Android平台配置
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC8Q0Q9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z',
-    appId: '1:123456789:android:abcdef123456789',
-    messagingSenderId: '123456789',
-    projectId: 'love-recipe-app',
-    storageBucket: 'love-recipe-app.appspot.com',
+    apiKey: 'AIzaSyAzYwWDZakrqXJk_IkKYT0jV7je63GZkTw',
+    appId: '1:266340306948:android:abcdef123456789', // 注意：需要单独配置Android应用
+    messagingSenderId: '266340306948',
+    projectId: 'loverecipejournal-41ad5',
+    storageBucket: 'loverecipejournal-41ad5.firebasestorage.app',
   );
 
   /// 🍎 iOS平台配置
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC8Q0Q9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z',
-    appId: '1:123456789:ios:abcdef123456789',
-    messagingSenderId: '123456789',
-    projectId: 'love-recipe-app',
-    storageBucket: 'love-recipe-app.appspot.com',
-    iosBundleId: 'com.example.loveRecipeApp',
+    apiKey: 'AIzaSyAzYwWDZakrqXJk_IkKYT0jV7je63GZkTw',
+    appId: '1:266340306948:ios:abcdef123456789', // 注意：需要单独配置iOS应用
+    messagingSenderId: '266340306948',
+    projectId: 'loverecipejournal-41ad5',
+    storageBucket: 'loverecipejournal-41ad5.firebasestorage.app',
+    iosBundleId: 'com.loverecipe.journal',
   );
 
   /// 🖥️ macOS平台配置
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC8Q0Q9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z',
-    appId: '1:123456789:ios:abcdef123456789',
-    messagingSenderId: '123456789',
-    projectId: 'love-recipe-app',
-    storageBucket: 'love-recipe-app.appspot.com',
-    iosBundleId: 'com.example.loveRecipeApp',
+    apiKey: 'AIzaSyAzYwWDZakrqXJk_IkKYT0jV7je63GZkTw',
+    appId: '1:266340306948:ios:abcdef123456789',
+    messagingSenderId: '266340306948',
+    projectId: 'loverecipejournal-41ad5',
+    storageBucket: 'loverecipejournal-41ad5.firebasestorage.app',
+    iosBundleId: 'com.loverecipe.journal',
   );
 
   /// 🪟 Windows平台配置
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyC8Q0Q9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z9Z',
-    appId: '1:123456789:web:abcdef123456789',
-    messagingSenderId: '123456789',
-    projectId: 'love-recipe-app',
-    authDomain: 'love-recipe-app.firebaseapp.com',
-    storageBucket: 'love-recipe-app.appspot.com',
-    measurementId: 'G-MEASUREMENT_ID',
+    apiKey: 'AIzaSyAzYwWDZakrqXJk_IkKYT0jV7je63GZkTw',
+    appId: '1:266340306948:web:faf50d11802a43323f2551',
+    messagingSenderId: '266340306948',
+    projectId: 'loverecipejournal-41ad5',
+    authDomain: 'loverecipejournal-41ad5.firebaseapp.com',
+    storageBucket: 'loverecipejournal-41ad5.firebasestorage.app',
+    measurementId: 'G-VD0S2317RR',
   );
 }
 

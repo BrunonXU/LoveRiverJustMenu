@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,8 +27,8 @@ import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../../features/intimacy/presentation/pages/intimacy_screen.dart';
 import '../../features/profile/presentation/pages/settings_screen.dart';
 import '../../features/auth/presentation/pages/welcome_screen.dart';
-import '../../features/auth/presentation/pages/login_screen.dart';
-import '../../features/auth/presentation/pages/register_screen.dart';
+import '../../features/auth/presentation/pages/login_methods_screen.dart';
+import '../../features/auth/presentation/pages/register_methods_screen.dart';
 import '../animations/liquid_transition.dart';
 import '../auth/providers/auth_providers.dart';
 
@@ -89,35 +90,51 @@ class AppRouter {
       // 错误处理
       errorBuilder: (context, state) => _ErrorScreen(error: state.error),
       
-      // 🛡️ 路由重定向逻辑 - 认证守卫
+      // 🛡️ 路由重定向逻辑 - 认证守卫（支持游客模式）
       redirect: (context, state) {
-        // 获取当前用户状态
-        final currentUser = ref.read(currentUserProvider);
-        final isLoggedIn = currentUser != null;
-        
-        // 当前访问的路径
-        final currentPath = state.uri.toString();
-        
-        // 认证相关路径（无需登录即可访问）
-        final authPaths = [welcome, login, register];
-        
-        // 如果用户未登录且不在认证相关页面，重定向到欢迎页面
-        if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
+        try {
+          // 安全地获取当前用户状态
+          final authState = ref.read(authStateProvider);
+          final isLoggedIn = authState.maybeWhen(
+            data: (user) => user != null,
+            orElse: () => false,
+          );
+          
+          // 当前访问的路径
+          final currentPath = state.uri.toString();
+          
+          // 认证相关路径（无需登录即可访问）
+          final authPaths = [welcome, login, register];
+          
+          // 🎯 游客模式支持 - 允许访问主页和其他功能页面
+          final guestAllowedPaths = [home, timeline, aiRecommendation, search];
+          
+          // 如果用户未登录且不在认证相关页面，检查是否是游客允许的页面
+          if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
+            // 🎮 游客模式：允许访问主要功能页面
+            if (guestAllowedPaths.any((path) => currentPath.startsWith(path))) {
+              return null; // 允许访问
+            }
+            return welcome; // 其他页面需要登录
+          }
+          
+          // 如果用户已登录且在认证相关页面，重定向到主页
+          if (isLoggedIn && (authPaths.contains(currentPath) || currentPath.startsWith('/auth/'))) {
+            return home;
+          }
+          
+          // 如果访问根路径 "/" 重定向到欢迎页面或主页
+          if (currentPath == '/') {
+            return isLoggedIn ? home : welcome;
+          }
+          
+          // 其他情况不重定向
+          return null;
+        } catch (e) {
+          // 如果获取认证状态失败，默认跳转到欢迎页面
+          debugPrint('⚠️ 路由重定向时获取认证状态失败: $e');
           return welcome;
         }
-        
-        // 如果用户已登录且在认证相关页面，重定向到主页
-        if (isLoggedIn && (authPaths.contains(currentPath) || currentPath.startsWith('/auth/'))) {
-          return home;
-        }
-        
-        // 如果访问根路径 "/" 重定向到欢迎页面或主页
-        if (currentPath == '/') {
-          return isLoggedIn ? home : welcome;
-        }
-        
-        // 其他情况不重定向
-        return null;
       },
       
       // 路由定义
@@ -140,9 +157,9 @@ class AppRouter {
         GoRoute(
           path: login,
           name: 'login',
-          builder: (context, state) => const LoginScreen(),
+          builder: (context, state) => const LoginMethodsScreen(),
           pageBuilder: (context, state) => _buildPageTransition(
-            child: const LoginScreen(),
+            child: const LoginMethodsScreen(),
             state: state,
             transitionType: PageTransitionType.slideUp,
           ),
@@ -152,9 +169,9 @@ class AppRouter {
         GoRoute(
           path: register,
           name: 'register',
-          builder: (context, state) => const RegisterScreen(),
+          builder: (context, state) => const RegisterMethodsScreen(),
           pageBuilder: (context, state) => _buildPageTransition(
-            child: const RegisterScreen(),
+            child: const RegisterMethodsScreen(),
             state: state,
             transitionType: PageTransitionType.slideUp,
           ),
