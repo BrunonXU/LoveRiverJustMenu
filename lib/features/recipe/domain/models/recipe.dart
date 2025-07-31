@@ -33,7 +33,10 @@ class Recipe extends HiveObject {
   String? imagePath; // 🔧 新增：菜谱主图路径（已废弃）
 
   @HiveField(15)
-  String? imageBase64; // 📷 Base64图片数据 - 确保部署后不丢失
+  String? imageBase64; // 📷 Base64图片数据 - 确保部署后不丢失（已废弃，保留兼容性）
+
+  @HiveField(16)
+  String? imageUrl; // 🔗 新增：Firebase Storage图片URL（推荐使用）
 
   @HiveField(9)
   String createdBy; // 🔧 新增：创建者ID
@@ -63,7 +66,8 @@ class Recipe extends HiveObject {
     required this.servings,
     required this.steps,
     this.imagePath,
-    this.imageBase64, // 📷 Base64图片数据
+    this.imageBase64, // 📷 Base64图片数据（已废弃）
+    this.imageUrl, // 🔗 Firebase Storage图片URL
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
@@ -86,7 +90,8 @@ class Recipe extends HiveObject {
           .map((step) => RecipeStep.fromJson(step))
           .toList(),
       imagePath: json['imagePath'],
-      imageBase64: json['imageBase64'], // 📷 Base64图片数据
+      imageBase64: json['imageBase64'], // 📷 Base64图片数据（已废弃）
+      imageUrl: json['imageUrl'], // 🔗 Firebase Storage图片URL
       createdBy: json['createdBy'],
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
@@ -108,7 +113,8 @@ class Recipe extends HiveObject {
       'servings': servings,
       'steps': steps.map((step) => step.toJson()).toList(),
       'imagePath': imagePath,
-      'imageBase64': imageBase64, // 📷 Base64图片数据
+      'imageBase64': imageBase64, // 📷 Base64图片数据（已废弃）
+      'imageUrl': imageUrl, // 🔗 Firebase Storage图片URL
       'createdBy': createdBy,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
@@ -129,7 +135,8 @@ class Recipe extends HiveObject {
     int? servings,
     List<RecipeStep>? steps,
     String? imagePath,
-    String? imageBase64, // 📷 Base64图片数据
+    String? imageBase64, // 📷 Base64图片数据（已废弃）
+    String? imageUrl, // 🔗 Firebase Storage图片URL
     String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -147,7 +154,8 @@ class Recipe extends HiveObject {
       servings: servings ?? this.servings,
       steps: steps ?? this.steps,
       imagePath: imagePath ?? this.imagePath,
-      imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据
+      imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据（已废弃）
+      imageUrl: imageUrl ?? this.imageUrl, // 🔗 Firebase Storage图片URL
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

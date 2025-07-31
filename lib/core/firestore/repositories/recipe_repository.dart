@@ -9,6 +9,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../../features/recipe/domain/models/recipe.dart';
+import '../../storage/services/storage_service.dart';
 
 /// 菜谱数据仓库
 /// 
@@ -18,12 +19,18 @@ class RecipeRepository {
   /// Firestore 实例
   final FirebaseFirestore _firestore;
   
+  /// Storage 服务
+  final StorageService _storageService;
+  
   /// 菜谱集合引用
   late final CollectionReference<Map<String, dynamic>> _recipesCollection;
   
   /// 构造函数
-  RecipeRepository({FirebaseFirestore? firestore}) 
-      : _firestore = firestore ?? FirebaseFirestore.instance {
+  RecipeRepository({
+    FirebaseFirestore? firestore,
+    StorageService? storageService,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _storageService = storageService ?? StorageService() {
     _recipesCollection = _firestore.collection('recipes');
   }
 
@@ -306,7 +313,8 @@ class RecipeRepository {
       'name': recipe.name,
       'description': recipe.description,
       'iconType': recipe.iconType,
-      'imageBase64': recipe.imageBase64,
+      'imageUrl': recipe.imageUrl, // ✅ Storage URL（推荐）
+      // 🚫 不再保存base64到Firestore，避免超过1MB限制
       'totalTime': recipe.totalTime,
       'difficulty': recipe.difficulty,
       'servings': recipe.servings,
@@ -315,7 +323,7 @@ class RecipeRepository {
         'description': step.description,
         'duration': step.duration,
         'tips': step.tips,
-        'imageBase64': step.imageBase64,
+        // 🚫 步骤图片也不保存base64，后续实现步骤图片URL
         'ingredients': step.ingredients,
       }).toList(),
       'createdBy': userId,
@@ -340,7 +348,8 @@ class RecipeRepository {
       totalTime: data['totalTime'] as int? ?? 30,
       difficulty: data['difficulty'] as String? ?? '简单',
       servings: data['servings'] as int? ?? 2,
-      imageBase64: data['imageBase64'] as String?,
+      imageUrl: data['imageUrl'] as String?, // ✅ 从Storage URL读取
+      imageBase64: data['imageBase64'] as String?, // 🔄 向后兼容
       steps: (data['steps'] as List? ?? []).map((stepData) {
         final step = stepData as Map<String, dynamic>;
         return RecipeStep(

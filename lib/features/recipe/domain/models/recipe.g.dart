@@ -27,6 +27,7 @@ class RecipeAdapter extends TypeAdapter<Recipe> {
       steps: (fields[7] as List).cast<RecipeStep>(),
       imagePath: fields[8] as String?,
       imageBase64: fields[15] as String?,
+      imageUrl: fields[16] as String?,
       createdBy: fields[9] as String,
       createdAt: fields[10] as DateTime,
       updatedAt: fields[11] as DateTime,
@@ -39,7 +40,7 @@ class RecipeAdapter extends TypeAdapter<Recipe> {
   @override
   void write(BinaryWriter writer, Recipe obj) {
     writer
-      ..writeByte(16)
+      ..writeByte(17)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -60,6 +61,8 @@ class RecipeAdapter extends TypeAdapter<Recipe> {
       ..write(obj.imagePath)
       ..writeByte(15)
       ..write(obj.imageBase64)
+      ..writeByte(16)
+      ..write(obj.imageUrl)
       ..writeByte(9)
       ..write(obj.createdBy)
       ..writeByte(10)

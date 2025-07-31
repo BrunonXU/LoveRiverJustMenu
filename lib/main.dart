@@ -13,6 +13,7 @@ import 'features/recipe/domain/models/recipe.dart';
 import 'core/auth/models/app_user.dart';
 import 'core/auth/providers/auth_providers.dart';
 import 'core/firestore/providers/firestore_providers.dart';
+import 'test_firestore_free.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,10 +101,9 @@ class LoveRecipeApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(appRouterProvider);
-    
-    return MaterialApp.router(
-      title: '爱心食谱',
+    // 临时使用完整流程测试页面
+    return MaterialApp(
+      title: '爱心食谱 - 免费版测试',
       debugShowCheckedModeBanner: false,
       
       // 主题配置 - 严格遵循95%黑白灰原则
@@ -111,8 +111,8 @@ class LoveRecipeApp extends ConsumerWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       
-      // 路由配置
-      routerConfig: router,
+      // 直接显示免费版测试页面
+      home: const TestFirestoreFree(),
       
       // 字体配置
       builder: (context, child) {

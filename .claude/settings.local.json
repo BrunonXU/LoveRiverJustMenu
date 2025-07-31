@@ -27,7 +27,12 @@
       "Bash(dart scripts/check_firebase_setup.dart:*)",
       "Bash(dart scripts/update_firebase_config.dart:*)",
       "Bash(R)",
-      "Bash(timeout 10 flutter run -d web-server --web-hostname=0.0.0.0 --web-port=5000 --verbose)"
+      "Bash(timeout 10 flutter run -d web-server --web-hostname=0.0.0.0 --web-port=5000 --verbose)",
+      "Bash(git pull:*)",
+      "Bash(gh run list:*)",
+      "WebFetch(domain:brunonxu.github.io)",
+      "Bash(dart:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": []
   }
