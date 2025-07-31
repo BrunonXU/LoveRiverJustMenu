@@ -14,7 +14,8 @@ import '../../../../shared/widgets/voice_interaction_widget.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/animations/physics_engine.dart';
 import '../../../../core/animations/christmas_snow_effect.dart';
-import '../../../recipe/data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../recipe/domain/models/recipe.dart';
 
 /// 主界面 - 时间驱动的卡片流
@@ -96,13 +97,26 @@ class _MainScreenState extends ConsumerState<MainScreen>
     final stopwatch = PerformanceMonitor.startOperation('LoadInitialData');
     
     try {
-      // 🔧 从数据库加载真实菜谱数据
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      final allRecipes = repository.getAllRecipes();
+      // 获取当前用户ID
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        print('用户未登录，使用默认数据');
+        if (mounted) {
+          setState(() {
+            _allRecipes = [];
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+      
+      // 🔧 从云端数据库加载用户菜谱数据
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final userRecipes = await repository.getUserRecipes(currentUser.uid);
       
       if (mounted) {
         setState(() {
-          _allRecipes = allRecipes;
+          _allRecipes = userRecipes;
           _isLoading = false;
         });
       }

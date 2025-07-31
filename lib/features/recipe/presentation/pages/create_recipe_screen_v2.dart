@@ -8,9 +8,12 @@ import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/image_base64_helper.dart';
+import '../../../../core/utils/image_compression_helper.dart';
 import '../../../../shared/widgets/base64_image_widget.dart';
+import '../../../../shared/widgets/image_picker_widget.dart';
 import '../../domain/models/recipe.dart';
-import '../../data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
 
 /// 🎨 极简创建菜谱页面 V2.1 - 垂直滚动设计
 /// 所有内容在一页展示，垂直滚动浏览
@@ -86,8 +89,8 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     });
     
     try {
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      final recipe = repository.getRecipe(widget.editId!);
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final recipe = await repository.getRecipe(widget.editId!);
       
       if (recipe != null) {
         setState(() {
@@ -749,24 +752,28 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 🎨 构建封面图片上传区域 - 300px高度
+  /// 🎨 构建封面图片上传区域 - 集成免费版压缩功能
   Widget _buildCoverImageUpload() {
-    return GestureDetector(
-      onTap: _selectCoverImage,
-      child: Container(
-        height: _coverImageHeight,
-        width: double.infinity,
+    return SizedBox(
+      height: _coverImageHeight,
+      child: ImagePickerWidget(
+        initialImage: _coverImageBase64,
+        showCompressionDetails: true,
+        onImageSelected: (compressedBase64) {
+          setState(() {
+            _coverImageBase64 = compressedBase64;
+            _coverImagePath = null; // 清空旧的路径数据
+          });
+          HapticFeedback.mediumImpact();
+        },
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: Colors.grey[50],
-        ),
-        child: Base64ImageUploadWidget(
-          base64Data: _coverImageBase64,
-          width: double.infinity,
-          height: _coverImageHeight,
-          onTap: _selectCoverImage,
-          uploadHint: '添加封面图片',
-          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _coverImageBase64 != null 
+                ? Colors.green.shade300 
+                : Colors.grey.shade300,
+            width: 2,
+          ),
         ),
       ),
     );
@@ -1054,26 +1061,14 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 图片上传区域
-              GestureDetector(
+              // 图片上传区域 - 🔧 修复双重点击事件冲突
+              Base64ImageUploadWidget(
+                base64Data: stepData.imageBase64,
+                width: _stepImageHeight,
+                height: _stepImageHeight,
                 onTap: () => _selectStepImage(stepData),
-                child: Container(
-                  width: _stepImageHeight,
-                  height: _stepImageHeight,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!),
-                    color: Colors.white,
-                  ),
-                  child: Base64ImageUploadWidget(
-                    base64Data: stepData.imageBase64,
-                    width: _stepImageHeight,
-                    height: _stepImageHeight,
-                    onTap: () => _selectStepImage(stepData),
-                    uploadHint: '+ 图片',
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                uploadHint: '+ 图片',
+                borderRadius: BorderRadius.circular(12),
               ),
               
               const SizedBox(width: 16),
@@ -1232,27 +1227,8 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 📷 选择封面图片 - 真正的Base64存储
-  void _selectCoverImage() async {
-    final base64Data = await ImageBase64Helper.showImagePickerDialog(context);
-    
-    if (base64Data != null) {
-      setState(() {
-        _coverImageBase64 = base64Data;
-        _coverImagePath = null; // 清空旧的路径数据
-      });
-      HapticFeedback.mediumImpact();
-      
-      // 显示上传成功提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('封面图片上传成功！大小: ${ImageBase64Helper.getBase64Size(base64Data).toStringAsFixed(1)} KB'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
+  /// 📷 封面图片选择现已集成到 ImagePickerWidget 中
+  /// 包含智能压缩功能，自动优化到100KB以下，完全免费
   
   /// 复制步骤
   void _duplicateStep(RecipeStepData stepData) {
@@ -1303,23 +1279,66 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
     );
   }
   
-  /// 📷 选择步骤图片 - 真正的Base64存储
+  /// 📷 选择步骤图片 - 集成智能压缩功能
   void _selectStepImage(RecipeStepData stepData) async {
-    final base64Data = await ImageBase64Helper.showImagePickerDialog(context);
-    
-    if (base64Data != null) {
+    try {
+      // 1. 选择图片
+      final imageData = await ImageBase64Helper.pickImageFromGallery();
+      if (imageData == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ 未选择图片')),
+        );
+        return;
+      }
+      
+      final originalSize = ImageBase64Helper.getBase64Size(imageData);
+      
+      // 2. 智能压缩 - 步骤图片压缩到50KB以下（更小尺寸）
+      String finalImage = imageData;
+      if (originalSize > 50) {
+        final compressedImage = await ImageCompressionHelper.compressImage(
+          imageData,
+          maxSizeKB: 50, // 步骤图片更小压缩
+        );
+        
+        if (compressedImage != null) {
+          finalImage = compressedImage;
+          final compressedSize = ImageBase64Helper.getBase64Size(compressedImage);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ 步骤图片压缩完成: ${originalSize.toStringAsFixed(1)}KB → ${compressedSize.toStringAsFixed(1)}KB'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('⚠️ 压缩失败，使用原图')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ 步骤图片已选择: ${originalSize.toStringAsFixed(1)}KB'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+      
+      // 3. 更新状态
       setState(() {
-        stepData.imageBase64 = base64Data;
+        stepData.imageBase64 = finalImage;
         stepData.imagePath = null; // 清空旧的路径数据
       });
       HapticFeedback.mediumImpact();
       
-      // 显示上传成功提示
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('步骤图片上传成功！大小: ${ImageBase64Helper.getBase64Size(base64Data).toStringAsFixed(1)} KB'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
+          content: Text('❌ 步骤图片处理失败: $e'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -1349,6 +1368,13 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
       return;
     }
     
+    // 获取当前用户ID
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      _showErrorDialog('请先登录');
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
     });
@@ -1375,7 +1401,7 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
         )).toList(),
         imagePath: _coverImagePath, // 保留兼容性
         imageBase64: _coverImageBase64, // 📷 使用Base64数据
-        createdBy: 'current_user',
+        createdBy: currentUser.uid, // ✅ 使用真实用户ID
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         isPublic: false,
@@ -1384,8 +1410,8 @@ class _CreateRecipeScreenV2State extends ConsumerState<CreateRecipeScreenV2> {
       );
       
       // 保存到数据库
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      await repository.saveRecipe(recipe);
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      await repository.saveRecipe(recipe, currentUser.uid); // ✅ 传入用户ID参数
       
       // 显示成功消息并返回
       if (mounted) {

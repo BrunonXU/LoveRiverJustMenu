@@ -8,6 +8,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/recipe/domain/models/recipe.dart';
 import '../../storage/services/storage_service.dart';
 
@@ -53,6 +54,9 @@ class RecipeRepository {
         docRef = await _recipesCollection.add(recipeData);
       }
       
+      // 🆕 保存步骤图片到子集合
+      await _saveStepImages(docRef.id, recipe.steps);
+      
       debugPrint('✅ 菜谱已保存到云端: ${recipe.name} (${docRef.id})');
       return docRef.id;
     } catch (e) {
@@ -61,29 +65,77 @@ class RecipeRepository {
     }
   }
 
+  /// 💾 保存步骤图片到子集合
+  /// 
+  /// [recipeId] 菜谱ID
+  /// [steps] 步骤列表
+  Future<void> _saveStepImages(String recipeId, List<RecipeStep> steps) async {
+    try {
+      final stepsCollection = _recipesCollection.doc(recipeId).collection('stepImages');
+      
+      // 清理现有的步骤图片（如果是更新操作）
+      final existingDocs = await stepsCollection.get();
+      for (final doc in existingDocs.docs) {
+        await doc.reference.delete();
+      }
+      
+      // 保存新的步骤图片
+      for (int i = 0; i < steps.length; i++) {
+        final step = steps[i];
+        if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
+          await stepsCollection.doc('step_$i').set({
+            'stepIndex': i,
+            'imageBase64': step.imageBase64,
+            'title': step.title,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          debugPrint('✅ 已保存步骤 $i 的图片到子集合');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ 保存步骤图片失败: $e');
+      // 步骤图片保存失败不影响主菜谱保存
+    }
+  }
+
+  /// 📖 加载步骤图片从子集合
+  /// 
+  /// [recipeId] 菜谱ID
+  /// 返回步骤索引到图片base64的映射
+  Future<Map<int, String>> _loadStepImages(String recipeId) async {
+    try {
+      final stepsCollection = _recipesCollection.doc(recipeId).collection('stepImages');
+      final querySnapshot = await stepsCollection.orderBy('stepIndex').get();
+      
+      final stepImages = <int, String>{};
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final stepIndex = data['stepIndex'] as int;
+        final imageBase64 = data['imageBase64'] as String?;
+        if (imageBase64 != null) {
+          stepImages[stepIndex] = imageBase64;
+        }
+      }
+      
+      debugPrint('✅ 已加载 ${stepImages.length} 个步骤图片');
+      return stepImages;
+    } catch (e) {
+      debugPrint('⚠️ 加载步骤图片失败: $e');
+      return {};
+    }
+  }
+
   /// 📖 获取用户的所有菜谱
   /// 
   /// [userId] 用户ID
   /// [includeShared] 是否包含共享菜谱
   /// 返回菜谱列表
-  Future<List<Recipe>> getUserRecipes(String userId, {bool includeShared = true}) async {
+  Future<List<Recipe>> getUserRecipes(String userId, {bool includeShared = false}) async {
     try {
-      Query<Map<String, dynamic>> query = _recipesCollection;
-      
-      if (includeShared) {
-        // 获取用户创建的菜谱和共享给用户的菜谱
-        query = query.where(
-          Filter.or(
-            Filter('createdBy', isEqualTo: userId),
-            Filter('sharedWith', arrayContains: userId),
-          ),
-        );
-      } else {
-        // 只获取用户创建的菜谱
-        query = query.where('createdBy', isEqualTo: userId);
-      }
-      
-      final querySnapshot = await query
+      // 🚀 性能优化：简化查询，避免复合索引要求
+      // 暂时只获取用户创建的菜谱，不包含共享菜谱
+      final querySnapshot = await _recipesCollection
+          .where('createdBy', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
           .get();
       
@@ -91,7 +143,7 @@ class RecipeRepository {
           .map((doc) => _mapToRecipe(doc.data(), doc.id))
           .toList();
       
-      debugPrint('✅ 已获取 ${recipes.length} 个菜谱');
+      debugPrint('✅ 已获取 ${recipes.length} 个用户菜谱');
       return recipes;
     } catch (e) {
       debugPrint('❌ 获取用户菜谱失败: $e');
@@ -118,7 +170,10 @@ class RecipeRepository {
         return null;
       }
       
-      final recipe = _mapToRecipe(recipeData, recipeId);
+      // 🆕 加载步骤图片
+      final stepImages = await _loadStepImages(recipeId);
+      
+      final recipe = _mapToRecipe(recipeData, recipeId, stepImages);
       debugPrint('✅ 已获取菜谱: ${recipe.name}');
       return recipe;
     } catch (e) {
@@ -132,22 +187,11 @@ class RecipeRepository {
   /// [userId] 用户ID
   /// [includeShared] 是否包含共享菜谱
   /// 返回菜谱列表流
-  Stream<List<Recipe>> watchUserRecipes(String userId, {bool includeShared = true}) {
+  Stream<List<Recipe>> watchUserRecipes(String userId, {bool includeShared = false}) {
     try {
-      Query<Map<String, dynamic>> query = _recipesCollection;
-      
-      if (includeShared) {
-        query = query.where(
-          Filter.or(
-            Filter('createdBy', isEqualTo: userId),
-            Filter('sharedWith', arrayContains: userId),
-          ),
-        );
-      } else {
-        query = query.where('createdBy', isEqualTo: userId);
-      }
-      
-      return query
+      // 🚀 性能优化：简化查询，避免复合索引要求
+      return _recipesCollection
+          .where('createdBy', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) => snapshot.docs
@@ -305,6 +349,64 @@ class RecipeRepository {
     }
   }
 
+  /// 🧹 清理用户菜谱中的步骤图片base64数据
+  /// 
+  /// 解决Firebase控制台因文档过大而卡死的问题
+  /// [userId] 用户ID
+  /// 返回清理的文档数量
+  Future<int> cleanupStepImagesBase64(String userId) async {
+    try {
+      debugPrint('🧹 开始清理用户菜谱步骤图片base64数据...');
+      
+      final querySnapshot = await _recipesCollection
+          .where('createdBy', isEqualTo: userId)
+          .get();
+      
+      int cleanedCount = 0;
+      
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final steps = data['steps'] as List?;
+        
+        if (steps != null && steps.isNotEmpty) {
+          // 检查是否有步骤包含base64图片数据
+          bool hasStepImages = steps.any((step) => 
+            step is Map<String, dynamic> && 
+            step.containsKey('imageBase64') && 
+            step['imageBase64'] != null
+          );
+          
+          if (hasStepImages) {
+            // 清理步骤中的base64数据
+            final cleanedSteps = steps.map((step) {
+              if (step is Map<String, dynamic>) {
+                final cleanedStep = Map<String, dynamic>.from(step);
+                cleanedStep.remove('imageBase64'); // 移除base64数据
+                return cleanedStep;
+              }
+              return step;
+            }).toList();
+            
+            // 更新文档
+            await doc.reference.update({
+              'steps': cleanedSteps,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+            
+            cleanedCount++;
+            debugPrint('✅ 已清理文档: ${doc.id}');
+          }
+        }
+      }
+      
+      debugPrint('🎉 清理完成！共清理了 $cleanedCount 个文档');
+      return cleanedCount;
+    } catch (e) {
+      debugPrint('❌ 清理失败: $e');
+      throw FirestoreException('清理步骤图片数据失败', e.toString());
+    }
+  }
+
   // ==================== 私有辅助方法 ====================
 
   /// 菜谱对象转换为Map
@@ -314,7 +416,7 @@ class RecipeRepository {
       'description': recipe.description,
       'iconType': recipe.iconType,
       'imageUrl': recipe.imageUrl, // ✅ Storage URL（推荐）
-      // 🚫 不再保存base64到Firestore，避免超过1MB限制
+      'imageBase64': recipe.imageBase64, // ✅ 免费版：压缩后的base64图片
       'totalTime': recipe.totalTime,
       'difficulty': recipe.difficulty,
       'servings': recipe.servings,
@@ -323,7 +425,8 @@ class RecipeRepository {
         'description': step.description,
         'duration': step.duration,
         'tips': step.tips,
-        // 🚫 步骤图片也不保存base64，后续实现步骤图片URL
+        // 🚫 重要：不存储步骤图片base64数据，避免文档过大导致Firebase控制台卡死
+        // 'imageBase64': step.imageBase64, // 临时禁用，避免文档过大
         'ingredients': step.ingredients,
       }).toList(),
       'createdBy': userId,
@@ -339,7 +442,7 @@ class RecipeRepository {
   }
 
   /// Map转换为菜谱对象
-  Recipe _mapToRecipe(Map<String, dynamic> data, String id) {
+  Recipe _mapToRecipe(Map<String, dynamic> data, String id, [Map<int, String>? stepImages]) {
     return Recipe(
       id: id,
       name: data['name'] as String,
@@ -350,15 +453,17 @@ class RecipeRepository {
       servings: data['servings'] as int? ?? 2,
       imageUrl: data['imageUrl'] as String?, // ✅ 从Storage URL读取
       imageBase64: data['imageBase64'] as String?, // 🔄 向后兼容
-      steps: (data['steps'] as List? ?? []).map((stepData) {
-        final step = stepData as Map<String, dynamic>;
+      steps: (data['steps'] as List? ?? []).asMap().entries.map((entry) {
+        final index = entry.key;
+        final stepData = entry.value as Map<String, dynamic>;
         return RecipeStep(
-          title: step['title'] as String? ?? '',
-          description: step['description'] as String,
-          duration: step['duration'] as int? ?? 0,
-          tips: step['tips'] as String?,
-          imageBase64: step['imageBase64'] as String?,
-          ingredients: List<String>.from(step['ingredients'] as List? ?? []),
+          title: stepData['title'] as String? ?? '',
+          description: stepData['description'] as String,
+          duration: stepData['duration'] as int? ?? 0,
+          tips: stepData['tips'] as String?,
+          // 🆕 优先使用子集合中的图片，fallback到原来的数据
+          imageBase64: stepImages?[index] ?? stepData['imageBase64'] as String?,
+          ingredients: List<String>.from(stepData['ingredients'] as List? ?? []),
         );
       }).toList(),
       createdBy: data['createdBy'] as String? ?? '',
@@ -385,3 +490,17 @@ class FirestoreException implements Exception {
   @override
   String toString() => 'FirestoreException: $message ($details)';
 }
+
+// ==================== Riverpod Providers ====================
+
+/// 🚀 云端菜谱仓库 Provider
+final cloudRecipeRepositoryProvider = Provider<RecipeRepository>((ref) {
+  return RecipeRepository();
+});
+
+/// 🚀 异步初始化的云端菜谱仓库 Provider  
+final initializedCloudRecipeRepositoryProvider = FutureProvider<RecipeRepository>((ref) async {
+  final repository = RecipeRepository();
+  // Cloud Firestore 不需要额外初始化
+  return repository;
+});

@@ -10,7 +10,8 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../recipe/domain/models/recipe.dart';
-import '../../../recipe/data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
 
 /// 我的菜谱页面
 /// 显示用户创建的菜谱和收藏的菜谱
@@ -28,6 +29,9 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   late TabController _tabController;
 
   int _currentTabIndex = 0;
+  
+  // 🚀 性能优化：缓存Future避免重复请求
+  Future<List<Recipe>>? _userRecipesFuture;
 
   @override
   void initState() {
@@ -215,9 +219,27 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// 我创建的菜谱列表
   Widget _buildCreatedRecipes(bool isDark) {
-    // 📊 调试模式：显示所有菜谱数据供用户查看
+    // 🐥 从云端获取当前用户的菜谱
+    final currentUser = ref.watch(currentUserProvider);
+    
+    if (currentUser == null) {
+      return _buildEmptyState(
+        isDark,
+        icon: '👤',
+        title: '请先登录',
+        description: '登录后才能查看您的菜谱',
+        actionText: '去登录',
+        onAction: () => context.go('/login'),
+      );
+    }
+    
+    // 🚀 性能优化：只在用户变化或初始化时重新请求
+    if (_userRecipesFuture == null) {
+      _userRecipesFuture = _loadUserRecipes(currentUser.uid);
+    }
+    
     return FutureBuilder<List<Recipe>>(
-      future: ref.read(recipesProvider.future), // 显示所有菜谱而不是过滤用户的
+      future: _userRecipesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -235,7 +257,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
             title: '加载失败',
             description: '无法加载菜谱数据：${snapshot.error}',
             actionText: '重试',
-            onAction: () => setState(() {}),
+            onAction: () => _refreshRecipes(),
           );
         }
         
@@ -245,8 +267,8 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           return _buildEmptyState(
             isDark,
             icon: '📝',
-            title: '数据库为空',
-            description: '还没有任何菜谱数据',
+            title: '还没有菜谱',
+            description: '您还没有创建任何菜谱',
             actionText: '立即创建',
             onAction: () => context.push('/create-recipe'),
           );
@@ -263,6 +285,24 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
         );
       },
     );
+  }
+  
+  /// 加载用户菜谱数据
+  Future<List<Recipe>> _loadUserRecipes(String userId) async {
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      return await repository.getUserRecipes(userId);
+    } catch (e) {
+      print('加载用户菜谱失败: $e');
+      rethrow;
+    }
+  }
+  
+  /// 🔄 刷新菜谱列表
+  void _refreshRecipes() {
+    setState(() {
+      _userRecipesFuture = null; // 清空缓存，触发重新加载
+    });
   }
 
   /// 我收藏的菜谱列表（暂时显示空状态）
@@ -669,6 +709,14 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
             const SizedBox(height: AppSpacing.sm),
 
+            // 🧹 临时数据清理按钮 - 解决Firebase控制台卡死问题
+            _buildActionButton('清理数据', Icons.cleaning_services, () {
+              context.pop();
+              _cleanupStepImages();
+            }, isDark),
+
+            const SizedBox(height: AppSpacing.sm),
+
             _buildActionButton('删除菜谱', Icons.delete, () {
               context.pop();
               _confirmDeleteRecipe(recipe);
@@ -741,11 +789,14 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           TextButton(
             onPressed: () async {
               context.pop();
+              final currentUser = ref.read(currentUserProvider);
+              if (currentUser == null) return;
+              
               try {
-                final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-                await repository.deleteRecipe(recipe.id);
+                final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+                await repository.deleteRecipe(recipe.id, currentUser.uid);
                 if (mounted) {
-                  setState(() {}); // 刷新列表
+                  _refreshRecipes(); // 🔄 刷新列表
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('菜谱「${recipe.name}」已删除'),
@@ -770,6 +821,71 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
         ],
       ),
     );
+  }
+
+  /// 🧹 清理步骤图片数据 - 解决Firebase控制台卡死问题
+  void _cleanupStepImages() async {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return;
+    
+    try {
+      // 显示清理对话框
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('清理数据'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在清理步骤图片数据，这可能需要几秒钟...'),
+            ],
+          ),
+        ),
+      );
+      
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final cleanedCount = await repository.cleanupStepImagesBase64(currentUser.uid);
+      
+      if (mounted) {
+        context.pop(); // 关闭清理对话框
+        
+        // 显示清理结果
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('清理完成'),
+            content: Text(
+              '🎉 成功清理了 $cleanedCount 个菜谱中的步骤图片数据！\n\n'
+              'Firebase控制台现在应该能正常查看菜谱数据了。'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  context.pop();
+                  _refreshRecipes(); // 刷新菜谱列表
+                },
+                child: const Text('确定'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        context.pop(); // 关闭清理对话框
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('清理失败：$e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   /// 解析图标类型

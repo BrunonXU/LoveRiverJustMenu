@@ -32,7 +32,8 @@
       "Bash(gh run list:*)",
       "WebFetch(domain:brunonxu.github.io)",
       "Bash(dart:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
