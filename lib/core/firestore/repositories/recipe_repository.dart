@@ -54,8 +54,8 @@ class RecipeRepository {
         docRef = await _recipesCollection.add(recipeData);
       }
       
-      // 🆕 保存步骤图片到子集合
-      await _saveStepImages(docRef.id, recipe.steps);
+      // 🆕 保存所有图片到子集合（封面 + 步骤）
+      await _saveAllImages(docRef.id, recipe);
       
       debugPrint('✅ 菜谱已保存到云端: ${recipe.name} (${docRef.id})');
       return docRef.id;
@@ -65,25 +65,37 @@ class RecipeRepository {
     }
   }
 
-  /// 💾 保存步骤图片到子集合
+  /// 💾 保存所有图片到子集合（封面 + 步骤）
   /// 
   /// [recipeId] 菜谱ID
-  /// [steps] 步骤列表
-  Future<void> _saveStepImages(String recipeId, List<RecipeStep> steps) async {
+  /// [recipe] 菜谱对象
+  Future<void> _saveAllImages(String recipeId, Recipe recipe) async {
     try {
-      final stepsCollection = _recipesCollection.doc(recipeId).collection('stepImages');
+      final imagesCollection = _recipesCollection.doc(recipeId).collection('images');
       
-      // 清理现有的步骤图片（如果是更新操作）
-      final existingDocs = await stepsCollection.get();
+      // 清理现有的图片（如果是更新操作）
+      final existingDocs = await imagesCollection.get();
       for (final doc in existingDocs.docs) {
         await doc.reference.delete();
       }
       
-      // 保存新的步骤图片
+      // 保存封面图片
+      if (recipe.imageBase64 != null && recipe.imageBase64!.isNotEmpty) {
+        await imagesCollection.doc('cover').set({
+          'type': 'cover',
+          'imageBase64': recipe.imageBase64,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ 已保存封面图片到子集合');
+      }
+      
+      // 保存步骤图片
+      final steps = recipe.steps;
       for (int i = 0; i < steps.length; i++) {
         final step = steps[i];
         if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
-          await stepsCollection.doc('step_$i').set({
+          await imagesCollection.doc('step_$i').set({
+            'type': 'step',
             'stepIndex': i,
             'imageBase64': step.imageBase64,
             'title': step.title,
@@ -93,35 +105,43 @@ class RecipeRepository {
         }
       }
     } catch (e) {
-      debugPrint('⚠️ 保存步骤图片失败: $e');
-      // 步骤图片保存失败不影响主菜谱保存
+      debugPrint('⚠️ 保存图片失败: $e');
+      // 图片保存失败不影响主菜谱保存
     }
   }
 
-  /// 📖 加载步骤图片从子集合
+  /// 📖 加载所有图片从子集合
   /// 
   /// [recipeId] 菜谱ID
-  /// 返回步骤索引到图片base64的映射
-  Future<Map<int, String>> _loadStepImages(String recipeId) async {
+  /// 返回包含封面图片和步骤图片的数据
+  Future<({String? coverImage, Map<int, String> stepImages})> _loadAllImages(String recipeId) async {
     try {
-      final stepsCollection = _recipesCollection.doc(recipeId).collection('stepImages');
-      final querySnapshot = await stepsCollection.orderBy('stepIndex').get();
+      final imagesCollection = _recipesCollection.doc(recipeId).collection('images');
+      final querySnapshot = await imagesCollection.get();
       
+      String? coverImage;
       final stepImages = <int, String>{};
+      
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
-        final stepIndex = data['stepIndex'] as int;
-        final imageBase64 = data['imageBase64'] as String?;
-        if (imageBase64 != null) {
-          stepImages[stepIndex] = imageBase64;
+        final type = data['type'] as String;
+        
+        if (type == 'cover') {
+          coverImage = data['imageBase64'] as String?;
+        } else if (type == 'step') {
+          final stepIndex = data['stepIndex'] as int;
+          final imageBase64 = data['imageBase64'] as String?;
+          if (imageBase64 != null) {
+            stepImages[stepIndex] = imageBase64;
+          }
         }
       }
       
-      debugPrint('✅ 已加载 ${stepImages.length} 个步骤图片');
-      return stepImages;
+      debugPrint('✅ 已加载封面图片和 ${stepImages.length} 个步骤图片');
+      return (coverImage: coverImage, stepImages: stepImages);
     } catch (e) {
-      debugPrint('⚠️ 加载步骤图片失败: $e');
-      return {};
+      debugPrint('⚠️ 加载图片失败: $e');
+      return (coverImage: null, stepImages: <int, String>{});
     }
   }
 
@@ -170,10 +190,10 @@ class RecipeRepository {
         return null;
       }
       
-      // 🆕 加载步骤图片
-      final stepImages = await _loadStepImages(recipeId);
+      // 🆕 加载所有图片（封面 + 步骤）
+      final images = await _loadAllImages(recipeId);
       
-      final recipe = _mapToRecipe(recipeData, recipeId, stepImages);
+      final recipe = _mapToRecipe(recipeData, recipeId, images.coverImage, images.stepImages);
       debugPrint('✅ 已获取菜谱: ${recipe.name}');
       return recipe;
     } catch (e) {
@@ -349,14 +369,14 @@ class RecipeRepository {
     }
   }
 
-  /// 🧹 清理用户菜谱中的步骤图片base64数据
+  /// 🧹 清理用户菜谱中的所有base64图片数据
   /// 
   /// 解决Firebase控制台因文档过大而卡死的问题
   /// [userId] 用户ID
   /// 返回清理的文档数量
-  Future<int> cleanupStepImagesBase64(String userId) async {
+  Future<int> cleanupAllImagesBase64(String userId) async {
     try {
-      debugPrint('🧹 开始清理用户菜谱步骤图片base64数据...');
+      debugPrint('🧹 开始清理用户菜谱中的所有base64图片数据...');
       
       final querySnapshot = await _recipesCollection
           .where('createdBy', isEqualTo: userId)
@@ -366,10 +386,19 @@ class RecipeRepository {
       
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
-        final steps = data['steps'] as List?;
+        bool needsUpdate = false;
+        final updates = <String, dynamic>{};
         
+        // 检查并清理封面图片base64
+        if (data.containsKey('imageBase64') && data['imageBase64'] != null) {
+          updates['imageBase64'] = FieldValue.delete();
+          needsUpdate = true;
+          debugPrint('🧹 清理封面图片base64');
+        }
+        
+        // 检查并清理步骤图片base64
+        final steps = data['steps'] as List?;
         if (steps != null && steps.isNotEmpty) {
-          // 检查是否有步骤包含base64图片数据
           bool hasStepImages = steps.any((step) => 
             step is Map<String, dynamic> && 
             step.containsKey('imageBase64') && 
@@ -377,25 +406,27 @@ class RecipeRepository {
           );
           
           if (hasStepImages) {
-            // 清理步骤中的base64数据
             final cleanedSteps = steps.map((step) {
               if (step is Map<String, dynamic>) {
                 final cleanedStep = Map<String, dynamic>.from(step);
-                cleanedStep.remove('imageBase64'); // 移除base64数据
+                cleanedStep.remove('imageBase64');
                 return cleanedStep;
               }
               return step;
             }).toList();
             
-            // 更新文档
-            await doc.reference.update({
-              'steps': cleanedSteps,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            
-            cleanedCount++;
-            debugPrint('✅ 已清理文档: ${doc.id}');
+            updates['steps'] = cleanedSteps;
+            needsUpdate = true;
+            debugPrint('🧹 清理步骤图片base64');
           }
+        }
+        
+        // 如果需要更新，执行更新
+        if (needsUpdate) {
+          updates['updatedAt'] = FieldValue.serverTimestamp();
+          await doc.reference.update(updates);
+          cleanedCount++;
+          debugPrint('✅ 已清理文档: ${doc.id}');
         }
       }
       
@@ -416,7 +447,7 @@ class RecipeRepository {
       'description': recipe.description,
       'iconType': recipe.iconType,
       'imageUrl': recipe.imageUrl, // ✅ Storage URL（推荐）
-      'imageBase64': recipe.imageBase64, // ✅ 免费版：压缩后的base64图片
+      // 🚫 不再存储base64图片到主文档，避免Firebase控制台卡死
       'totalTime': recipe.totalTime,
       'difficulty': recipe.difficulty,
       'servings': recipe.servings,
@@ -442,7 +473,7 @@ class RecipeRepository {
   }
 
   /// Map转换为菜谱对象
-  Recipe _mapToRecipe(Map<String, dynamic> data, String id, [Map<int, String>? stepImages]) {
+  Recipe _mapToRecipe(Map<String, dynamic> data, String id, [String? coverImage, Map<int, String>? stepImages]) {
     return Recipe(
       id: id,
       name: data['name'] as String,
@@ -452,7 +483,7 @@ class RecipeRepository {
       difficulty: data['difficulty'] as String? ?? '简单',
       servings: data['servings'] as int? ?? 2,
       imageUrl: data['imageUrl'] as String?, // ✅ 从Storage URL读取
-      imageBase64: data['imageBase64'] as String?, // 🔄 向后兼容
+      imageBase64: coverImage ?? data['imageBase64'] as String?, // 🆕 优先使用子集合中的封面图片
       steps: (data['steps'] as List? ?? []).asMap().entries.map((entry) {
         final index = entry.key;
         final stepData = entry.value as Map<String, dynamic>;

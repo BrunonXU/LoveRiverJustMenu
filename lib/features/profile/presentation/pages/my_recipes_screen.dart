@@ -840,14 +840,14 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('正在清理步骤图片数据，这可能需要几秒钟...'),
+              Text('正在清理所有图片数据，这可能需要几秒钟...'),
             ],
           ),
         ),
       );
       
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      final cleanedCount = await repository.cleanupStepImagesBase64(currentUser.uid);
+      final cleanedCount = await repository.cleanupAllImagesBase64(currentUser.uid);
       
       if (mounted) {
         context.pop(); // 关闭清理对话框
@@ -858,7 +858,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           builder: (context) => AlertDialog(
             title: const Text('清理完成'),
             content: Text(
-              '🎉 成功清理了 $cleanedCount 个菜谱中的步骤图片数据！\n\n'
+              '🎉 成功清理了 $cleanedCount 个菜谱中的所有图片数据！\n\n'
               'Firebase控制台现在应该能正常查看菜谱数据了。'
             ),
             actions: [
