@@ -152,14 +152,20 @@ class RecipeRepository {
   /// 返回菜谱列表
   Future<List<Recipe>> getUserRecipes(String userId, {bool includeShared = false}) async {
     try {
-      // 🚀 性能优化：简化查询，避免复合索引要求
-      // 暂时只获取用户创建的菜谱，不包含共享菜谱
+      // 🚀 性能优化：移除排序避免索引要求
       final querySnapshot = await _recipesCollection
           .where('createdBy', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .get();
       
-      final recipes = querySnapshot.docs
+      // 在客户端进行排序
+      final docs = querySnapshot.docs.toList();
+      docs.sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+        return bTime.compareTo(aTime); // 降序排序
+      });
+      
+      final recipes = docs
           .map((doc) => _mapToRecipe(doc.data(), doc.id))
           .toList();
       
@@ -209,14 +215,23 @@ class RecipeRepository {
   /// 返回菜谱列表流
   Stream<List<Recipe>> watchUserRecipes(String userId, {bool includeShared = false}) {
     try {
-      // 🚀 性能优化：简化查询，避免复合索引要求
+      // 🚀 性能优化：移除排序避免索引要求
       return _recipesCollection
           .where('createdBy', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .snapshots()
-          .map((snapshot) => snapshot.docs
-              .map((doc) => _mapToRecipe(doc.data(), doc.id))
-              .toList());
+          .map((snapshot) {
+            // 在客户端进行排序
+            final docs = snapshot.docs.toList();
+            docs.sort((a, b) {
+              final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+              final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
+              return bTime.compareTo(aTime); // 降序排序
+            });
+            
+            return docs
+                .map((doc) => _mapToRecipe(doc.data(), doc.id))
+                .toList();
+          });
     } catch (e) {
       debugPrint('❌ 监听用户菜谱失败: $e');
       return Stream.error(FirestoreException('监听菜谱失败', e.toString()));
@@ -369,6 +384,62 @@ class RecipeRepository {
     }
   }
 
+  /// 🚨 紧急清理所有菜谱数据中的base64
+  /// 
+  /// 直接删除所有base64数据，解决Firebase控制台卡死
+  /// 返回清理的文档数量
+  Future<int> emergencyCleanupAllBase64() async {
+    try {
+      debugPrint('🚨 紧急清理模式：清理所有菜谱中的base64数据...');
+      
+      // 获取所有菜谱（不加任何条件）
+      final querySnapshot = await _recipesCollection.get();
+      
+      int cleanedCount = 0;
+      
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final updates = <String, dynamic>{};
+        bool needsUpdate = false;
+        
+        // 无条件删除所有base64数据
+        if (data.containsKey('imageBase64')) {
+          updates['imageBase64'] = FieldValue.delete();
+          needsUpdate = true;
+        }
+        
+        // 清理步骤中的所有图片
+        final steps = data['steps'] as List?;
+        if (steps != null && steps.isNotEmpty) {
+          final cleanedSteps = steps.map((step) {
+            if (step is Map<String, dynamic>) {
+              final cleanedStep = Map<String, dynamic>.from(step);
+              cleanedStep.remove('imageBase64');
+              return cleanedStep;
+            }
+            return step;
+          }).toList();
+          
+          updates['steps'] = cleanedSteps;
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          updates['updatedAt'] = FieldValue.serverTimestamp();
+          await doc.reference.update(updates);
+          cleanedCount++;
+          debugPrint('🚨 紧急清理文档: ${doc.id}');
+        }
+      }
+      
+      debugPrint('✅ 紧急清理完成！共清理了 $cleanedCount 个文档');
+      return cleanedCount;
+    } catch (e) {
+      debugPrint('❌ 紧急清理失败: $e');
+      throw FirestoreException('紧急清理失败', e.toString());
+    }
+  }
+  
   /// 🧹 清理用户菜谱中的所有base64图片数据
   /// 
   /// 解决Firebase控制台因文档过大而卡死的问题
