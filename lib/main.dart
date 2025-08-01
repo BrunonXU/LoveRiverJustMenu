@@ -13,6 +13,7 @@ import 'features/recipe/domain/models/recipe.dart';
 import 'core/auth/models/app_user.dart';
 import 'core/auth/providers/auth_providers.dart';
 import 'core/firestore/providers/firestore_providers.dart';
+import 'core/services/providers/new_user_providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,6 +102,9 @@ class LoveRecipeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appRouter = ref.watch(appRouterProvider);
+    
+    // 🚀 初始化新用户自动初始化监听器
+    ref.watch(newUserAutoInitializerProvider);
     
     return MaterialApp.router(
       title: '爱心食谱',
