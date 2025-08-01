@@ -10,7 +10,8 @@ import '../../../../core/themes/spacing.dart';
 import '../../../../shared/pages/image_gallery_screen.dart';
 import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../domain/models/recipe.dart';
-import '../../data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
 
 /// 🎨 极简菜谱详情页面 - 垂直滚动设计 V2.1
 /// 所有步骤在同一页面展示，通过垂直滚动浏览
@@ -67,24 +68,30 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
   }
   
   void _loadRecipeData() async {
-    print('🔍 开始加载菜谱数据，ID: ${widget.recipeId}');
+    debugPrint('🔍 开始从云端加载菜谱数据，ID: ${widget.recipeId}');
     
     try {
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      print('✅ RecipeRepository 获取成功');
+      // 🚀 使用云端Firestore数据库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      debugPrint('✅ 云端RecipeRepository 获取成功');
       
-      final recipe = repository.getRecipe(widget.recipeId);
-      print('🔍 查找菜谱结果: ${recipe != null ? '找到' : '未找到'}');
+      // 异步获取云端数据
+      final recipe = await repository.getRecipe(widget.recipeId);
+      debugPrint('🔍 云端查找菜谱结果: ${recipe != null ? '找到 - ${recipe.name}' : '未找到'}');
       
       if (mounted) {
         setState(() {
-          // 如果找不到菜谱，创建一个示例菜谱
-          _recipe = recipe ?? _createFallbackRecipe(widget.recipeId);
+          if (recipe != null) {
+            _recipe = recipe;
+          } else {
+            // 菜谱不存在，显示错误
+            _errorMessage = '菜谱不存在或已被删除';
+          }
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('❌ 加载菜谱数据失败: $e');
+      debugPrint('❌ 从云端加载菜谱数据失败: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -94,92 +101,35 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
     }
   }
   
-  /// 创建fallback菜谱数据
-  Recipe _createFallbackRecipe(String recipeId) {
-    print('🛠️ 创建fallback菜谱，ID: $recipeId');
-    
-    // 根据ID选择不同的示例菜谱
-    final fallbackData = _getFallbackDataByid(recipeId);
-    
-    return Recipe(
-      id: recipeId,
-      name: fallbackData['name'],
-      description: fallbackData['description'],
-      iconType: 'AppIcon3DType.${fallbackData['iconType']}',
-      totalTime: fallbackData['totalTime'],
-      difficulty: '简单',
-      servings: 2,
-      steps: (fallbackData['steps'] as List<Map<String, dynamic>>).map((stepData) => 
-        RecipeStep(
-          title: stepData['title'],
-          description: stepData['description'],
-          duration: stepData['duration'],
-          imagePath: stepData['imagePath'],
-          tips: stepData['tips'],
-        )
-      ).toList(),
-      imagePath: fallbackData['imagePath'],
-      createdBy: 'system',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      isPublic: true,
-      rating: 4.5,
-      cookCount: 100,
-    );
-  }
   
-  /// 根据ID获取fallback数据
-  Map<String, dynamic> _getFallbackDataByid(String recipeId) {
-    final fallbackRecipes = {
-      'recipe_1': {
-        'name': '银耳莲子羹',
-        'description': '滋润养颜的经典甜品，口感清香甜美',
-        'iconType': 'bowl',
-        'totalTime': 45,
-        'imagePath': null,
-        'steps': [
-          {
-            'title': '准备食材',
-            'description': '银耳一朵，莲子50g，冰糖适量。将银耳提前泡发，莲子去芯。',
-            'duration': 15,
-            'imagePath': null,
-            'tips': '银耳要充分泡发，这样煮出来才粘稠',
-          },
-          {
-            'title': '炖煮过程',
-            'description': '将银耳撕成小朵，与莲子一起放入锅中，加水炖煮30分钟。',
-            'duration': 30,
-            'imagePath': null,
-            'tips': '小火慢炖，保持水开状态即可',
-          },
+  /// 显示错误状态
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? '加载失败',
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => context.pop(),
+            child: const Text('返回'),
+          ),
         ],
-      },
-      'recipe_2': {
-        'name': '番茄鸡蛋面',
-        'description': '家常经典面条，酸甜可口，营养丰富',
-        'iconType': 'spoon',
-        'totalTime': 15,
-        'imagePath': null,
-        'steps': [
-          {
-            'title': '准备配菜',
-            'description': '番茄2个切块，鸡蛋2个打散，葱花少许。',
-            'duration': 5,
-            'imagePath': null,
-            'tips': '番茄要选熟透的，这样更容易出汁',
-          },
-          {
-            'title': '炒制面条',
-            'description': '先炒鸡蛋盛起，再炒番茄出汁，加入面条和鸡蛋翻炒。',
-            'duration': 10,
-            'imagePath': null,
-            'tips': '面条要煮到8分熟，这样炒制时不会太软',
-          },
-        ],
-      },
-    };
-    
-    return fallbackRecipes[recipeId] ?? fallbackRecipes['recipe_1']!;
+      ),
+    );
   }
   
   @override

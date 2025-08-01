@@ -50,9 +50,10 @@ class ImageBase64Helper {
       if (input.files?.isNotEmpty == true) {
         final html.File file = input.files!.first;
         
-        // 检查文件大小（限制5MB）
-        if (file.size > 5 * 1024 * 1024) {
-          print('❌ 图片文件过大，请选择小于5MB的图片');
+        // 检查文件大小（限制50MB - 支持现代手机拍照）
+        if (file.size > 50 * 1024 * 1024) {
+          print('❌ 图片文件过大，请选择小于50MB的图片');
+          print('ℹ️ 建议：现代手机照片通常10-20MB，我们的智能压缩会自动优化');
           return null;
         }
         
