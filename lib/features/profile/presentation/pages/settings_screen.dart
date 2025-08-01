@@ -10,6 +10,9 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../recipe/data/repositories/recipe_repository.dart';
 import '../../../recipe/domain/services/data_backup_service.dart';
+import '../../../../core/utils/json_recipe_importer.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -384,16 +387,131 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Future<void> _importData() async {
     if (_isProcessing) return;
     
-    // 显示导入选项
+    // Step 1: 选择导入来源
+    final importSource = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('选择导入来源'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: Icon(Icons.restaurant_menu, color: Colors.orange),
+              title: Text('导入示例菜谱'),
+              subtitle: Text('6个精选菜谱：银耳汤、番茄面等'),
+              onTap: () => Navigator.of(context).pop('sample'),
+            ),
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.file_upload, color: Colors.blue),
+              title: Text('从文件导入'),
+              subtitle: Text('选择备份的JSON文件'),
+              onTap: () => Navigator.of(context).pop('file'),
+            ),
+          ],
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+    
+    if (importSource == null) return;
+    
+    if (importSource == 'sample') {
+      await _importSampleRecipes();
+    } else if (importSource == 'file') {
+      await _importFromFile();
+    }
+  }
+  
+  /// 📥 导入示例菜谱
+  Future<void> _importSampleRecipes() async {
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      // 获取当前用户
+      final currentUser = ref.read(currentUserProvider);
+      if (currentUser == null) {
+        _showErrorMessage('请先登录');
+        return;
+      }
+      
+      // 加载示例菜谱
+      final sampleRecipes = await JsonRecipeImporter.loadSampleRecipes();
+      if (sampleRecipes.isEmpty) {
+        _showErrorMessage('加载示例菜谱失败');
+        return;
+      }
+      
+      // 获取云端仓库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 显示导入确认
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('确认导入'),
+          content: Text(
+            '即将导入 ${sampleRecipes.length} 个示例菜谱到您的账户：\n\n'
+            '${sampleRecipes.map((r) => '• ${r.name}').join('\n')}\n\n'
+            '这些菜谱将添加到您的菜谱列表中。'
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确认导入'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 执行导入
+      final successCount = await JsonRecipeImporter.importRecipesToCloud(
+        sampleRecipes, 
+        currentUser.uid, 
+        repository
+      );
+      
+      _showSuccessMessage('成功导入 $successCount 个示例菜谱！');
+      
+    } catch (e) {
+      debugPrint('❌ 导入示例菜谱失败: $e');
+      _showErrorMessage('导入失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+  
+  /// 📂 从文件导入
+  Future<void> _importFromFile() async {
+    // 显示导入方式选择
     final merge = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('选择导入方式'),
-        content: Column(
+        title: const Text('选择导入方式'),
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('合并：保留现有菜谱，添加新菜谱'),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             Text('覆盖：删除所有现有菜谱，完全替换'),
           ],
         ),
@@ -403,15 +521,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(null),
-            child: Text('取消'),
+            child: const Text('取消'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('合并导入'),
+            child: const Text('合并导入'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text(
+            child: const Text(
               '覆盖导入',
               style: TextStyle(color: Colors.red),
             ),
@@ -423,7 +541,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     if (merge == null) return;
     
     setState(() => _isProcessing = true);
-    HapticFeedback.mediumImpact();
     
     try {
       await _backupService.importData(
@@ -434,6 +551,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       if (mounted) {
         setState(() => _isProcessing = false);
       }
+    }
+  }
+  
+  /// ✅ 显示成功消息
+  void _showSuccessMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+  }
+  
+  /// ❌ 显示错误消息
+  void _showErrorMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
     }
   }
   

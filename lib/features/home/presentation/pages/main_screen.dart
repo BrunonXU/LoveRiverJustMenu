@@ -832,24 +832,47 @@ class _MainScreenState extends ConsumerState<MainScreen>
       };
     }
     
-    // 如果数据库中没有菜谱，使用示例数据作为fallback
-    final fallbackRecipes = [
-      {'name': '银耳莲子羹', 'time': 20, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_1'},
-      {'name': '番茄鸡蛋面', 'time': 15, 'iconType': AppIcon3DType.spoon, 'id': 'recipe_2'},
-      {'name': '红烧排骨', 'time': 45, 'iconType': AppIcon3DType.chef, 'id': 'recipe_3'},
-      {'name': '蒸蛋羹', 'time': 10, 'iconType': AppIcon3DType.timer, 'id': 'recipe_4'},
-      {'name': '青椒肉丝', 'time': 25, 'iconType': AppIcon3DType.recipe, 'id': 'recipe_5'},
-      {'name': '爱心早餐', 'time': 30, 'iconType': AppIcon3DType.heart, 'id': 'recipe_6'},
-      {'name': '宫保鸡丁', 'time': 20, 'iconType': AppIcon3DType.chef, 'id': 'recipe_7'},
-      {'name': '麻婆豆腐', 'time': 15, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_8'},
-      {'name': '糖醋里脊', 'time': 35, 'iconType': AppIcon3DType.recipe, 'id': 'recipe_9'},
-      {'name': '酸菜鱼', 'time': 40, 'iconType': AppIcon3DType.spoon, 'id': 'recipe_10'},
-      {'name': '口水鸡', 'time': 25, 'iconType': AppIcon3DType.chef, 'id': 'recipe_11'},
-      {'name': '蛋花汤', 'time': 5, 'iconType': AppIcon3DType.bowl, 'id': 'recipe_12'},
-    ];
+    // 如果数据库中没有菜谱，显示提示信息
+    if (_allRecipes.isEmpty) {
+      return {
+        'name': '暂无菜谱',
+        'time': 0,
+        'iconType': AppIcon3DType.heart,
+        'id': 'empty',
+        'description': '点击右上角设置按钮导入示例菜谱开始体验',
+      };
+    }
     
-    final validIndex = _currentIndex % fallbackRecipes.length;
-    return fallbackRecipes[validIndex];
+    // 循环显示真实菜谱数据
+    final validIndex = _currentIndex % _allRecipes.length;
+    final recipe = _allRecipes[validIndex];
+    return {
+      'name': recipe.name,
+      'time': recipe.totalTime,
+      'iconType': _parseIconType(recipe.iconType),
+      'id': recipe.id,
+      'description': recipe.description,
+    };
+  }
+  
+  /// 解析图标类型字符串为枚举
+  AppIcon3DType _parseIconType(String iconTypeString) {
+    switch (iconTypeString) {
+      case 'AppIcon3DType.bowl':
+        return AppIcon3DType.bowl;
+      case 'AppIcon3DType.spoon':
+        return AppIcon3DType.spoon;
+      case 'AppIcon3DType.chef':
+        return AppIcon3DType.chef;
+      case 'AppIcon3DType.timer':
+        return AppIcon3DType.timer;
+      case 'AppIcon3DType.recipe':
+        return AppIcon3DType.recipe;
+      case 'AppIcon3DType.heart':
+        return AppIcon3DType.heart;
+      default:
+        return AppIcon3DType.heart;
+    }
   }
   
   // ==================== 交互处理方法 ====================
@@ -887,34 +910,39 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _handleVoiceCommand(String command) {
     HapticFeedback.mediumImpact();
     
-    // 简单的指令识别逻辑
-    if (command.contains('银耳莲子羹')) {
-      setState(() {
-        _currentIndex = 0; // 银耳莲子羹对应的索引
-      });
-      _cardController.forward(from: 0);
-    } else if (command.contains('番茄鸡蛋面')) {
-      setState(() {
-        _currentIndex = 1;
-      });
-      _cardController.forward(from: 0);
-    } else if (command.contains('烹饪') || command.contains('制作')) {
-      _navigateToCookingMode();
-    } else if (command.contains('推荐') || command.contains('AI')) {
-      _navigateToAIRecommendation();
-    } else if (command.contains('时光机') || command.contains('历史')) {
-      _navigateToTimeline();
-    } else if (command.contains('挑战') || command.contains('对决')) {
-      _navigateToChallenge();
-    } else {
-      // 默认显示提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('已识别："$command"'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    // 动态菜谱识别逻辑
+    bool recipeFound = false;
+    for (int i = 0; i < _allRecipes.length; i++) {
+      if (command.contains(_allRecipes[i].name)) {
+        setState(() {
+          _currentIndex = i;
+        });
+        _cardController.forward(from: 0);
+        recipeFound = true;
+        break;
+      }
+    }
+    
+    if (!recipeFound) {
+      // 功能指令识别
+      if (command.contains('烹饪') || command.contains('制作')) {
+        _navigateToCookingMode();
+      } else if (command.contains('推荐') || command.contains('AI')) {
+        _navigateToAIRecommendation();
+      } else if (command.contains('时光机') || command.contains('历史')) {
+        _navigateToTimeline();
+      } else if (command.contains('挑战') || command.contains('对决')) {
+        _navigateToChallenge();
+      } else {
+        // 默认显示提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('已识别："$command"'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
   

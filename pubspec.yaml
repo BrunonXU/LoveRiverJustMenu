@@ -103,6 +103,7 @@ flutter:
     - assets/icons/
     - assets/animations/
     - assets/sounds/
+    - assets/data/
 
 flutter_gen:
   output: lib/generated/
