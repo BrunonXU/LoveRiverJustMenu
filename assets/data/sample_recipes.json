@@ -223,6 +223,246 @@
       "isPublic": true,
       "rating": 4.9,
       "cookCount": 89
+    },
+    {
+      "id": "sample_007",
+      "name": "糖醋排骨",
+      "description": "酸甜可口的经典川菜，色泽红亮，老少皆宜的家常硬菜",
+      "iconType": "AppIcon3DType.chef",
+      "totalTime": 50,
+      "difficulty": "中等",
+      "servings": 3,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "排骨预处理",
+          "description": "排骨500g切段，冷水下锅焯水5分钟，捞起洗净沥干。",
+          "duration": 15,
+          "tips": "焯水可以去除血沫和腥味，让成品更干净",
+          "imageBase64": null,
+          "ingredients": ["排骨 500g", "料酒 2勺", "生姜 3片"]
+        },
+        {
+          "title": "调制糖醋汁",
+          "description": "生抽3勺、老抽1勺、醋4勺、糖3勺、料酒2勺调成糖醋汁备用。",
+          "duration": 5,
+          "tips": "比例是关键：生抽3醋4糖3，这样做出来酸甜比例完美",
+          "imageBase64": null,
+          "ingredients": ["生抽 3勺", "老抽 1勺", "米醋 4勺", "白糖 3勺", "料酒 2勺"]
+        },
+        {
+          "title": "炸制上色",
+          "description": "热油炸排骨至表面金黄捞起，留底油爆香蒜姜，下糖醋汁炒至粘稠，倒入排骨翻炒收汁。",
+          "duration": 30,
+          "tips": "炸排骨要趁热下锅，这样外酥内嫩，收汁时大火快炒",
+          "imageBase64": null,
+          "ingredients": ["食用油 500ml", "大蒜 3瓣", "生姜 2片", "芝麻 适量"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.8,
+      "cookCount": 203
+    },
+    {
+      "id": "sample_008",
+      "name": "宫保鸡丁",
+      "description": "四川名菜，香辣下饭，鸡肉嫩滑，花生香脆，越吃越有味",
+      "iconType": "AppIcon3DType.spoon",
+      "totalTime": 30,
+      "difficulty": "中等",
+      "servings": 2,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "鸡肉腌制",
+          "description": "鸡胸肉300g切丁，用料酒、生抽、淀粉抓匀腌制15分钟。花生米过油炸脆。",
+          "duration": 15,
+          "tips": "鸡肉切丁要均匀，腌制时间够才会入味嫩滑",
+          "imageBase64": null,
+          "ingredients": ["鸡胸肉 300g", "料酒 1勺", "生抽 1勺", "淀粉 1勺", "花生米 100g"]
+        },
+        {
+          "title": "调制宫保汁",
+          "description": "生抽2勺、老抽半勺、醋1勺、糖1勺、淀粉1勺、清水3勺调成宫保汁。",
+          "duration": 5,
+          "tips": "宫保汁要调匀，特别是淀粉要完全化开不能有颗粒",
+          "imageBase64": null,
+          "ingredients": ["生抽 2勺", "老抽 0.5勺", "醋 1勺", "糖 1勺", "水淀粉 1勺", "清水 3勺"]
+        },
+        {
+          "title": "爆炒出锅",
+          "description": "热锅下油，先炒鸡丁至变色，下干辣椒花椒爆香，倒入宫保汁炒匀，最后加入花生米翻炒即可。",
+          "duration": 10,
+          "tips": "大火快炒，动作要快，避免鸡肉过老影响口感",
+          "imageBase64": null,
+          "ingredients": ["干辣椒 8个", "花椒 1勺", "葱白 2段", "食用油 3勺"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.7,
+      "cookCount": 167
+    },
+    {
+      "id": "sample_009",
+      "name": "麻婆豆腐",
+      "description": "四川经典名菜，麻辣鲜香，豆腐滑嫩，配米饭绝配",
+      "iconType": "AppIcon3DType.bowl",
+      "totalTime": 20,
+      "difficulty": "简单",
+      "servings": 2,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "豆腐处理",
+          "description": "嫩豆腐400g切块，开水中加盐焯水2分钟去豆腥味，捞起沥干备用。",
+          "duration": 5,
+          "tips": "焯水时加盐可以让豆腐更嫩，不容易碎",
+          "imageBase64": null,
+          "ingredients": ["嫩豆腐 400g", "盐 1勺"]
+        },
+        {
+          "title": "炒制肉末",
+          "description": "热锅下油，爆炒肉末至断生，加豆瓣酱炒出红油，下蒜末姜末炒香。",
+          "duration": 8,
+          "tips": "豆瓣酱要小火慢炒，炒出红油才香，不要炒糊了",
+          "imageBase64": null,
+          "ingredients": ["猪肉末 100g", "郫县豆瓣酱 2勺", "大蒜 3瓣", "生姜 2片", "食用油 3勺"]
+        },
+        {
+          "title": "调味收汁",
+          "description": "加清水煮开，放入豆腐轻推炖煮3分钟，用水淀粉勾芡，撒花椒粉和葱花即可。",
+          "duration": 7,
+          "tips": "轻推豆腐不要大力翻动，保持豆腐完整不碎",
+          "imageBase64": null,
+          "ingredients": ["清水 200ml", "生抽 1勺", "水淀粉 2勺", "花椒粉 1勺", "小葱 2根"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.6,
+      "cookCount": 234
+    },
+    {
+      "id": "sample_010",
+      "name": "清蒸鲈鱼",
+      "description": "粤菜经典，鱼肉鲜美嫩滑，清淡营养，保持食材原味",
+      "iconType": "AppIcon3DType.timer",
+      "totalTime": 25,
+      "difficulty": "中等",
+      "servings": 2,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "鲈鱼处理",
+          "description": "鲈鱼1条（500g）去鳞去内脏洗净，鱼身两面斜切几刀，用盐和料酒腌制10分钟去腥。",
+          "duration": 10,
+          "tips": "刀工要均匀，这样蒸制时受热更均匀，口感更好",
+          "imageBase64": null,
+          "ingredients": ["鲈鱼 1条", "盐 1勺", "料酒 2勺", "生姜丝", "葱丝"]
+        },
+        {
+          "title": "上锅蒸制",
+          "description": "鱼盘底铺姜丝，放入鲈鱼，鱼身再铺姜丝，大火蒸8-10分钟至熟透。",
+          "duration": 10,
+          "tips": "蒸制时间根据鱼的大小调整，一般500g鱼蒸8分钟即可",
+          "imageBase64": null,
+          "ingredients": ["生姜 30g"]
+        },
+        {
+          "title": "调味装饰",
+          "description": "蒸好后倒掉蒸鱼水，重新铺葱丝，淋蒸鱼豉油，热油浇在葱丝上激发香味。",
+          "duration": 5,
+          "tips": "一定要倒掉蒸鱼水，重新调味，这样才不会腥",
+          "imageBase64": null,
+          "ingredients": ["小葱 3根", "蒸鱼豉油 3勺", "食用油 2勺", "红椒丝 适量"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.8,
+      "cookCount": 145
+    },
+    {
+      "id": "sample_011",
+      "name": "蚂蚁上树",
+      "description": "四川名菜，粉丝爽滑，肉末香浓，寓意美好的经典家常菜",
+      "iconType": "AppIcon3DType.recipe",
+      "totalTime": 25,
+      "difficulty": "简单",
+      "servings": 2,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "粉丝处理",
+          "description": "红薯粉丝100g用温水泡软剪短，猪肉末150g用料酒、生抽腌制。",
+          "duration": 10,
+          "tips": "粉丝不要泡太久变烂，剪短方便食用",
+          "imageBase64": null,
+          "ingredients": ["红薯粉丝 100g", "猪肉末 150g", "料酒 1勺", "生抽 1勺"]
+        },
+        {
+          "title": "炒制肉末",
+          "description": "热锅下油，爆炒肉末至断生变色，加豆瓣酱炒出红油，下蒜末姜末炒香。",
+          "duration": 8,
+          "tips": "肉末要炒散，不要结块，豆瓣酱小火炒香不要糊",
+          "imageBase64": null,
+          "ingredients": ["食用油 3勺", "豆瓣酱 1勺", "大蒜 3瓣", "生姜 2片"]
+        },
+        {
+          "title": "下粉丝调味",
+          "description": "加清水200ml煮开，下粉丝煮3分钟，调味生抽、老抽上色，收汁撒葱花即可。",
+          "duration": 7,
+          "tips": "水不要加太多，最后要收干汁水，粉丝才会有味道",
+          "imageBase64": null,
+          "ingredients": ["清水 200ml", "生抽 2勺", "老抽 1勺", "小葱 2根", "盐 适量"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.5,
+      "cookCount": 178
+    },
+    {
+      "id": "sample_012",
+      "name": "西红柿牛腩",
+      "description": "营养丰富的家常炖菜，牛肉软烂，汤汁鲜美，温暖治愈",
+      "iconType": "AppIcon3DType.chef",
+      "totalTime": 90,
+      "difficulty": "中等",
+      "servings": 3,
+      "imageBase64": null,
+      "steps": [
+        {
+          "title": "牛腩处理",
+          "description": "牛腩600g切块，冷水下锅焯水去血沫，捞起洗净。西红柿3个去皮切块。",
+          "duration": 20,
+          "tips": "牛腩块不要切太小，炖制过程中会缩小",
+          "imageBase64": null,
+          "ingredients": ["牛腩 600g", "西红柿 3个", "料酒 3勺", "生姜 4片"]
+        },
+        {
+          "title": "炒制西红柿",
+          "description": "热锅下油，爆炒西红柿出汁，加番茄酱炒匀，下牛腩翻炒上色。",
+          "duration": 10,
+          "tips": "西红柿要充分炒出汁水，这样炖出的汤才够浓郁",
+          "imageBase64": null,
+          "ingredients": ["食用油 3勺", "番茄酱 2勺", "洋葱 半个", "大蒜 4瓣"]
+        },
+        {
+          "title": "炖制入味",
+          "description": "加开水没过牛腩，放八角、桂皮大火煮开转小火炖1小时，最后调味收汁即可。",
+          "duration": 60,
+          "tips": "要用开水炖煮，小火慢炖肉质才会软烂入味",
+          "imageBase64": null,
+          "ingredients": ["开水 800ml", "八角 2个", "桂皮 1段", "生抽 3勺", "盐 适量", "胡椒粉 少许"]
+        }
+      ],
+      "createdBy": "system",
+      "isPublic": true,
+      "rating": 4.9,
+      "cookCount": 198
     }
   ]
 }

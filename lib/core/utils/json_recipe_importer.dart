@@ -65,6 +65,8 @@ class JsonRecipeImporter {
             createdBy: userId,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
+            sourceType: 'preset', // 标记为预设菜谱
+            isPreset: true,       // 预设菜谱标记
           );
           
           final recipeId = await repository.saveRecipe(updatedRecipe, userId);
@@ -81,6 +83,135 @@ class JsonRecipeImporter {
       
     } catch (e) {
       debugPrint('❌ 批量导入异常: $e');
+      return 0;
+    }
+  }
+
+  /// 🔄 初始化root用户预设菜谱
+  static Future<int> initializeRootPresetRecipes(
+    String rootUserId,
+    RecipeRepository repository
+  ) async {
+    try {
+      debugPrint('🔄 开始初始化root用户预设菜谱...');
+      
+      // 1. 检查是否已经初始化过
+      final existingRecipes = await repository.getUserRecipes(rootUserId);
+      if (existingRecipes.isNotEmpty) {
+        debugPrint('⚠️ Root用户已有菜谱，跳过初始化');
+        return existingRecipes.length;
+      }
+      
+      // 2. 加载示例菜谱
+      final sampleRecipes = await loadSampleRecipes();
+      if (sampleRecipes.isEmpty) {
+        debugPrint('❌ 加载示例菜谱失败');
+        return 0;
+      }
+      
+      // 3. 批量保存为root用户的预设菜谱
+      int successCount = 0;
+      for (final recipe in sampleRecipes) {
+        try {
+          // 设置为root用户创建，并添加随机时间
+          final randomDaysAgo = DateTime.now().subtract(
+            Duration(days: 30 + (successCount * 15)) // 30-210天前分布
+          );
+          
+          final rootRecipe = recipe.copyWith(
+            id: '', // 清空ID，让Firestore自动生成
+            createdBy: rootUserId,
+            createdAt: randomDaysAgo,
+            updatedAt: randomDaysAgo.add(Duration(days: 5)), // 几天后的更新时间
+            sourceType: 'user', // root用户的正常菜谱
+            isPreset: false,    // 不是预设标记，是root用户的"正常"菜谱
+            rating: 4.5 + (0.4 * (successCount % 3)), // 4.5-4.9随机评分
+            cookCount: 50 + (successCount * 10), // 50-170随机烹饪次数
+          );
+          
+          final recipeId = await repository.saveRecipe(rootRecipe, rootUserId);
+          debugPrint('✅ Root菜谱创建成功: ${recipe.name} -> $recipeId');
+          successCount++;
+          
+        } catch (e) {
+          debugPrint('❌ Root菜谱创建失败: ${recipe.name} - $e');
+        }
+      }
+      
+      debugPrint('🎉 Root预设菜谱初始化完成: $successCount/${sampleRecipes.length}');
+      return successCount;
+      
+    } catch (e) {
+      debugPrint('❌ Root预设菜谱初始化异常: $e');
+      return 0;
+    }
+  }
+
+  /// 👤 新用户初始化：复制root用户的预设菜谱
+  static Future<int> initializeNewUserWithPresets(
+    String newUserId,
+    String rootUserId,
+    RecipeRepository repository
+  ) async {
+    try {
+      debugPrint('👤 开始为新用户初始化预设菜谱: $newUserId');
+      
+      // 1. 检查新用户是否已有菜谱
+      final existingRecipes = await repository.getUserRecipes(newUserId);
+      if (existingRecipes.isNotEmpty) {
+        debugPrint('⚠️ 用户已有菜谱，跳过初始化');
+        return existingRecipes.length;
+      }
+      
+      // 2. 获取root用户的所有菜谱
+      final rootRecipes = await repository.getUserRecipes(rootUserId);
+      if (rootRecipes.isEmpty) {
+        debugPrint('❌ Root用户没有菜谱，先初始化root用户');
+        await initializeRootPresetRecipes(rootUserId, repository);
+        final retryRootRecipes = await repository.getUserRecipes(rootUserId);
+        if (retryRootRecipes.isEmpty) {
+          debugPrint('❌ Root用户初始化失败');
+          return 0;
+        }
+      }
+      
+      // 3. 复制root菜谱到新用户账户
+      final rootRecipesToCopy = await repository.getUserRecipes(rootUserId);
+      int successCount = 0;
+      
+      for (final rootRecipe in rootRecipesToCopy) {
+        try {
+          // 为新用户创建菜谱副本，伪装成他们自己创建的
+          final randomDaysAgo = DateTime.now().subtract(
+            Duration(days: 5 + (successCount * 8)) // 5-95天前分布
+          );
+          
+          final userRecipe = rootRecipe.copyWith(
+            id: '', // 清空ID，让Firestore自动生成新的
+            createdBy: newUserId, // 改为新用户
+            createdAt: randomDaysAgo,
+            updatedAt: randomDaysAgo.add(Duration(days: 2)), // 2天后更新
+            sourceType: 'preset', // 标记为预设来源
+            isPreset: true,       // 标记为预设菜谱
+            originalRecipeId: rootRecipe.id, // 记录原始菜谱ID
+            rating: 4.0 + (0.8 * (successCount % 4)), // 4.0-4.8随机评分
+            cookCount: 1 + (successCount % 5), // 1-5次随机烹饪
+          );
+          
+          final newRecipeId = await repository.saveRecipe(userRecipe, newUserId);
+          debugPrint('✅ 预设菜谱复制成功: ${rootRecipe.name} -> $newRecipeId');
+          successCount++;
+          
+        } catch (e) {
+          debugPrint('❌ 预设菜谱复制失败: ${rootRecipe.name} - $e');
+        }
+      }
+      
+      debugPrint('🎉 新用户预设菜谱初始化完成: $successCount/${rootRecipesToCopy.length}');
+      return successCount;
+      
+    } catch (e) {
+      debugPrint('❌ 新用户初始化异常: $e');
       return 0;
     }
   }
@@ -148,6 +279,13 @@ class JsonRecipeImporter {
       isPublic: json['isPublic'] as bool? ?? true,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       cookCount: json['cookCount'] as int? ?? 0,
+      // 新增字段的默认值
+      sharedWith: List<String>.from(json['sharedWith'] ?? []),
+      isShared: json['isShared'] as bool? ?? false,
+      originalRecipeId: json['originalRecipeId'] as String?,
+      sourceType: json['sourceType'] as String? ?? 'user',
+      isPreset: json['isPreset'] as bool? ?? false,
+      favoriteCount: json['favoriteCount'] as int? ?? 0,
     );
   }
   

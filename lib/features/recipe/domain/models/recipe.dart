@@ -56,6 +56,24 @@ class Recipe extends HiveObject {
   @HiveField(14)
   int cookCount; // 🔧 新增：被制作次数
 
+  @HiveField(17)
+  List<String> sharedWith; // 🔧 新增：共享给谁（用户ID列表）
+
+  @HiveField(18)
+  bool isShared; // 🔧 新增：是否为别人共享给我的
+
+  @HiveField(19)
+  String? originalRecipeId; // 🔧 新增：如果是共享的，原菜谱ID
+
+  @HiveField(20)
+  String sourceType; // 🔧 新增：来源类型（user|preset|shared）
+
+  @HiveField(21)
+  bool isPreset; // 🔧 新增：是否为预设菜谱
+
+  @HiveField(22)
+  int favoriteCount; // 🔧 新增：收藏数量
+
   Recipe({
     required this.id,
     required this.name,
@@ -74,6 +92,12 @@ class Recipe extends HiveObject {
     this.isPublic = true,
     this.rating = 0.0,
     this.cookCount = 0,
+    this.sharedWith = const [],
+    this.isShared = false,
+    this.originalRecipeId,
+    this.sourceType = 'user',
+    this.isPreset = false,
+    this.favoriteCount = 0,
   });
 
   /// 从JSON创建Recipe对象
@@ -98,6 +122,12 @@ class Recipe extends HiveObject {
       isPublic: json['isPublic'] ?? true,
       rating: json['rating']?.toDouble() ?? 0.0,
       cookCount: json['cookCount'] ?? 0,
+      sharedWith: List<String>.from(json['sharedWith'] ?? []),
+      isShared: json['isShared'] ?? false,
+      originalRecipeId: json['originalRecipeId'],
+      sourceType: json['sourceType'] ?? 'user',
+      isPreset: json['isPreset'] ?? false,
+      favoriteCount: json['favoriteCount'] ?? 0,
     );
   }
 
@@ -121,6 +151,12 @@ class Recipe extends HiveObject {
       'isPublic': isPublic,
       'rating': rating,
       'cookCount': cookCount,
+      'sharedWith': sharedWith,
+      'isShared': isShared,
+      'originalRecipeId': originalRecipeId,
+      'sourceType': sourceType,
+      'isPreset': isPreset,
+      'favoriteCount': favoriteCount,
     };
   }
 
@@ -143,6 +179,12 @@ class Recipe extends HiveObject {
     bool? isPublic,
     double? rating,
     int? cookCount,
+    List<String>? sharedWith,
+    bool? isShared,
+    String? originalRecipeId,
+    String? sourceType,
+    bool? isPreset,
+    int? favoriteCount,
   }) {
     return Recipe(
       id: id ?? this.id,
@@ -162,6 +204,12 @@ class Recipe extends HiveObject {
       isPublic: isPublic ?? this.isPublic,
       rating: rating ?? this.rating,
       cookCount: cookCount ?? this.cookCount,
+      sharedWith: sharedWith ?? this.sharedWith,
+      isShared: isShared ?? this.isShared,
+      originalRecipeId: originalRecipeId ?? this.originalRecipeId,
+      sourceType: sourceType ?? this.sourceType,
+      isPreset: isPreset ?? this.isPreset,
+      favoriteCount: favoriteCount ?? this.favoriteCount,
     );
   }
 }
@@ -245,5 +293,63 @@ class RecipeStep extends HiveObject {
       imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据
       ingredients: ingredients ?? this.ingredients,
     );
+  }
+}
+
+/// 用户收藏数据模型
+@HiveType(typeId: 2)
+class UserFavorites extends HiveObject {
+  @HiveField(0)
+  String userId;
+
+  @HiveField(1)
+  List<String> favoriteRecipeIds; // 收藏的菜谱ID列表
+
+  @HiveField(2)
+  DateTime updatedAt; // 更新时间
+
+  UserFavorites({
+    required this.userId,
+    this.favoriteRecipeIds = const [],
+    required this.updatedAt,
+  });
+
+  /// 从JSON创建UserFavorites对象
+  factory UserFavorites.fromJson(Map<String, dynamic> json) {
+    return UserFavorites(
+      userId: json['userId'],
+      favoriteRecipeIds: List<String>.from(json['favoriteRecipeIds'] ?? []),
+      updatedAt: DateTime.parse(json['updatedAt']),
+    );
+  }
+
+  /// 转换为JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'favoriteRecipeIds': favoriteRecipeIds,
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  /// 添加收藏
+  void addFavorite(String recipeId) {
+    if (!favoriteRecipeIds.contains(recipeId)) {
+      favoriteRecipeIds = [...favoriteRecipeIds, recipeId];
+      updatedAt = DateTime.now();
+    }
+  }
+
+  /// 移除收藏
+  void removeFavorite(String recipeId) {
+    if (favoriteRecipeIds.contains(recipeId)) {
+      favoriteRecipeIds = favoriteRecipeIds.where((id) => id != recipeId).toList();
+      updatedAt = DateTime.now();
+    }
+  }
+
+  /// 检查是否收藏
+  bool isFavorite(String recipeId) {
+    return favoriteRecipeIds.contains(recipeId);
   }
 }

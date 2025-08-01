@@ -12,9 +12,11 @@ import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../recipe/domain/models/recipe.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/services/providers/favorites_providers.dart';
+import '../../../../core/utils/json_recipe_importer.dart';
 
 /// 我的菜谱页面
-/// 显示用户创建的菜谱和收藏的菜谱
+/// 显示预设菜谱、用户创建的菜谱和收藏的菜谱
 class MyRecipesScreen extends ConsumerStatefulWidget {
   const MyRecipesScreen({super.key});
 
@@ -37,7 +39,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       setState(() {
         _currentTabIndex = _tabController.index;
@@ -92,6 +94,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
+                    _buildPresetRecipes(isDark),
                     _buildCreatedRecipes(isDark),
                     _buildFavoriteRecipes(isDark),
                   ],
@@ -209,11 +212,76 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
             fontWeight: AppTypography.light,
           ),
           tabs: const [
+            Tab(text: '预设菜谱'),
             Tab(text: '我创建的'),
             Tab(text: '我收藏的'),
           ],
         ),
       ),
+    );
+  }
+
+  /// 预设菜谱列表
+  Widget _buildPresetRecipes(bool isDark) {
+    final currentUser = ref.watch(currentUserProvider);
+    
+    if (currentUser == null) {
+      return _buildEmptyState(
+        isDark,
+        icon: '👤',
+        title: '请先登录',
+        description: '登录后才能查看预设菜谱',
+        actionText: '去登录',
+        onAction: () => context.go('/login'),
+      );
+    }
+    
+    return FutureBuilder<List<Recipe>>(
+      future: _loadPresetRecipes(currentUser.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 3,
+            ),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return _buildEmptyState(
+            isDark,
+            icon: '❌',
+            title: '加载失败',
+            description: '无法加载预设菜谱：${snapshot.error}',
+            actionText: '重试',
+            onAction: () => _refreshRecipes(),
+          );
+        }
+        
+        final presetRecipes = snapshot.data ?? [];
+
+        if (presetRecipes.isEmpty) {
+          return _buildEmptyState(
+            isDark,
+            icon: '🍳',
+            title: '预设菜谱未初始化',
+            description: '点击按钮初始化12个经典预设菜谱',
+            actionText: '初始化预设菜谱',
+            onAction: () => _initializePresetRecipes(),
+          );
+        }
+
+        return Column(
+          children: [
+            // 预设菜谱说明
+            _buildPresetInfo(presetRecipes, isDark),
+            const SizedBox(height: AppSpacing.md),
+            // 菜谱列表
+            Expanded(child: _buildRecipeList(presetRecipes, isDark, showPresetTag: true)),
+          ],
+        );
+      },
     );
   }
 
@@ -287,13 +355,49 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     );
   }
   
-  /// 加载用户菜谱数据
+  /// 加载用户菜谱数据（只包含用户自己创建的）
   Future<List<Recipe>> _loadUserRecipes(String userId) async {
     try {
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      return await repository.getUserRecipes(userId);
+      final allUserRecipes = await repository.getUserRecipes(userId);
+      // 过滤出用户自己创建的菜谱（排除预设菜谱）
+      return allUserRecipes.where((recipe) => !recipe.isPreset).toList();
     } catch (e) {
       print('加载用户菜谱失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 加载预设菜谱数据
+  Future<List<Recipe>> _loadPresetRecipes(String userId) async {
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final allUserRecipes = await repository.getUserRecipes(userId);
+      // 过滤出预设菜谱
+      return allUserRecipes.where((recipe) => recipe.isPreset).toList();
+    } catch (e) {
+      print('加载预设菜谱失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 加载收藏菜谱数据
+  Future<List<Recipe>> _loadFavoriteRecipes(String userId) async {
+    try {
+      // 1. 获取用户收藏的菜谱ID列表
+      final favoritesService = ref.read(favoritesServiceProvider);
+      final favoriteIds = await favoritesService.getFavoriteRecipeIds(userId);
+      
+      if (favoriteIds.isEmpty) {
+        return [];
+      }
+      
+      // 2. 根据ID获取菜谱详情
+      // TODO: 需要实现跨用户的菜谱查询功能
+      // 暂时返回空列表，后续实现
+      return [];
+    } catch (e) {
+      print('加载收藏菜谱失败: $e');
       rethrow;
     }
   }
@@ -305,16 +409,241 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     });
   }
 
-  /// 我收藏的菜谱列表（暂时显示空状态）
+  /// 🍳 初始化预设菜谱
+  Future<void> _initializePresetRecipes() async {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return;
+
+    try {
+      // 显示加载对话框
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('初始化预设菜谱'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在为您准备12个经典预设菜谱...'),
+            ],
+          ),
+        ),
+      );
+
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      const rootUserId = '2352016835@qq.com'; // Root用户ID
+      
+      // 使用JsonRecipeImporter初始化预设菜谱
+      final successCount = await JsonRecipeImporter.initializeNewUserWithPresets(
+        currentUser.uid,
+        rootUserId,
+        repository,
+      );
+
+      if (mounted) {
+        context.pop(); // 关闭加载对话框
+        
+        if (successCount > 0) {
+          // 显示成功结果
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('初始化成功'),
+              content: Text(
+                '🎉 成功为您准备了 $successCount 个经典预设菜谱！\n\n'
+                '包括：银耳汤、番茄面、红烧排骨、宫保鸡丁等经典菜谱。'
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    context.pop();
+                    _refreshRecipes(); // 刷新菜谱列表
+                  },
+                  child: const Text('开始体验'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          _showErrorMessage('初始化失败，请重试');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        context.pop(); // 关闭加载对话框
+        _showErrorMessage('初始化失败：$e');
+      }
+    }
+  }
+
+  /// ❌ 显示错误消息
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// 我收藏的菜谱列表
   Widget _buildFavoriteRecipes(bool isDark) {
-    // TODO: 实现收藏功能后从数据库获取收藏的菜谱
-    return _buildEmptyState(
-      isDark,
-      icon: '💕',
-      title: '还没有收藏菜谱',
-      description: '在菜谱详情页点击爱心收藏喜欢的菜谱',
-      actionText: '去发现',
-      onAction: () => context.go('/'),
+    final currentUser = ref.watch(currentUserProvider);
+    
+    if (currentUser == null) {
+      return _buildEmptyState(
+        isDark,
+        icon: '👤',
+        title: '请先登录',
+        description: '登录后才能查看收藏的菜谱',
+        actionText: '去登录',
+        onAction: () => context.go('/login'),
+      );
+    }
+    
+    return FutureBuilder<List<Recipe>>(
+      future: _loadFavoriteRecipes(currentUser.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 3,
+            ),
+          );
+        }
+        
+        if (snapshot.hasError) {
+          return _buildEmptyState(
+            isDark,
+            icon: '❌',
+            title: '加载失败',
+            description: '无法加载收藏菜谱：${snapshot.error}',
+            actionText: '重试',
+            onAction: () => _refreshRecipes(),
+          );
+        }
+        
+        final favoriteRecipes = snapshot.data ?? [];
+
+        if (favoriteRecipes.isEmpty) {
+          return _buildEmptyState(
+            isDark,
+            icon: '💕',
+            title: '还没有收藏菜谱',
+            description: '在菜谱详情页点击爱心收藏喜欢的菜谱',
+            actionText: '去发现',
+            onAction: () => context.go('/'),
+          );
+        }
+
+        return Column(
+          children: [
+            // 收藏统计信息
+            _buildFavoriteInfo(favoriteRecipes, isDark),
+            const SizedBox(height: AppSpacing.md),
+            // 菜谱列表
+            Expanded(child: _buildRecipeList(favoriteRecipes, isDark, showFavoriteTag: true)),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 🍳 预设菜谱信息
+  Widget _buildPresetInfo(List<Recipe> recipes, bool isDark) {
+    return Padding(
+      padding: AppSpacing.pagePadding,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.getBackgroundSecondaryColor(isDark),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.orange.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.restaurant_menu,
+                  color: Colors.orange,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '经典预设菜谱',
+                  style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '为您精选的 ${recipes.length} 道经典家常菜，来自传统美食文化的精华',
+              style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 💕 收藏菜谱信息
+  Widget _buildFavoriteInfo(List<Recipe> recipes, bool isDark) {
+    return Padding(
+      padding: AppSpacing.pagePadding,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.getBackgroundSecondaryColor(isDark),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.favorite,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '我的收藏夹',
+                  style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                    fontWeight: AppTypography.medium,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '已收藏 ${recipes.length} 道菜谱，记录您喜爱的美食时光',
+              style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -400,7 +729,10 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   }
 
   /// 菜谱列表
-  Widget _buildRecipeList(List<Recipe> recipes, bool isDark) {
+  Widget _buildRecipeList(List<Recipe> recipes, bool isDark, {
+    bool showPresetTag = false,
+    bool showFavoriteTag = false,
+  }) {
     return ListView.separated(
       padding: AppSpacing.pagePadding,
       physics: const BouncingScrollPhysics(),
@@ -408,13 +740,22 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
       separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.lg),
       itemBuilder: (context, index) {
         final recipe = recipes[index];
-        return _buildRecipeCard(recipe, isDark, index);
+        return _buildRecipeCard(
+          recipe, 
+          isDark, 
+          index,
+          showPresetTag: showPresetTag,
+          showFavoriteTag: showFavoriteTag,
+        );
       },
     );
   }
 
   /// 单个菜谱卡片
-  Widget _buildRecipeCard(Recipe recipe, bool isDark, int index) {
+  Widget _buildRecipeCard(Recipe recipe, bool isDark, int index, {
+    bool showPresetTag = false,
+    bool showFavoriteTag = false,
+  }) {
     return BreathingWidget(
       child: GestureDetector(
         onTap: () {
@@ -438,15 +779,24 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 菜谱名称
-                    Text(
-                      recipe.name,
-                      style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-                        fontWeight: AppTypography.medium,
-                        color: AppColors.getTextPrimaryColor(isDark),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    // 菜谱名称和标签
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            recipe.name,
+                            style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                              fontWeight: AppTypography.medium,
+                              color: AppColors.getTextPrimaryColor(isDark),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // 标签
+                        if (showPresetTag) _buildTypeTag('经典', Colors.orange, isDark),
+                        if (showFavoriteTag) _buildTypeTag('收藏', AppColors.primary, isDark),
+                      ],
                     ),
 
                     const SizedBox(height: AppSpacing.xs),
@@ -530,6 +880,31 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
         style: AppTypography.captionStyle(isDark: isDark).copyWith(
           color: AppColors.getTextSecondaryColor(isDark),
           fontWeight: AppTypography.light,
+        ),
+      ),
+    );
+  }
+
+  /// 类型标签
+  Widget _buildTypeTag(String text, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        text,
+        style: AppTypography.captionStyle(isDark: isDark).copyWith(
+          color: color,
+          fontWeight: AppTypography.medium,
         ),
       ),
     );
