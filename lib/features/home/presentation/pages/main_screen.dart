@@ -500,8 +500,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
       child: GestureDetector(
         onTap: () {
           final recipe = _getCurrentRecipe();
+          final recipeId = recipe['id'];
+          
+          // 🔧 修复：如果没有真实菜谱，引导用户导入菜谱
+          if (recipeId == 'empty' || _allRecipes.isEmpty) {
+            _showImportRecipeDialog();
+            return;
+          }
+          
           // 进入食谱详情
-          _navigateToRecipeDetail(recipe['id'] ?? 'recipe_1');
+          _navigateToRecipeDetail(recipeId);
         },
         child: MinimalCard(
           width: MediaQuery.of(context).size.width * 0.51, // 屏幕宽度51% (64%再缩小20%)
@@ -517,7 +525,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
                 onTap: () {
                   // 🔧 修复：点击图标进入对应菜谱详情
                   final currentRecipe = _getCurrentRecipe();
-                  _navigateToRecipeDetail(currentRecipe['id'] ?? 'recipe_1');
+                  final recipeId = currentRecipe['id'];
+                  
+                  // 如果没有真实菜谱，引导用户导入菜谱
+                  if (recipeId == 'empty' || _allRecipes.isEmpty) {
+                    _showImportRecipeDialog();
+                    return;
+                  }
+                  
+                  _navigateToRecipeDetail(recipeId);
                 },
               ),
               
@@ -963,7 +979,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 导航到烹饪模式
   void _navigateToCookingMode({String? recipeId}) {
     HapticFeedback.mediumImpact();
+    
     final targetRecipeId = recipeId ?? _getCurrentRecipe()['id'];
+    
+    // 🔧 修复：如果没有真实菜谱，引导用户导入菜谱
+    if (targetRecipeId == 'empty' || _allRecipes.isEmpty) {
+      _showImportRecipeDialog();
+      return;
+    }
+    
     context.push('${AppRouter.cookingMode}?recipeId=$targetRecipeId');
   }
   
@@ -992,6 +1016,44 @@ class _MainScreenState extends ConsumerState<MainScreen>
     context.push(AppRouter.recipeDetail.replaceAll(':id', recipeId));
   }
   
+  /// 显示导入菜谱引导对话框
+  void _showImportRecipeDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🍳 开始你的美食之旅'),
+        content: const Text(
+          '看起来你还没有菜谱呢！\n\n'
+          '点击右上角设置按钮，导入示例菜谱开始体验，'
+          '或者创建你的第一个菜谱吧～'
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('稍后再说'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.push('/profile/settings');
+            },
+            child: const Text('去导入菜谱'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _navigateToCreateRecipe();
+            },
+            child: const Text('创建菜谱'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 导航到挑战页面 ⭐ 新功能
   void _navigateToChallenge() {
     HapticFeedback.mediumImpact();
