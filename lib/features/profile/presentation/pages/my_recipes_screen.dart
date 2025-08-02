@@ -82,14 +82,12 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
               // 顶部标题栏
               _buildHeader(isDark),
 
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
 
               // Tab切换器
               _buildTabBar(isDark),
 
-              const SizedBox(height: AppSpacing.lg),
-
-              // Tab内容
+              // Tab内容（不需要额外间距）
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -109,76 +107,62 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// 顶部标题栏
   Widget _buildHeader(bool isDark) {
-    return Padding(
-      padding: AppSpacing.pagePadding,
+    return Container(
+      padding: AppSpacing.pagePadding.copyWith(bottom: 0),
       child: Row(
         children: [
           // 返回按钮
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.lightImpact();
-              context.pop();
-            },
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.getBackgroundSecondaryColor(isDark),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.shadow,
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                color: AppColors.getTextPrimaryColor(isDark),
-                size: 18,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                context.pop();
+              },
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: AppColors.getTextPrimaryColor(isDark),
+                  size: 24,
+                ),
               ),
             ),
           ),
 
-          const Spacer(),
+          const SizedBox(width: AppSpacing.md),
 
           // 页面标题
-          BreathingWidget(
+          Expanded(
             child: Text(
               '我的菜谱',
               style: AppTypography.titleLargeStyle(isDark: isDark).copyWith(
-                fontWeight: AppTypography.light,
+                fontWeight: AppTypography.medium,
+                fontSize: 24,
               ),
             ),
           ),
 
-          const Spacer(),
-
-          // 添加按钮
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              context.push('/create-recipe');
-            },
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
+          // 标签数量指示器
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '${_tabController.index + 1}/3',
+              style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                color: AppColors.primary,
+                fontWeight: AppTypography.medium,
               ),
             ),
           ),
@@ -189,34 +173,78 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// Tab切换器
   Widget _buildTabBar(bool isDark) {
-    return Padding(
-      padding: AppSpacing.pagePadding,
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          color: AppColors.getBackgroundSecondaryColor(isDark),
-          borderRadius: BorderRadius.circular(25),
-        ),
-        child: TabBar(
-          controller: _tabController,
-          indicator: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            borderRadius: BorderRadius.circular(22),
+    return Container(
+      margin: AppSpacing.pagePadding.copyWith(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(4),
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.getBackgroundSecondaryColor(isDark),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
-          labelColor: Colors.white,
-          unselectedLabelColor: AppColors.getTextSecondaryColor(isDark),
-          labelStyle: AppTypography.bodyMediumStyle(isDark: false).copyWith(
-            fontWeight: AppTypography.medium,
-          ),
-          unselectedLabelStyle: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-            fontWeight: AppTypography.light,
-          ),
-          tabs: const [
-            Tab(text: '预设菜谱'),
-            Tab(text: '我创建的'),
-            Tab(text: '我收藏的'),
+        ],
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        dividerColor: Colors.transparent,
+        labelColor: Colors.white,
+        unselectedLabelColor: AppColors.getTextSecondaryColor(isDark),
+        labelStyle: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+          fontWeight: AppTypography.medium,
+          fontSize: 15,
+        ),
+        unselectedLabelStyle: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+          fontWeight: AppTypography.light,
+          fontSize: 15,
+        ),
+        tabs: [
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.star, size: 18),
+                const SizedBox(width: 6),
+                const Text('预设'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.edit, size: 18),
+                const SizedBox(width: 6),
+                const Text('创建'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.favorite, size: 18),
+                const SizedBox(width: 6),
+                const Text('收藏'),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -272,13 +300,29 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           );
         }
 
-        return Column(
+        return Stack(
           children: [
-            // 预设菜谱说明
-            _buildPresetInfo(presetRecipes, isDark),
-            const SizedBox(height: AppSpacing.md),
-            // 菜谱列表
-            Expanded(child: _buildRecipeList(presetRecipes, isDark, showPresetTag: true)),
+            Column(
+              children: [
+                // 预设菜谱说明
+                _buildPresetInfo(presetRecipes, isDark),
+                const SizedBox(height: AppSpacing.md),
+                // 菜谱列表
+                Expanded(child: _buildRecipeList(presetRecipes, isDark, showPresetTag: true)),
+              ],
+            ),
+            // 悬浮操作按钮
+            if (presetRecipes.length < 12)
+              Positioned(
+                bottom: 24,
+                right: 24,
+                child: _buildFloatingActionButton(
+                  icon: Icons.refresh,
+                  label: '重新初始化',
+                  onTap: () => _initializePresetRecipes(),
+                  isDark: isDark,
+                ),
+              ),
           ],
         );
       },
@@ -342,13 +386,28 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           );
         }
 
-        return Column(
+        return Stack(
           children: [
-            // 📊 数据库统计信息
-            _buildDatabaseStats(userRecipes, isDark),
-            const SizedBox(height: AppSpacing.md),
-            // 菜谱列表
-            Expanded(child: _buildRecipeList(userRecipes, isDark)),
+            Column(
+              children: [
+                // 📊 数据库统计信息
+                _buildDatabaseStats(userRecipes, isDark),
+                const SizedBox(height: AppSpacing.md),
+                // 菜谱列表
+                Expanded(child: _buildRecipeList(userRecipes, isDark)),
+              ],
+            ),
+            // 悬浮创建按钮
+            Positioned(
+              bottom: 24,
+              right: 24,
+              child: _buildFloatingActionButton(
+                icon: Icons.add,
+                label: '创建菜谱',
+                onTap: () => context.push('/create-recipe'),
+                isDark: isDark,
+              ),
+            ),
           ],
         );
       },
@@ -540,13 +599,29 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           );
         }
 
-        return Column(
+        return Stack(
           children: [
-            // 收藏统计信息
-            _buildFavoriteInfo(favoriteRecipes, isDark),
-            const SizedBox(height: AppSpacing.md),
-            // 菜谱列表
-            Expanded(child: _buildRecipeList(favoriteRecipes, isDark, showFavoriteTag: true)),
+            Column(
+              children: [
+                // 收藏统计信息
+                _buildFavoriteInfo(favoriteRecipes, isDark),
+                const SizedBox(height: AppSpacing.md),
+                // 菜谱列表
+                Expanded(child: _buildRecipeList(favoriteRecipes, isDark, showFavoriteTag: true)),
+              ],
+            ),
+            // 悬浮探索按钮
+            if (favoriteRecipes.length < 5)
+              Positioned(
+                bottom: 24,
+                right: 24,
+                child: _buildFloatingActionButton(
+                  icon: Icons.explore,
+                  label: '探索更多',
+                  onTap: () => context.go('/'),
+                  isDark: isDark,
+                ),
+              ),
           ],
         );
       },
@@ -555,47 +630,62 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
   /// 🍳 预设菜谱信息
   Widget _buildPresetInfo(List<Recipe> recipes, bool isDark) {
-    return Padding(
-      padding: AppSpacing.pagePadding,
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: AppColors.getBackgroundSecondaryColor(isDark),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: Colors.orange.withOpacity(0.3),
-            width: 1,
-          ),
+    return Container(
+      margin: AppSpacing.pagePadding.copyWith(bottom: 0),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.orange.withOpacity(0.1),
+            Colors.orange.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.orange.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.restaurant_menu,
+              color: Colors.orange,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.restaurant_menu,
-                  color: Colors.orange,
-                  size: 18,
-                ),
-                const SizedBox(width: AppSpacing.sm),
                 Text(
                   '经典预设菜谱',
                   style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
                     fontWeight: AppTypography.medium,
-                    color: Colors.orange,
+                    color: Colors.orange[700],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '为您精选的 ${recipes.length} 道经典家常菜',
+                  style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                    color: AppColors.getTextSecondaryColor(isDark),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '为您精选的 ${recipes.length} 道经典家常菜，来自传统美食文化的精华',
-              style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -734,10 +824,12 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     bool showFavoriteTag = false,
   }) {
     return ListView.separated(
-      padding: AppSpacing.pagePadding,
+      padding: AppSpacing.pagePadding.copyWith(
+        bottom: AppSpacing.xxl + 80, // 为底部操作留出足够空间
+      ),
       physics: const BouncingScrollPhysics(),
       itemCount: recipes.length,
-      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.lg),
+      separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.md),
       itemBuilder: (context, index) {
         final recipe = recipes[index];
         return _buildRecipeCard(
@@ -763,16 +855,26 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           context.push('/recipe/${recipe.id}');
         },
         child: MinimalCard(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
               // 菜谱图标
-              AppIcon3D(
-                type: _parseIconType(recipe.iconType),
-                size: 60,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.getBackgroundSecondaryColor(isDark),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Center(
+                  child: AppIcon3D(
+                    type: _parseIconType(recipe.iconType),
+                    size: 40,
+                  ),
+                ),
               ),
 
-              const SizedBox(width: AppSpacing.lg),
+              const SizedBox(width: AppSpacing.md),
 
               // 菜谱信息
               Expanded(
@@ -794,8 +896,8 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                           ),
                         ),
                         // 标签
-                        if (showPresetTag) _buildTypeTag('经典', Colors.orange, isDark),
-                        if (showFavoriteTag) _buildTypeTag('收藏', AppColors.primary, isDark),
+                        if (showPresetTag) ...[const SizedBox(width: 8), _buildTypeTag('经典', Colors.orange, isDark)],
+                        if (showFavoriteTag) ...[const SizedBox(width: 8), _buildTypeTag('收藏', AppColors.primary, isDark)],
                       ],
                     ),
 
@@ -824,36 +926,29 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                         _buildMetaChip('⭐ ${recipe.difficulty}', isDark),
                       ],
                     ),
-                    
-                    // 📊 调试信息：显示数据库详细信息
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        _buildMetaChip('👤 ${recipe.createdBy}', isDark),
-                        const SizedBox(width: AppSpacing.sm),
-                        _buildMetaChip('📊 ID: ${recipe.id.substring(0, 8)}...', isDark),
-                      ],
-                    ),
                   ],
                 ),
               ),
 
-              const SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.xs),
 
               // 更多操作按钮
-              GestureDetector(
-                onTap: () => _showRecipeActions(recipe, isDark),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.getBackgroundSecondaryColor(isDark),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    Icons.more_vert,
-                    color: AppColors.getTextSecondaryColor(isDark),
-                    size: 16,
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showRecipeActions(recipe, isDark),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Icon(
+                      Icons.more_vert,
+                      color: AppColors.getTextSecondaryColor(isDark),
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
@@ -868,17 +963,18 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   Widget _buildMetaChip(String text, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 2,
+        horizontal: 8,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
-        color: AppColors.getBackgroundSecondaryColor(isDark),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.getBackgroundSecondaryColor(isDark).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
         style: AppTypography.captionStyle(isDark: isDark).copyWith(
           color: AppColors.getTextSecondaryColor(isDark),
+          fontSize: 11,
           fontWeight: AppTypography.light,
         ),
       ),
@@ -1013,14 +1109,27 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.only(
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: AppSpacing.lg,
+          bottom: AppSpacing.lg + MediaQuery.of(context).padding.bottom,
+        ),
         decoration: BoxDecoration(
           color: AppColors.getBackgroundColor(isDark),
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(AppSpacing.radiusLarge),
-            topRight: Radius.circular(AppSpacing.radiusLarge),
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1069,35 +1178,42 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
 
             const SizedBox(height: AppSpacing.lg),
 
-            // 操作按钮
-            _buildActionButton('编辑菜谱', Icons.edit, () {
-              context.pop();
-              // TODO: 导航到编辑页面
-            }, isDark),
+            const SizedBox(height: AppSpacing.md),
 
-            const SizedBox(height: AppSpacing.sm),
+            // 操作按钮组
+            _buildActionButton(
+              icon: Icons.edit_outlined,
+              title: '编辑菜谱',
+              subtitle: '修改菜谱信息和步骤',
+              onTap: () {
+                context.pop();
+                // TODO: 导航到编辑页面
+              },
+              isDark: isDark,
+            ),
 
-            _buildActionButton('分享菜谱', Icons.share, () {
-              context.pop();
-              // TODO: 实现分享功能
-            }, isDark),
+            _buildActionButton(
+              icon: Icons.share_outlined,
+              title: '分享菜谱',
+              subtitle: '分享给好友或家人',
+              onTap: () {
+                context.pop();
+                // TODO: 实现分享功能
+              },
+              isDark: isDark,
+            ),
 
-            const SizedBox(height: AppSpacing.sm),
-
-            // 🧹 临时数据清理按钮 - 解决Firebase控制台卡死问题
-            _buildActionButton('清理数据', Icons.cleaning_services, () {
-              context.pop();
-              _cleanupStepImages();
-            }, isDark),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            _buildActionButton('删除菜谱', Icons.delete, () {
-              context.pop();
-              _confirmDeleteRecipe(recipe);
-            }, isDark, isDestructive: true),
-
-            SizedBox(height: MediaQuery.of(context).padding.bottom),
+            _buildActionButton(
+              icon: Icons.delete_outline,
+              title: '删除菜谱',
+              subtitle: '永久删除此菜谱',
+              onTap: () {
+                context.pop();
+                _confirmDeleteRecipe(recipe);
+              },
+              isDark: isDark,
+              isDestructive: true,
+            ),
           ],
         ),
       ),
@@ -1105,45 +1221,90 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   }
 
   /// 操作按钮
-  Widget _buildActionButton(
-    String title,
-    IconData icon,
-    VoidCallback onTap,
-    bool isDark, {
+  Widget _buildActionButton({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
     bool isDestructive = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.getBackgroundSecondaryColor(isDark),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
               color: isDestructive 
-                  ? Colors.red 
-                  : AppColors.getTextPrimaryColor(isDark),
-              size: 20,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Text(
-              title,
-              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                color: isDestructive 
-                    ? Colors.red 
-                    : AppColors.getTextPrimaryColor(isDark),
-                fontWeight: AppTypography.medium,
+                  ? Colors.red.withOpacity(0.05)
+                  : AppColors.getBackgroundSecondaryColor(isDark).withOpacity(0.5),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDestructive
+                    ? Colors.red.withOpacity(0.2)
+                    : AppColors.getBackgroundSecondaryColor(isDark),
+                width: 1,
               ),
             ),
-          ],
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isDestructive
+                        ? Colors.red.withOpacity(0.1)
+                        : AppColors.getBackgroundSecondaryColor(isDark),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isDestructive 
+                        ? Colors.red 
+                        : AppColors.getTextPrimaryColor(isDark),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                          color: isDestructive 
+                              ? Colors.red 
+                              : AppColors.getTextPrimaryColor(isDark),
+                          fontWeight: AppTypography.medium,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+                          color: isDestructive
+                              ? Colors.red.withOpacity(0.7)
+                              : AppColors.getTextSecondaryColor(isDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: isDestructive
+                      ? Colors.red.withOpacity(0.5)
+                      : AppColors.getTextSecondaryColor(isDark),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1277,5 +1438,60 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
       default:
         return AppIcon3DType.heart;
     }
+  }
+
+  /// 悬浮操作按钮
+  Widget _buildFloatingActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.1),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              label,
+              style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                color: Colors.white,
+                fontWeight: AppTypography.medium,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
