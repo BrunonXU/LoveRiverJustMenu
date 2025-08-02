@@ -427,15 +427,17 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     }
   }
 
-  /// 加载预设菜谱数据
+  /// 🔧 修复：加载公共预设菜谱数据（所有用户共享）
   Future<List<Recipe>> _loadPresetRecipes(String userId) async {
     try {
+      debugPrint('🔍 开始加载公共预设菜谱...');
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      final allUserRecipes = await repository.getUserRecipes(userId);
-      // 过滤出预设菜谱
-      return allUserRecipes.where((recipe) => recipe.isPreset).toList();
+      // 🔧 直接查询公共预设菜谱，不从用户菜谱中过滤
+      final presetRecipes = await repository.getPresetRecipes();
+      debugPrint('✅ 成功加载 ${presetRecipes.length} 个公共预设菜谱');
+      return presetRecipes;
     } catch (e) {
-      print('加载预设菜谱失败: $e');
+      debugPrint('❌ 加载公共预设菜谱失败: $e');
       rethrow;
     }
   }

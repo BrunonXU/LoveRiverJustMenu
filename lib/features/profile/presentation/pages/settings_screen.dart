@@ -13,7 +13,7 @@ import '../../../recipe/domain/services/data_backup_service.dart';
 import '../../../../core/utils/json_recipe_importer.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
-import '../../../../core/services/new_user_initialization_service.dart';
+import '../../../../core/utils/create_preset_recipes_script.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -207,14 +207,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
-        // 🔧 管理员功能：初始化Root用户预设菜谱
+        // 🔧 临时功能：创建公共预设菜谱（一次性执行）
         _buildSettingItem(
-          icon: Icons.admin_panel_settings,
-          iconColor: Colors.purple,
-          title: '初始化系统预设菜谱',
-          subtitle: '🍳 获取12个经典菜谱：银耳汤、番茄面、红烧排骨等',
+          icon: Icons.restaurant_menu,
+          iconColor: Colors.green,
+          title: '创建公共预设菜谱',
+          subtitle: '🚀 一次性创建12个公共预设菜谱（所有用户共享）',
           isDark: isDark,
-          onTap: _isProcessing ? null : () => _initializeRootPresetRecipes(),
+          onTap: _isProcessing ? null : () => _createPublicPresetRecipes(),
         ),
         
         const SizedBox(height: AppSpacing.sm),
@@ -445,91 +445,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
-  /// 🔧 初始化Root用户预设菜谱（管理员功能）
-  Future<void> _initializeRootPresetRecipes() async {
-    setState(() => _isProcessing = true);
-    HapticFeedback.mediumImpact();
-    
-    try {
-      // 确认操作
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('🍳 初始化预设菜谱'),
-          content: const Text(
-            '即将为您初始化12个经典预设菜谱：\n\n'
-            '• 银耳莲子羹、番茄鸡蛋面\n'
-            '• 红烧排骨、蒸蛋羹\n'
-            '• 青椒肉丝、爱心早餐等\n\n'
-            '这些菜谱将添加到您的菜谱列表中。'
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('确定初始化'),
-            ),
-          ],
-        ),
-      );
-      
-      if (confirmed != true) return;
-      
-      // 获取当前用户ID
-      final currentUser = ref.read(currentUserProvider);
-      if (currentUser == null) {
-        _showErrorMessage('请先登录');
-        return;
-      }
-      
-      // 获取云端仓库
-      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      
-      // 检查用户选择的操作
-      final isRootUser = currentUser.email == '2352016835@qq.com';
-      
-      if (isRootUser) {
-        // Root用户：初始化系统预设菜谱
-        const rootUserId = '2352016835@qq.com';
-        final successCount = await JsonRecipeImporter.initializeRootPresetRecipes(
-          rootUserId,
-          repository
-        );
-        
-        if (successCount > 0) {
-          _showSuccessMessage('✅ 成功为Root用户初始化 $successCount 个预设菜谱！');
-        } else {
-          _showErrorMessage('❌ Root用户预设菜谱初始化失败');
-        }
-      } else {
-        // 普通用户：强制初始化自己的预设菜谱
-        final service = NewUserInitializationService();
-        final success = await service.forceInitializeUser(currentUser.uid, repository);
-        
-        if (success) {
-          _showSuccessMessage('✅ 成功为您初始化预设菜谱！返回首页即可查看');
-          
-          // 延迟2秒后自动返回首页
-          Future.delayed(Duration(seconds: 2), () {
-            if (mounted) {
-              context.pop(); // 返回首页
-            }
-          });
-        } else {
-          _showErrorMessage('❌ 预设菜谱初始化失败');
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('❌ Root用户预设菜谱初始化异常: $e');
-      _showErrorMessage('初始化失败：$e');
-    } finally {
-      setState(() => _isProcessing = false);
-    }
-  }
 
   /// 📥 导入示例菜谱
   Future<void> _importSampleRecipes() async {
@@ -701,6 +616,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
+  /// 🍳 创建公共预设菜谱（一次性执行）
+  Future<void> _createPublicPresetRecipes() async {
+    if (_isProcessing) return;
+    
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      // 获取云端仓库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 执行创建脚本
+      final successCount = await CreatePresetRecipesScript.createPublicPresetRecipes(repository);
+      
+      if (successCount > 0) {
+        _showSuccessMessage('🎉 成功创建 $successCount 个公共预设菜谱！\\n所有用户都可以查看和收藏这些菜谱。');
+      } else {
+        _showErrorMessage('预设菜谱已存在或创建失败');
+      }
+    } catch (e) {
+      debugPrint('❌ 创建公共预设菜谱失败: $e');
+      _showErrorMessage('创建失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   /// 🗑️ 清空数据
   Future<void> _clearAllData() async {
     if (_isProcessing) return;

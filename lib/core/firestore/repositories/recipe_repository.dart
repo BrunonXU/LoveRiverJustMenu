@@ -360,6 +360,33 @@ class RecipeRepository {
     }
   }
 
+  /// 🍳 获取公共预设菜谱
+  /// 
+  /// 返回所有用户共享的预设菜谱
+  Future<List<Recipe>> getPresetRecipes() async {
+    try {
+      debugPrint('🔍 开始查询公共预设菜谱...');
+      
+      final querySnapshot = await _recipesCollection
+          .where('isPreset', isEqualTo: true)
+          .where('isPublic', isEqualTo: true)
+          .get();
+      
+      final recipes = querySnapshot.docs
+          .map((doc) => _mapToRecipe(doc.data(), doc.id))
+          .toList();
+      
+      // 按创建时间排序
+      recipes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      debugPrint('✅ 成功获取 ${recipes.length} 个公共预设菜谱');
+      return recipes;
+    } catch (e) {
+      debugPrint('❌ 获取公共预设菜谱失败: $e');
+      throw FirestoreException('获取预设菜谱失败', e.toString());
+    }
+  }
+
   /// 🔥 获取热门菜谱
   /// 
   /// [limit] 获取数量限制
@@ -534,12 +561,17 @@ class RecipeRepository {
       'createdBy': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-      'sharedWith': <String>[], // 初始为空，后续可以添加共享用户
+      'sharedWith': recipe.sharedWith,
       'isPublic': recipe.isPublic,
       'rating': recipe.rating,
       'cookCount': recipe.cookCount,
       'viewCount': 0,
-      'favoriteCount': 0,
+      'favoriteCount': recipe.favoriteCount,
+      // 🔧 修复：添加预设菜谱相关字段
+      'isPreset': recipe.isPreset,
+      'sourceType': recipe.sourceType,
+      'isShared': recipe.isShared,
+      'originalRecipeId': recipe.originalRecipeId,
     };
   }
 
@@ -578,6 +610,13 @@ class RecipeRepository {
       isPublic: data['isPublic'] as bool? ?? true,
       rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
       cookCount: data['cookCount'] as int? ?? 0,
+      // 🔧 修复：添加预设菜谱相关字段
+      sharedWith: List<String>.from(data['sharedWith'] as List? ?? []),
+      isShared: data['isShared'] as bool? ?? false,
+      originalRecipeId: data['originalRecipeId'] as String?,
+      sourceType: data['sourceType'] as String? ?? 'user',
+      isPreset: data['isPreset'] as bool? ?? false,
+      favoriteCount: data['favoriteCount'] as int? ?? 0,
     );
   }
 }
