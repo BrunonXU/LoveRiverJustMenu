@@ -12,6 +12,7 @@ import '../../../../shared/pages/image_gallery_screen.dart';
 import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../../recipe/domain/models/recipe.dart';
 import '../../../recipe/data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
 
 /// 🎨 极简烹饪模式 - 大图指导设计
 /// 上半屏显示步骤大图，下半屏显示文字说明
@@ -61,10 +62,17 @@ class _CookingModeScreenV2State extends ConsumerState<CookingModeScreenV2>
   
   void _loadRecipeData() async {
     try {
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      final recipe = repository.getRecipe(widget.recipeId);
+      debugPrint('🔍 烹饪模式开始加载菜谱数据，ID: ${widget.recipeId}');
+      
+      // 🔧 修复：使用正确的云端Repository
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      debugPrint('✅ 烹饪模式获取云端Repository成功');
+      
+      // 🔧 修复：使用正确的异步方法
+      final recipe = await repository.getRecipe(widget.recipeId);
       
       if (recipe != null) {
+        debugPrint('✅ 烹饪模式成功加载菜谱: ${recipe.name}');
         setState(() {
           _recipe = recipe;
           if (_recipe!.steps.isNotEmpty) {
@@ -72,25 +80,15 @@ class _CookingModeScreenV2State extends ConsumerState<CookingModeScreenV2>
           }
         });
       } else {
-        // 🔧 添加fallback机制，避免空白页面
-        print('⚠️ 菜谱不存在，使用fallback数据: ${widget.recipeId}');
-        final fallbackRecipe = _createFallbackRecipe(widget.recipeId);
+        debugPrint('❌ 烹饪模式菜谱不存在: ${widget.recipeId}');
         setState(() {
-          _recipe = fallbackRecipe;
-          if (_recipe!.steps.isNotEmpty) {
-            _currentStepTime = _recipe!.steps[0].duration * 60;
-          }
+          _recipe = null;
         });
       }
     } catch (e) {
-      print('❌ 加载菜谱数据失败: $e');
-      // 异常情况下也使用fallback数据
-      final fallbackRecipe = _createFallbackRecipe(widget.recipeId);
+      debugPrint('❌ 烹饪模式加载菜谱数据失败: $e');
       setState(() {
-        _recipe = fallbackRecipe;
-        if (_recipe!.steps.isNotEmpty) {
-          _currentStepTime = _recipe!.steps[0].duration * 60;
-        }
+        _recipe = null;
       });
     }
   }

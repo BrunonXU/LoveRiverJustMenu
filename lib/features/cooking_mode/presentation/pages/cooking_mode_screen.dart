@@ -115,7 +115,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
     try {
       // 从云端仓库加载菜谱
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      final recipe = await repository.getRecipeById(widget.recipeId!);
+      final recipe = await repository.getRecipe(widget.recipeId!);
       
       if (recipe == null) {
         setState(() {

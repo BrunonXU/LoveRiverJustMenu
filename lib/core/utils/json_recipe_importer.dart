@@ -95,12 +95,15 @@ class JsonRecipeImporter {
     try {
       debugPrint('🔄 开始初始化root用户预设菜谱...');
       
-      // 1. 检查是否已经初始化过
+      // 1. 检查是否已经初始化过预设菜谱
       final existingRecipes = await repository.getUserRecipes(rootUserId);
-      if (existingRecipes.isNotEmpty) {
-        debugPrint('⚠️ Root用户已有菜谱，跳过初始化');
-        return existingRecipes.length;
+      final presetRecipes = existingRecipes.where((r) => r.isPreset && r.sourceType == 'preset').toList();
+      if (presetRecipes.isNotEmpty) {
+        debugPrint('⚠️ Root用户已有 ${presetRecipes.length} 个预设菜谱，跳过初始化');
+        return presetRecipes.length;
       }
+      
+      debugPrint('🚀 Root用户没有预设菜谱，开始初始化...');
       
       // 2. 加载示例菜谱
       final sampleRecipes = await loadSampleRecipes();
@@ -123,8 +126,8 @@ class JsonRecipeImporter {
             createdBy: rootUserId,
             createdAt: randomDaysAgo,
             updatedAt: randomDaysAgo.add(Duration(days: 5)), // 几天后的更新时间
-            sourceType: 'user', // root用户的正常菜谱
-            isPreset: false,    // 不是预设标记，是root用户的"正常"菜谱
+            sourceType: 'preset', // 🔧 修复：标记为预设菜谱来源
+            isPreset: true,       // 🔧 修复：标记为预设菜谱
             rating: 4.5 + (0.4 * (successCount % 3)), // 4.5-4.9随机评分
             cookCount: 50 + (successCount * 10), // 50-170随机烹饪次数
           );
