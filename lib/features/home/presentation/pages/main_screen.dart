@@ -43,6 +43,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
   bool _isLoading = true;
   List<Recipe> _allRecipes = []; // 🔧 从数据库加载的所有菜谱
   
+  // ==================== 公共方法 ====================
+  
+  /// 🔄 刷新菜谱数据
+  void refreshRecipes() {
+    debugPrint('🔄 手动刷新菜谱数据');
+    setState(() {
+      _isLoading = true;
+    });
+    _loadInitialData();
+  }
+  
   // ==================== 生命周期 ====================
   
   @override
@@ -99,8 +110,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     try {
       // 获取当前用户ID
       final currentUser = ref.read(currentUserProvider);
+      debugPrint('🔍 首页加载数据 - 当前用户: ${currentUser?.uid ?? "null"}');
+      
       if (currentUser == null) {
-        print('用户未登录，使用默认数据');
+        debugPrint('❌ 用户未登录，使用默认数据');
         if (mounted) {
           setState(() {
             _allRecipes = [];
@@ -110,18 +123,30 @@ class _MainScreenState extends ConsumerState<MainScreen>
         return;
       }
       
+      debugPrint('🔍 开始查询用户菜谱: ${currentUser.uid}');
+      
       // 🔧 从云端数据库加载用户菜谱数据
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      debugPrint('✅ 获取Repository成功');
+      
       final userRecipes = await repository.getUserRecipes(currentUser.uid);
+      debugPrint('📊 查询结果: 找到 ${userRecipes.length} 个菜谱');
+      
+      // 打印菜谱详情便于调试
+      for (int i = 0; i < userRecipes.length; i++) {
+        final recipe = userRecipes[i];
+        debugPrint('📖 菜谱$i: ${recipe.name} (ID: ${recipe.id}, 创建者: ${recipe.createdBy})');
+      }
       
       if (mounted) {
         setState(() {
           _allRecipes = userRecipes;
           _isLoading = false;
         });
+        debugPrint('✅ 首页数据加载完成: ${_allRecipes.length} 个菜谱');
       }
     } catch (e) {
-      print('加载菜谱数据失败: $e');
+      debugPrint('❌ 加载菜谱数据失败: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;

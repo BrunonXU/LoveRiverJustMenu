@@ -147,6 +147,79 @@ class JsonRecipeImporter {
     }
   }
 
+  /// 🔧 强制为用户初始化预设菜谱（无论是否已有菜谱）
+  static Future<int> forceInitializeUserWithPresets(
+    String userId,
+    String rootUserId,
+    RecipeRepository repository
+  ) async {
+    try {
+      debugPrint('🔧 强制为用户初始化预设菜谱: $userId');
+      
+      // 1. 获取root用户的所有菜谱
+      final rootRecipes = await repository.getUserRecipes(rootUserId);
+      if (rootRecipes.isEmpty) {
+        debugPrint('❌ Root用户没有菜谱，先初始化root用户');
+        await initializeRootPresetRecipes(rootUserId, repository);
+        final retryRootRecipes = await repository.getUserRecipes(rootUserId);
+        if (retryRootRecipes.isEmpty) {
+          debugPrint('❌ Root用户初始化失败');
+          return 0;
+        }
+      }
+      
+      // 2. 获取要复制的root菜谱
+      final rootRecipesToCopy = await repository.getUserRecipes(rootUserId);
+      debugPrint('📋 找到 ${rootRecipesToCopy.length} 个root菜谱待复制');
+      
+      int successCount = 0;
+      
+      for (final rootRecipe in rootRecipesToCopy) {
+        try {
+          // 检查用户是否已有此预设菜谱（通过originalRecipeId）
+          final existingRecipes = await repository.getUserRecipes(userId);
+          final alreadyExists = existingRecipes.any((r) => r.originalRecipeId == rootRecipe.id);
+          
+          if (alreadyExists) {
+            debugPrint('⚠️ 用户已有此预设菜谱，跳过: ${rootRecipe.name}');
+            continue;
+          }
+          
+          // 为用户创建菜谱副本
+          final randomDaysAgo = DateTime.now().subtract(
+            Duration(days: 5 + (successCount * 8)) // 5-95天前分布
+          );
+          
+          final userRecipe = rootRecipe.copyWith(
+            id: '', // 清空ID，让Firestore自动生成新的
+            createdBy: userId, // 改为当前用户
+            createdAt: randomDaysAgo,
+            updatedAt: randomDaysAgo.add(Duration(days: 2)),
+            sourceType: 'preset', // 标记为预设来源
+            isPreset: true,       // 标记为预设菜谱
+            originalRecipeId: rootRecipe.id, // 记录原始菜谱ID
+            rating: 4.0 + (0.8 * (successCount % 4)), // 4.0-4.8随机评分
+            cookCount: 1 + (successCount % 5), // 1-5次随机烹饪
+          );
+          
+          final newRecipeId = await repository.saveRecipe(userRecipe, userId);
+          debugPrint('✅ 复制预设菜谱: ${rootRecipe.name} -> $newRecipeId');
+          successCount++;
+          
+        } catch (e) {
+          debugPrint('❌ 复制预设菜谱失败: ${rootRecipe.name} - $e');
+        }
+      }
+      
+      debugPrint('🎉 强制初始化完成: $successCount/${rootRecipesToCopy.length}');
+      return successCount;
+      
+    } catch (e) {
+      debugPrint('❌ 强制初始化异常: $userId -> $e');
+      return 0;
+    }
+  }
+
   /// 👤 新用户初始化：复制root用户的预设菜谱
   static Future<int> initializeNewUserWithPresets(
     String newUserId,

@@ -42,6 +42,34 @@ class NewUserInitializationService {
     }
   }
 
+  /// 🔧 强制初始化用户预设菜谱（用于手动初始化）
+  Future<bool> forceInitializeUser(String userId, RecipeRepository repository) async {
+    try {
+      debugPrint('🔧 强制初始化用户预设菜谱: $userId');
+      
+      // 直接执行预设菜谱初始化，无论用户是否已有菜谱
+      final successCount = await JsonRecipeImporter.forceInitializeUserWithPresets(
+        userId,
+        _rootUserId,
+        repository,
+      );
+      
+      // 记录初始化结果
+      if (successCount > 0) {
+        await _markUserAsInitialized(userId, successCount);
+        debugPrint('🎉 强制初始化成功: $userId -> $successCount 个菜谱');
+        return true;
+      } else {
+        debugPrint('❌ 强制初始化失败: $userId -> 0 个菜谱');
+        return false;
+      }
+      
+    } catch (e) {
+      debugPrint('❌ 强制初始化异常: $userId -> $e');
+      return false;
+    }
+  }
+
   /// 🚀 为新用户初始化预设菜谱
   Future<bool> initializeNewUser(String userId, RecipeRepository repository) async {
     try {
@@ -57,7 +85,7 @@ class NewUserInitializationService {
       // 2. 检查用户是否已有菜谱（避免重复初始化）
       final existingRecipes = await repository.getUserRecipes(userId);
       if (existingRecipes.isNotEmpty) {
-        debugPrint('⚠️ 用户已有菜谱，标记为已初始化: $userId');
+        debugPrint('⚠️ 用户已有菜谱，跳过初始化: $userId');
         await _markUserAsInitialized(userId, existingRecipes.length);
         return true;
       }
