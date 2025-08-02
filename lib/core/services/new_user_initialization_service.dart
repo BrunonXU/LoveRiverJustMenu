@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/json_recipe_importer.dart';
 import '../firestore/repositories/recipe_repository.dart';
+import '../utils/create_preset_recipes_script.dart';
 
 /// 🚀 新用户初始化服务
 /// 
@@ -75,37 +76,21 @@ class NewUserInitializationService {
     try {
       debugPrint('🚀 开始初始化新用户: $userId');
       
+      // 🔧 关键：无论用户是否已初始化，都要确保公共预设菜谱存在
+      debugPrint('🔍 首先确保公共预设菜谱存在...');
+      await _ensurePublicPresetRecipesExist(repository);
+      
       // 1. 检查是否已经初始化过
       final alreadyInitialized = await isUserInitialized(userId);
       if (alreadyInitialized) {
-        debugPrint('⚠️ 用户已初始化，跳过: $userId');
+        debugPrint('⚠️ 用户已初始化，但公共预设菜谱已确保存在: $userId');
         return true;
       }
       
-      // 2. 检查用户是否已有菜谱（避免重复初始化）
-      final existingRecipes = await repository.getUserRecipes(userId);
-      if (existingRecipes.isNotEmpty) {
-        debugPrint('⚠️ 用户已有菜谱，跳过初始化: $userId');
-        await _markUserAsInitialized(userId, existingRecipes.length);
-        return true;
-      }
-      
-      // 3. 执行预设菜谱初始化
-      final successCount = await JsonRecipeImporter.initializeNewUserWithPresets(
-        userId,
-        _rootUserId,
-        repository,
-      );
-      
-      // 4. 记录初始化结果
-      if (successCount > 0) {
-        await _markUserAsInitialized(userId, successCount);
-        debugPrint('🎉 新用户初始化成功: $userId -> $successCount 个菜谱');
-        return true;
-      } else {
-        debugPrint('❌ 新用户初始化失败: $userId -> 0 个菜谱');
-        return false;
-      }
+      // 2. 标记用户为已初始化（无需复制菜谱，直接使用公共预设）
+      await _markUserAsInitialized(userId, 0);
+      debugPrint('🎉 新用户初始化完成: $userId -> 使用公共预设菜谱');
+      return true;
       
     } catch (e) {
       debugPrint('❌ 新用户初始化异常: $userId -> $e');
@@ -260,6 +245,33 @@ class NewUserInitializationService {
     } catch (e) {
       debugPrint('❌ 获取用户初始化详情失败: $e');
       return null;
+    }
+  }
+
+  /// 🍳 确保公共预设菜谱存在（自动创建）
+  Future<void> _ensurePublicPresetRecipesExist(RecipeRepository repository) async {
+    try {
+      debugPrint('🔍 检查公共预设菜谱是否存在...');
+      
+      // 检查是否已有公共预设菜谱
+      final existingPresets = await repository.getPresetRecipes();
+      if (existingPresets.isNotEmpty) {
+        debugPrint('✅ 公共预设菜谱已存在: ${existingPresets.length} 个');
+        return;
+      }
+      
+      // 自动创建公共预设菜谱
+      debugPrint('🚀 自动创建公共预设菜谱...');
+      final successCount = await CreatePresetRecipesScript.createPublicPresetRecipes(repository);
+      
+      if (successCount > 0) {
+        debugPrint('🎉 自动创建公共预设菜谱成功: $successCount 个');
+      } else {
+        debugPrint('⚠️ 公共预设菜谱创建失败或已存在');
+      }
+    } catch (e) {
+      debugPrint('❌ 检查/创建公共预设菜谱异常: $e');
+      // 不抛出异常，允许用户初始化继续
     }
   }
 
