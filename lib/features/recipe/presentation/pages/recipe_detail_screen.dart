@@ -13,6 +13,9 @@ import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../cooking_mode/presentation/pages/cooking_mode_screen.dart';
 import '../../domain/models/recipe.dart';
 import '../../data/repositories/recipe_repository.dart';
+import '../../../../core/services/providers/favorites_providers.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
 
 /// 食谱详情页面
 /// 支持修改步骤、时长记录、每步骤图片上传
@@ -1226,31 +1229,87 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
         Space.w16,
         
         // 收藏按钮
-        GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _toggleFavorite();
-          },
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: AppColors.getBackgroundColor(isDark),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.getShadowColor(isDark),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
+        Consumer(
+          builder: (context, ref, child) {
+            final favoriteStatus = ref.watch(recipeFavoriteStatusProvider(widget.recipeId));
+            
+            return favoriteStatus.when(
+              data: (isFavorite) => GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFavorite();
+                },
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: isFavorite 
+                        ? AppColors.primary.withOpacity(0.1)
+                        : AppColors.getBackgroundColor(isDark),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+                    border: isFavorite 
+                        ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 2)
+                        : null,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.getShadowColor(isDark),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_outline,
+                    color: isFavorite 
+                        ? AppColors.primary
+                        : AppColors.getTextSecondaryColor(isDark),
+                    size: 24,
+                  ),
                 ),
-              ],
-            ),
-            child: Icon(
-              Icons.favorite_outline,
-              color: AppColors.getTextSecondaryColor(isDark),
-              size: 24,
-            ),
-          ),
+              ),
+              loading: () => Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.getBackgroundColor(isDark),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+                ),
+                child: const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+              error: (error, stackTrace) => GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _toggleFavorite();
+                },
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: AppColors.getBackgroundColor(isDark),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.getShadowColor(isDark),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.favorite_outline,
+                    color: AppColors.getTextSecondaryColor(isDark),
+                    size: 24,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -1297,14 +1356,60 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     );
   }
   
-  void _toggleFavorite() {
-    // TODO: 实现收藏功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('收藏功能开发中...'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+  void _toggleFavorite() async {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('请先登录'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final favoriteActions = ref.read(favoriteActionsProvider);
+      final isCurrentlyFavorite = await favoriteActions.isFavorite(widget.recipeId);
+      
+      bool success;
+      if (isCurrentlyFavorite) {
+        success = await favoriteActions.removeFavorite(widget.recipeId);
+      } else {
+        success = await favoriteActions.addFavorite(widget.recipeId);
+      }
+      
+      if (success) {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isCurrentlyFavorite ? '已取消收藏' : '已添加到收藏'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: isCurrentlyFavorite ? Colors.grey : Colors.green,
+          ),
+        );
+        
+        // 刷新收藏状态
+        ref.invalidate(recipeFavoriteStatusProvider(widget.recipeId));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('操作失败，请重试'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ 收藏操作失败: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('操作失败：$e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 

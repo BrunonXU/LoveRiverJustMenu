@@ -2,24 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../shared/widgets/breathing_widget.dart';
+import '../../domain/models/recipe.dart';
+import '../../../recipe/presentation/providers/recipe_providers.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
 
 /// 烹饪模式界面
 /// 横屏全屏模式，48px超大字体，环形进度条，大触摸区域设计
-class CookingModeScreen extends StatefulWidget {
+class CookingModeScreen extends ConsumerStatefulWidget {
   final String? recipeId;
   
   const CookingModeScreen({super.key, this.recipeId});
 
   @override
-  State<CookingModeScreen> createState() => _CookingModeScreenState();
+  ConsumerState<CookingModeScreen> createState() => _CookingModeScreenState();
 }
 
-class _CookingModeScreenState extends State<CookingModeScreen>
+class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
     with TickerProviderStateMixin {
   late AnimationController _progressController;
   late AnimationController _breathingController;
@@ -32,15 +37,17 @@ class _CookingModeScreenState extends State<CookingModeScreen>
   int _currentTime = 0;
   
   // 🔧 修复：动态菜谱步骤，根据recipeId加载
-  late List<CookingStep> _steps;
+  List<CookingStep> _steps = [];
+  Recipe? _currentRecipe;
+  bool _isLoading = true;
+  String? _errorMessage;
   
   @override
   void initState() {
     super.initState();
-    _steps = _getCookingStepsByRecipeId(widget.recipeId ?? 'recipe_1');
     _initializeAnimations();
     _setLandscapeMode();
-    _calculateTotalTime();
+    _loadRecipeData();
   }
   
   @override
@@ -95,6 +102,83 @@ class _CookingModeScreenState extends State<CookingModeScreen>
     _totalTime = _steps.fold(0, (sum, step) => sum + step.duration);
   }
   
+  /// 🔧 加载真实菜谱数据
+  Future<void> _loadRecipeData() async {
+    if (widget.recipeId == null) {
+      setState(() {
+        _errorMessage = '菜谱ID为空';
+        _isLoading = false;
+      });
+      return;
+    }
+    
+    try {
+      // 从云端仓库加载菜谱
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final recipe = await repository.getRecipeById(widget.recipeId!);
+      
+      if (recipe == null) {
+        setState(() {
+          _errorMessage = '未找到菜谱：${widget.recipeId}';
+          _isLoading = false;
+        });
+        return;
+      }
+      
+      // 转换 RecipeStep 为 CookingStep
+      final cookingSteps = recipe.steps.asMap().entries.map((entry) {
+        final index = entry.key;
+        final step = entry.value;
+        
+        return CookingStep(
+          title: step.title,
+          description: step.description,
+          duration: step.duration * 60, // 转换为秒
+          icon: _getStepIcon(index),
+          imagePath: _getStepImagePath(step),
+          tips: step.tips != null && step.tips!.isNotEmpty 
+              ? [step.tips!] 
+              : [],
+        );
+      }).toList();
+      
+      setState(() {
+        _currentRecipe = recipe;
+        _steps = cookingSteps;
+        _isLoading = false;
+        _calculateTotalTime();
+      });
+      
+    } catch (e) {
+      debugPrint('❌ 加载菜谱数据失败: $e');
+      setState(() {
+        _errorMessage = '加载菜谱失败：$e';
+        _isLoading = false;
+      });
+    }
+  }
+  
+  /// 🎯 根据步骤索引获取合适的图标
+  String _getStepIcon(int index) {
+    const icons = ['🥄', '🔪', '🔥', '💧', '🍳', '🥢', '✨', '🍽️'];
+    return icons[index % icons.length];
+  }
+  
+  /// 🖼️ 获取步骤图片路径
+  String? _getStepImagePath(RecipeStep step) {
+    // 优先使用 base64 图片
+    if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
+      return 'data:image/jpeg;base64,${step.imageBase64}';
+    }
+    
+    // 其次使用图片路径
+    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
+      return step.imagePath;
+    }
+    
+    return null;
+  }
+  
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -102,26 +186,161 @@ class _CookingModeScreenState extends State<CookingModeScreen>
     return Scaffold(
       backgroundColor: AppColors.getBackgroundColor(isDark),
       body: SafeArea(
-        child: Padding(
-          padding: AppSpacing.pagePadding,
-          child: Row(
-            children: [
-              // 左侧步骤信息区
-              Expanded(
-                flex: 2,
-                child: _buildStepInfo(isDark),
-              ),
-              
-              Space.w48,
-              
-              // 右侧控制区
-              Expanded(
-                flex: 1,
-                child: _buildControlArea(isDark),
-              ),
-            ],
+        child: _isLoading
+            ? _buildLoadingScreen(isDark)
+            : _errorMessage != null
+                ? _buildErrorScreen(isDark)
+                : _steps.isEmpty
+                    ? _buildEmptyScreen(isDark)
+                    : Padding(
+                        padding: AppSpacing.pagePadding,
+                        child: Row(
+                          children: [
+                            // 左侧步骤信息区
+                            Expanded(
+                              flex: 2,
+                              child: _buildStepInfo(isDark),
+                            ),
+                            
+                            Space.w48,
+                            
+                            // 右侧控制区
+                            Expanded(
+                              flex: 1,
+                              child: _buildControlArea(isDark),
+                            ),
+                          ],
+                        ),
+                      ),
+      ),
+    );
+  }
+  
+  /// 🔄 构建加载屏幕
+  Widget _buildLoadingScreen(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 3,
           ),
+          const SizedBox(height: 24),
+          Text(
+            '正在加载菜谱...',
+            style: AppTypography.titleMediumStyle(isDark: isDark),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// ❌ 构建错误屏幕
+  Widget _buildErrorScreen(bool isDark) {
+    return Center(
+      child: Padding(
+        padding: AppSpacing.pagePadding,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '加载失败',
+              style: AppTypography.titleLargeStyle(isDark: isDark),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage ?? '未知错误',
+              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _isLoading = true;
+                  _errorMessage = null;
+                });
+                _loadRecipeData();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  '重试',
+                  style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Text(
+                '返回',
+                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
+                  color: AppColors.getTextSecondaryColor(isDark),
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+  
+  /// 📭 构建空内容屏幕
+  Widget _buildEmptyScreen(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.restaurant_menu,
+            size: 64,
+            color: AppColors.getTextSecondaryColor(isDark),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '这个菜谱还没有烹饪步骤',
+            style: AppTypography.titleMediumStyle(isDark: isDark),
+          ),
+          const SizedBox(height: 32),
+          GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Text(
+                '返回',
+                style: AppTypography.bodyMediumStyle(isDark: isDark),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -301,8 +520,27 @@ class _CookingModeScreenState extends State<CookingModeScreen>
 
   /// 🔧 智能图片组件 - 支持多种图片源
   Widget _buildImageWidget(String imagePath) {
+    // Base64 图片
+    if (imagePath.startsWith('data:image/')) {
+      try {
+        final base64String = imagePath.split(',')[1];
+        final bytes = base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('❌ Base64图片解析失败: $error');
+            return _buildImageError();
+          },
+        );
+      } catch (e) {
+        debugPrint('❌ Base64图片处理异常: $e');
+        return _buildImageError();
+      }
+    }
+    
     // 网络图片
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    else if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return Image.network(
         imagePath,
         fit: BoxFit.cover,
@@ -696,112 +934,13 @@ class _CookingModeScreenState extends State<CookingModeScreen>
     // TODO: 实现计时器逻辑
   }
   
-  /// 🔧 根据菜谱ID获取对应的烹饪步骤
-  List<CookingStep> _getCookingStepsByRecipeId(String recipeId) {
-    final cookingStepsData = {
-      'recipe_1': [ // 银耳莲子羹
-        CookingStep(
-          title: '准备食材', 
-          description: '洗净银耳，撕成小朵\n莲子去心，红枣去核', 
-          duration: 300, 
-          icon: '🥄',
-          imagePath: 'https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=800&h=600&fit=crop',
-          tips: ['银耳选择颜色偏白、朵形完整的', '莲子去心可以减少苦味', '红枣去核防止上火'],
-        ),
-        CookingStep(
-          title: '银耳处理', 
-          description: '银耳用温水泡发30分钟\n撕成小块备用', 
-          duration: 600, 
-          icon: '💧',
-          imagePath: 'https://images.unsplash.com/photo-1594736797933-d0e3b5e8181a?w=800&h=600&fit=crop',
-          tips: ['泡发时间不宜过长', '撕成小块更容易出胶质'],
-        ),
-        CookingStep(
-          title: '开始煮制', 
-          description: '锅中加水，放入银耳\n大火煮开转小火', 
-          duration: 300, 
-          icon: '🔥',
-          imagePath: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=600&fit=crop',
-          tips: ['水量要足够，避免干锅', '大火煮开后立即转小火'],
-        ),
-        CookingStep(
-          title: '添加配料', 
-          description: '加入莲子和红枣\n继续煮15分钟', 
-          duration: 900, 
-          icon: '🥄',
-          tips: ['先加莲子，后加红枣', '保持小火慢炖'],
-        ),
-        CookingStep(
-          title: '调味收汁', 
-          description: '加入冰糖调味\n煮至银耳软糯', 
-          duration: 600, 
-          icon: '✨',
-          tips: ['冰糖用量根据个人喜好', '银耳出胶质即可'],
-        ),
-      ],
-      'recipe_2': [ // 番茄鸡蛋面
-        CookingStep(title: '准备食材', description: '面条100g，鸡蛋2个\n番茄2个，葱花适量', duration: 180, icon: '🥄'),
-        CookingStep(title: '处理番茄', description: '番茄去皮切块\n先炒出汁水', duration: 300, icon: '🍅'),
-        CookingStep(title: '炒制鸡蛋', description: '鸡蛋打散炒熟\n盛起备用', duration: 120, icon: '🍳'),
-        CookingStep(title: '下面条', description: '水开后下面条\n煮至8分熟', duration: 180, icon: '🍜'),
-        CookingStep(title: '汇合调味', description: '将面条、鸡蛋、番茄汇合\n最后撒上葱花', duration: 120, icon: '✨'),
-      ],
-      'recipe_3': [ // 红烧排骨
-        CookingStep(title: '准备食材', description: '排骨500g，生抽、老抽\n料酒、冰糖适量', duration: 300, icon: '🥩'),
-        CookingStep(title: '焯水处理', description: '排骨冷水下锅\n焯水去血沫', duration: 480, icon: '💧'),
-        CookingStep(title: '炒糖色', description: '热锅下冰糖\n炒出焦糖色', duration: 300, icon: '🍯'),
-        CookingStep(title: '下排骨炒色', description: '下排骨翻炒\n每面都裹上糖色', duration: 300, icon: '🔥'),
-        CookingStep(title: '加调料炖煮', description: '加生抽老抽料酒和水\n大火煮开转小火25分钟', duration: 1500, icon: '🍲'),
-      ],
-      'recipe_4': [ // 蒸蛋羹
-        CookingStep(title: '打蛋液', description: '鸡蛋2个打散\n加温水搅匀', duration: 180, icon: '🥚'),
-        CookingStep(title: '过筛去泡', description: '蛋液过筛\n去除泡沫', duration: 120, icon: '⏳'),
-        CookingStep(title: '蒸制', description: '盖保鲜膜扎孔\n水开后蒸8分钟', duration: 480, icon: '🔥'),
-      ],
-      'recipe_5': [ // 青椒肉丝
-        CookingStep(title: '切丝备料', description: '肉丝切细\n青椒切丝', duration: 480, icon: '🔪'),
-        CookingStep(title: '肉丝腌制', description: '肉丝加生抽、淀粉\n腌制10分钟', duration: 600, icon: '🥄'),
-        CookingStep(title: '炒制', description: '先炒肉丝至变色\n再下青椒丝大火快炒', duration: 420, icon: '🔥'),
-      ],
-      'recipe_6': [ // 爱心早餐
-        CookingStep(title: '准备食材', description: '面包、鸡蛋、牛奶\n新鲜水果', duration: 300, icon: '🍞'),
-        CookingStep(title: '制作煎蛋', description: '热锅煎制\n爱心形状的鸡蛋', duration: 480, icon: '💝'),
-        CookingStep(title: '搭配摆盘', description: '面包、煎蛋、水果\n艺术摆盘', duration: 720, icon: '🎨'),
-        CookingStep(title: '温牛奶', description: '加热牛奶\n至适温', duration: 300, icon: '🥛'),
-      ],
-      'recipe_7': [ // 宫保鸡丁
-        CookingStep(title: '鸡肉切丁', description: '鸡胸肉切丁\n用料酒腌制', duration: 480, icon: '🐔'),
-        CookingStep(title: '炸花生米', description: '花生米过油\n炸酥脆', duration: 300, icon: '🥜'),
-        CookingStep(title: '炒制调味', description: '下鸡丁炒熟\n加调料炒匀，撒花生米', duration: 420, icon: '🔥'),
-      ],
-      'recipe_8': [ // 麻婆豆腐
-        CookingStep(title: '豆腐处理', description: '嫩豆腐切块\n用盐水浸泡', duration: 300, icon: '⚪'),
-        CookingStep(title: '炒制肉末', description: '热锅炒肉末\n至变色', duration: 180, icon: '🥩'),
-        CookingStep(title: '下豆腐调味', description: '加豆瓣酱和豆腐块\n轻柔翻炒', duration: 420, icon: '🌶️'),
-      ],
-      'recipe_9': [ // 糖醋里脊
-        CookingStep(title: '里脊处理', description: '里脊肉切条\n用蛋液淀粉裹匀', duration: 600, icon: '🥩'),
-        CookingStep(title: '油炸定型', description: '热油炸至金黄酥脆\n二次复炸', duration: 900, icon: '🔥'),
-        CookingStep(title: '调糖醋汁', description: '糖醋汁炒至粘稠\n裹里脊', duration: 600, icon: '🍯'),
-      ],
-      'recipe_10': [ // 酸菜鱼
-        CookingStep(title: '鱼片处理', description: '草鱼切片\n用蛋清淀粉腌制', duration: 900, icon: '🐟'),
-        CookingStep(title: '炒酸菜底', description: '炒酸菜出香味\n加水煮开', duration: 600, icon: '🌶️'),
-        CookingStep(title: '煮鱼片', description: '下鱼片煮熟\n淋辣椒油', duration: 900, icon: '🔥'),
-      ],
-      'recipe_11': [ // 口水鸡
-        CookingStep(title: '煮鸡肉', description: '整鸡煮熟晾凉\n撕成丝', duration: 1200, icon: '🐔'),
-        CookingStep(title: '调制蘸料', description: '生抽、香醋、辣椒油\n调匀', duration: 180, icon: '🥄'),
-        CookingStep(title: '拌制装盘', description: '鸡丝淋蘸料\n撒花生碎和香菜', duration: 120, icon: '🥗'),
-      ],
-      'recipe_12': [ // 蛋花汤
-        CookingStep(title: '烧开水', description: '锅中加水烧开\n调味', duration: 180, icon: '💧'),
-        CookingStep(title: '淋蛋液', description: '蛋液打散\n慢慢淋入开水中', duration: 60, icon: '🥚'),
-        CookingStep(title: '出锅', description: '撒葱花\n即可出锅', duration: 60, icon: '🌿'),
-      ],
-    };
-    
-    return cookingStepsData[recipeId] ?? cookingStepsData['recipe_1']!;
+  /// 🔄 重新加载菜谱数据
+  Future<void> _reloadRecipeData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    await _loadRecipeData();
   }
 }
 

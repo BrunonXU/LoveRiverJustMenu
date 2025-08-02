@@ -206,6 +206,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
+        // 🔧 管理员功能：初始化Root用户预设菜谱
+        _buildSettingItem(
+          icon: Icons.admin_panel_settings,
+          iconColor: Colors.purple,
+          title: '初始化系统预设菜谱',
+          subtitle: '🔧 管理员功能：为Root用户创建12个预设菜谱',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _initializeRootPresetRecipes(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
+        
         // 快速备份
         _buildSettingItem(
           icon: Icons.backup,
@@ -432,6 +444,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
+  /// 🔧 初始化Root用户预设菜谱（管理员功能）
+  Future<void> _initializeRootPresetRecipes() async {
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      // 确认操作
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('🔧 管理员操作'),
+          content: const Text(
+            '即将为Root用户(2352016835@qq.com)初始化12个预设菜谱。\n\n'
+            '这些菜谱将作为所有新用户的预设菜谱来源。\n\n'
+            '确定继续吗？'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('确定初始化'),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 获取云端仓库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 执行Root用户初始化
+      const rootUserId = '2352016835@qq.com';
+      final successCount = await JsonRecipeImporter.initializeRootPresetRecipes(
+        rootUserId,
+        repository
+      );
+      
+      if (successCount > 0) {
+        _showSuccessMessage('✅ 成功为Root用户初始化 $successCount 个预设菜谱！');
+      } else {
+        _showErrorMessage('❌ Root用户预设菜谱初始化失败');
+      }
+      
+    } catch (e) {
+      debugPrint('❌ Root用户预设菜谱初始化异常: $e');
+      _showErrorMessage('初始化失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   /// 📥 导入示例菜谱
   Future<void> _importSampleRecipes() async {
     setState(() => _isProcessing = true);
