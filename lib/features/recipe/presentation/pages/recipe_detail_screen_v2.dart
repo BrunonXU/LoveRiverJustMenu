@@ -12,6 +12,7 @@ import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../domain/models/recipe.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/services/providers/favorites_providers.dart';
 
 /// 🎨 极简菜谱详情页面 - 垂直滚动设计 V2.1
 /// 所有步骤在同一页面展示，通过垂直滚动浏览
@@ -352,8 +353,12 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
                 icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
               ),
             ),
-            // ✏️ 添加编辑按钮
+            // ✏️ 添加编辑按钮和收藏按钮
             actions: [
+              // 🌟 收藏按钮
+              _buildFavoriteButton(),
+              const SizedBox(width: 8),
+              // ✏️ 编辑按钮
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -1214,5 +1219,77 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
   /// ✏️ 导航到编辑菜谱页面
   void _navigateToEditRecipe() {
     context.push('/create-recipe?editId=${widget.recipeId}');
+  }
+
+  /// 🌟 构建收藏按钮
+  Widget _buildFavoriteButton() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final favoriteActions = ref.watch(favoriteActionsProvider);
+        
+        return FutureBuilder<bool>(
+          future: favoriteActions.isFavorite(widget.recipeId),
+          builder: (context, snapshot) {
+            final isFavorite = snapshot.data ?? false;
+            
+            return Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  final success = await favoriteActions.toggleFavorite(widget.recipeId);
+                  
+                  if (success) {
+                    // 显示成功提示
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isFavorite ? '已取消收藏' : '已添加到收藏',
+                          ),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                    // 刷新UI
+                    setState(() {});
+                  } else {
+                    // 显示错误提示
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('操作失败，请稍后重试'),
+                          duration: Duration(seconds: 1),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    key: ValueKey(isFavorite),
+                    color: isFavorite ? Colors.red : Colors.black87,
+                    size: 20,
+                  ),
+                ),
+                tooltip: isFavorite ? '取消收藏' : '添加收藏',
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
