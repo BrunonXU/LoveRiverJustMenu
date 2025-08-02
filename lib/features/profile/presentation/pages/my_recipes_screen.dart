@@ -445,20 +445,41 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   /// 加载收藏菜谱数据
   Future<List<Recipe>> _loadFavoriteRecipes(String userId) async {
     try {
+      debugPrint('🌟 开始加载用户收藏菜谱: $userId');
+      
       // 1. 获取用户收藏的菜谱ID列表
       final favoritesService = ref.read(favoritesServiceProvider);
       final favoriteIds = await favoritesService.getFavoriteRecipeIds(userId);
       
+      debugPrint('📋 获取到收藏菜谱ID列表: ${favoriteIds.length} 个');
+      
       if (favoriteIds.isEmpty) {
+        debugPrint('📝 用户暂无收藏菜谱');
         return [];
       }
       
       // 2. 根据ID获取菜谱详情
-      // TODO: 需要实现跨用户的菜谱查询功能
-      // 暂时返回空列表，后续实现
-      return [];
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final List<Recipe> favoriteRecipes = [];
+      
+      for (final recipeId in favoriteIds) {
+        try {
+          final recipe = await repository.getRecipe(recipeId);
+          if (recipe != null) {
+            favoriteRecipes.add(recipe);
+            debugPrint('✅ 成功加载收藏菜谱: ${recipe.name}');
+          } else {
+            debugPrint('⚠️ 收藏的菜谱不存在: $recipeId');
+          }
+        } catch (e) {
+          debugPrint('❌ 加载收藏菜谱失败: $recipeId -> $e');
+        }
+      }
+      
+      debugPrint('🎉 成功加载 ${favoriteRecipes.length} 个收藏菜谱');
+      return favoriteRecipes;
     } catch (e) {
-      print('加载收藏菜谱失败: $e');
+      debugPrint('❌ 加载收藏菜谱失败: $e');
       rethrow;
     }
   }
