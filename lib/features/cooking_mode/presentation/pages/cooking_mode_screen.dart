@@ -127,13 +127,21 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
       }
       
       // 转换 RecipeStep 为 CookingStep
-      final cookingSteps = recipe.steps.asMap().entries.map((entry) {
-        final index = entry.key;
-        final step = entry.value;
+      debugPrint('🔄 开始转换步骤数据...');
+      final cookingSteps = <CookingStep>[];
+      
+      for (int index = 0; index < recipe.steps.length; index++) {
+        final step = recipe.steps[index];
+        
+        debugPrint('🔄 转换步骤$index: "${step.title}"');
+        debugPrint('  - duration: ${step.duration}分钟');
+        debugPrint('  - description: ${step.description}');
+        debugPrint('  - tips: ${step.tips}');
+        debugPrint('  - emojiIcon: ${step.emojiIcon}');
         
         // 🎨 智能emoji分配：如果步骤没有emoji，自动分配一个
-        String stepEmoji = step.emojiIcon;
-        if (stepEmoji == null || stepEmoji.isEmpty) {
+        String stepEmoji = step.emojiIcon ?? '';
+        if (stepEmoji.isEmpty) {
           stepEmoji = EmojiAllocator.allocateStepEmoji(
             step.title,
             step.description,
@@ -142,34 +150,52 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
           debugPrint('🎨 为步骤自动分配emoji: ${step.title} -> $stepEmoji');
         }
         
-        return CookingStep(
-          title: step.title,
-          description: step.description,
-          duration: step.duration * 60, // 转换为秒
-          icon: _getStepIcon(index),
-          imagePath: _getStepImagePath(step),
-          emojiIcon: stepEmoji, // 🔧 使用智能分配的emoji
-          tips: step.tips != null && step.tips!.isNotEmpty 
-              ? [step.tips!] 
-              : [],
-        );
-      }).toList();
+        try {
+          final cookingStep = CookingStep(
+            title: step.title,
+            description: step.description,
+            duration: step.duration * 60, // 转换为秒
+            icon: _getStepIcon(index),
+            imagePath: _getStepImagePath(step),
+            emojiIcon: stepEmoji,
+            tips: step.tips != null && step.tips!.isNotEmpty 
+                ? [step.tips!] 
+                : [],
+          );
+          cookingSteps.add(cookingStep);
+          debugPrint('✅ 步骤转换成功');
+        } catch (e) {
+          debugPrint('❌ 步骤转换失败: $e');
+        }
+      }
+      
+      debugPrint('🔄 步骤转换完成，共${cookingSteps.length}个步骤');
       
       setState(() {
         _currentRecipe = recipe;
         _steps = cookingSteps;
         _isLoading = false;
+        
+        // 🔍 调试信息：检查步骤数量
+        debugPrint('🔍 烹饪模式加载完成: 菜谱"${recipe.name}"');
+        debugPrint('🔍 原始步骤数量: ${recipe.steps.length}');
+        debugPrint('🔍 转换后步骤数量: ${cookingSteps.length}');
+        debugPrint('🔍 _steps变量长度: ${_steps.length}');
+        
+        if (_steps.isEmpty) {
+          debugPrint('❌ 错误：步骤数组为空！检查数据转换');
+          for (int i = 0; i < recipe.steps.length; i++) {
+            final step = recipe.steps[i];
+            debugPrint('  原始步骤$i: title="${step.title}", duration=${step.duration}');
+          }
+        } else {
+          for (int i = 0; i < _steps.length; i++) {
+            debugPrint('🔍 步骤$i: "${_steps[i].title}" emoji="${_steps[i].emojiIcon}"');
+          }
+        }
+        
         _calculateTotalTime();
       });
-      
-      // 🔍 调试信息：检查步骤数量
-      debugPrint('🔍 烹饪模式加载完成: 菜谱"${recipe.name}"');
-      debugPrint('🔍 原始步骤数量: ${recipe.steps.length}');
-      debugPrint('🔍 转换后步骤数量: ${cookingSteps.length}');
-      debugPrint('🔍 _steps变量长度: ${_steps.length}');
-      for (int i = 0; i < _steps.length; i++) {
-        debugPrint('🔍 步骤$i: "${_steps[i].title}" emoji="${_steps[i].emojiIcon}"');
-      }
       
     } catch (e) {
       debugPrint('❌ 加载菜谱数据失败: $e');
