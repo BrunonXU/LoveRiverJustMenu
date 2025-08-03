@@ -82,9 +82,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
               // 顶部标题栏
               _buildHeader(isDark),
 
-              const SizedBox(height: AppSpacing.md),
-
-              // Tab切换器
+              // Tab切换器（减少上方间距）
               _buildTabBar(isDark),
 
               // Tab内容（不需要额外间距）
@@ -174,7 +172,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
   /// Tab切换器
   Widget _buildTabBar(bool isDark) {
     return Container(
-      margin: AppSpacing.pagePadding.copyWith(bottom: AppSpacing.md),
+      margin: AppSpacing.pagePadding.copyWith(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(4),
       height: 56,
       decoration: BoxDecoration(
@@ -293,10 +291,10 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
           return _buildEmptyState(
             isDark,
             icon: '🍳',
-            title: '预设菜谱未初始化',
-            description: '点击按钮初始化12个经典预设菜谱',
-            actionText: '初始化预设菜谱',
-            onAction: () => _initializePresetRecipes(),
+            title: '暂无预设菜谱',
+            description: '经典预设菜谱正在准备中，请稍后再试',
+            actionText: '刷新',
+            onAction: () => _refreshRecipes(),
           );
         }
 
@@ -651,6 +649,116 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
     );
   }
 
+  /// 💕 批量收藏预设菜谱
+  Future<void> _batchFavoritePresetRecipes(List<Recipe> recipes) async {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return;
+    
+    try {
+      // 确认对话框
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('💕 一键收藏经典菜谱'),
+          content: Text(
+            '将一次性收藏所有 ${recipes.length} 道经典预设菜谱到您的收藏夹。\n\n'
+            '包括：银耳汤🥣、番茄面🍜、红烧排骨🍖 等经典家常菜。\n\n'
+            '收藏后可在"收藏"栏目中查看和管理。',
+            style: const TextStyle(height: 1.5),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                '立即收藏',
+                style: TextStyle(color: Colors.orange),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirm != true) return;
+      
+      // 显示加载指示器
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在收藏经典菜谱...'),
+            ],
+          ),
+        ),
+      );
+      
+      // 批量收藏
+      final favoritesService = ref.read(favoritesServiceProvider);
+      int successCount = 0;
+      
+      for (final recipe in recipes) {
+        try {
+          await favoritesService.addToFavorites(currentUser.uid, recipe.id);
+          successCount++;
+        } catch (e) {
+          debugPrint('收藏菜谱失败: ${recipe.name} - $e');
+        }
+      }
+      
+      if (mounted) {
+        context.pop(); // 关闭加载对话框
+        
+        // 显示结果
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('🎉 收藏完成'),
+            content: Text(
+              '成功收藏了 $successCount 道经典菜谱！\n\n'
+              '您可以在"收藏"栏目中查看和管理这些菜谱。'
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  context.pop();
+                  // 切换到收藏Tab
+                  _tabController.animateTo(2);
+                },
+                child: const Text('查看收藏'),
+              ),
+            ],
+          ),
+        );
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        context.pop(); // 关闭可能的加载对话框
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('收藏失败：$e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   /// 🍳 预设菜谱信息
   Widget _buildPresetInfo(List<Recipe> recipes, bool isDark) {
     return Container(
@@ -706,6 +814,42 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+          // 🔧 新增：一键收藏按钮
+          GestureDetector(
+            onTap: () => _batchFavoritePresetRecipes(recipes),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.favorite,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '收藏全部',
+                    style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                      color: Colors.white,
+                      fontWeight: AppTypography.medium,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
