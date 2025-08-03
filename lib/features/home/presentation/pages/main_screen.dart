@@ -562,9 +562,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 🔧 新增：预设菜谱显示emoji，用户菜谱显示3D图标
-              if (recipe['isPreset'] == true && recipe['emojiIcon'] != null)
-                // 预设菜谱显示3D emoji
+              // 🎨 智能图标显示：优先emoji（预设+用户），其次3D图标
+              if (recipe['emojiIcon'] != null && recipe['emojiIcon'].toString().isNotEmpty)
+                // 显示emoji图标（预设菜谱或自动分配的用户菜谱）
                 GestureDetector(
                   onTap: () {
                     // 🔧 修复：点击图标进入对应菜谱详情

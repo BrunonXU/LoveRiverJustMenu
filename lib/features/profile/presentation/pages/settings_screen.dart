@@ -13,6 +13,7 @@ import '../../../recipe/domain/services/data_backup_service.dart';
 import '../../../../core/utils/json_recipe_importer.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/utils/clean_duplicate_presets_script.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -206,6 +207,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
+        // 🗑️ 新增：清理重复预设菜谱
+        _buildSettingItem(
+          icon: Icons.cleaning_services,
+          iconColor: Colors.purple,
+          title: '清理重复预设菜谱',
+          subtitle: '🧹 删除数据库中没有emoji的旧版本预设菜谱',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _cleanDuplicatePresets(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
         
         // 快速备份
         _buildSettingItem(
@@ -480,6 +492,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
+  /// 🗑️ 清理重复预设菜谱
+  Future<void> _cleanDuplicatePresets() async {
+    if (_isProcessing) return;
+    
+    // 第一步：先分析数据
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 分析重复情况
+      final analysis = await CleanDuplicatePresetsScript.analyzePresets(repository);
+      
+      if (analysis.containsKey('error')) {
+        _showErrorMessage('分析失败：${analysis['error']}');
+        return;
+      }
+      
+      // 显示分析结果并确认清理
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('🗑️ 预设菜谱数据清理'),
+          content: Text(
+            '检测到重复的预设菜谱数据：\n\n'
+            '📊 数据分析结果：\n'
+            '• 总预设菜谱：${analysis['total']} 个\n'
+            '• 有emoji版本：${analysis['with_emoji']} 个\n'
+            '• 无emoji版本：${analysis['without_emoji']} 个\n'
+            '• 重复菜谱：${(analysis['duplicates'] as Map).length} 种\n\n'
+            '🧹 将执行清理：\n'
+            '• 删除所有无emoji的旧版本\n'
+            '• 删除同名菜谱的重复版本\n'
+            '• 保留最新的emoji版本\n\n'
+            '⚠️ 此操作不可恢复，是否继续？',
+            style: const TextStyle(height: 1.5),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                '确认清理',
+                style: TextStyle(color: Colors.purple),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 执行清理
+      final result = await CleanDuplicatePresetsScript.cleanDuplicatePresets(repository);
+      
+      if (result['errors'] == 0) {
+        _showSuccessMessage(
+          '🎉 清理完成！\n\n'
+          '📊 清理结果：\n'
+          '• 删除旧版本：${result['deleted_old']} 个\n'
+          '• 删除重复版本：${result['deleted_duplicates']} 个\n'
+          '• 剩余预设菜谱：${result['remaining']} 个\n\n'
+          '✅ 现在数据库中只保留带emoji的最新版本预设菜谱'
+        );
+      } else {
+        _showErrorMessage(
+          '清理部分完成，但有 ${result['errors']} 个错误\n'
+          '请查看控制台日志了解详情'
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('❌ 清理预设菜谱失败: $e');
+      _showErrorMessage('清理失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   /// 💾 快速备份
   Future<void> _quickBackup() async {
     if (_isProcessing) return;

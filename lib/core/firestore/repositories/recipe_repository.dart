@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../features/recipe/domain/models/recipe.dart';
 import '../../storage/services/storage_service.dart';
+import '../../utils/emoji_allocator.dart';
 
 /// 菜谱数据仓库
 /// 
@@ -540,6 +541,15 @@ class RecipeRepository {
 
   /// 菜谱对象转换为Map
   Map<String, dynamic> _recipeToMap(Recipe recipe, String userId) {
+    // 🎨 智能emoji分配：如果用户菜谱没有图片且没有emoji，自动分配
+    String? finalEmojiIcon = recipe.emojiIcon;
+    if (!recipe.isPreset && // 只为用户菜谱分配
+        (recipe.imageUrl == null || recipe.imageUrl!.isEmpty) && // 没有图片
+        (recipe.emojiIcon == null || recipe.emojiIcon!.isEmpty)) { // 没有emoji
+      finalEmojiIcon = EmojiAllocator.allocateEmoji(recipe.name);
+      debugPrint('🎨 为用户菜谱自动分配emoji: ${recipe.name} -> $finalEmojiIcon');
+    }
+    
     return {
       'name': recipe.name,
       'description': recipe.description,
@@ -572,7 +582,7 @@ class RecipeRepository {
       'sourceType': recipe.sourceType,
       'isShared': recipe.isShared,
       'originalRecipeId': recipe.originalRecipeId,
-      'emojiIcon': recipe.emojiIcon, // 🔧 新增：emoji图标
+      'emojiIcon': finalEmojiIcon, // 🎨 智能分配的emoji图标
     };
   }
 

@@ -709,7 +709,7 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
       
       for (final recipe in recipes) {
         try {
-          await favoritesService.addToFavorites(currentUser.uid, recipe.id);
+          await favoritesService.addFavorite(currentUser.uid, recipe.id);
           successCount++;
         } catch (e) {
           debugPrint('收藏菜谱失败: ${recipe.name} - $e');

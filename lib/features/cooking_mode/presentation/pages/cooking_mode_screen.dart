@@ -136,6 +136,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
           duration: step.duration * 60, // 转换为秒
           icon: _getStepIcon(index),
           imagePath: _getStepImagePath(step),
+          emojiIcon: step.emojiIcon, // 🔧 新增：传递步骤emoji
           tips: step.tips != null && step.tips!.isNotEmpty 
               ? [step.tips!] 
               : [],
@@ -425,8 +426,15 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
         Expanded(
           child: Column(
             children: [
-              // 图片区域（如果有图片）
-              if (currentStepData.imagePath != null) ...[
+              // 🎨 图片/emoji区域（优先显示emoji，其次图片）
+              if (currentStepData.emojiIcon != null && currentStepData.emojiIcon!.isNotEmpty) ...[
+                // 显示emoji图标
+                Expanded(
+                  child: _buildStepEmoji(currentStepData.emojiIcon!, isDark),
+                ),
+                Space.h24,
+              ] else if (currentStepData.imagePath != null) ...[
+                // 显示传统图片
                 Expanded(
                   child: _buildStepImage(currentStepData.imagePath!, isDark),
                 ),
@@ -442,6 +450,35 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
     );
   }
   
+  /// 🎨 构建步骤emoji图标展示区
+  Widget _buildStepEmoji(String emoji, bool isDark) {
+    return BreathingWidget(
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.getBackgroundColor(isDark),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            emoji,
+            style: const TextStyle(
+              fontSize: 120, // 大emoji图标
+              height: 1.0,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// 🖼️ 构建步骤图片展示区 - 横屏优化布局，自适应高度
   Widget _buildStepImage(String imagePath, bool isDark) {
     return BreathingWidget(
@@ -951,6 +988,7 @@ class CookingStep {
   final int duration; // 秒
   final String icon;
   final String? imagePath; // 🖼️ 新增：步骤图片路径
+  final String? emojiIcon; // 🎨 新增：步骤emoji图标
   final List<String> tips; // 🔧 新增：烹饪小贴士
   
   const CookingStep({
@@ -959,6 +997,7 @@ class CookingStep {
     required this.duration,
     required this.icon,
     this.imagePath,
+    this.emojiIcon,
     this.tips = const [],
   });
 }

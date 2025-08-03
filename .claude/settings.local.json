@@ -33,7 +33,8 @@
       "WebFetch(domain:brunonxu.github.io)",
       "Bash(dart:*)",
       "WebFetch(domain:localhost)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\test_emoji_fix.dart\")"
     ],
     "deny": []
   }

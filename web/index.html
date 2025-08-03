@@ -5,7 +5,7 @@
     如果您通过GitHub Pages提供您的Web应用程序，请使用以下内容：
     <base href="/LoveRiverJustMenu/">
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/LoveRiverJustMenu/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -84,23 +84,10 @@
   </style>
 
   <script>
-    // 用于Flutter的ServiceWorker注册
-    var serviceWorkerVersion = null;
-    var scriptLoaded = false;
-    function loadMainDartJs() {
-      if (scriptLoaded) {
-        return;
-      }
-      scriptLoaded = true;
-      var scriptTag = document.createElement('script');
-      scriptTag.src = 'main.dart.js';
-      scriptTag.type = 'application/javascript';
-      document.body.append(scriptTag);
-    }
-
+    // 现代化的Service Worker注册
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js');
+        navigator.serviceWorker.register('flutter_service_worker.js?v={{flutter_service_worker_version}}');
       });
     }
   </script>
@@ -114,7 +101,7 @@
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="white"/>
         </svg>
       </div>
-      <div class="loading-text">爱心食谱</div>
+      <div class="loading-text">LoveRecipeJournal</div>
       <div class="loading-subtext">为爱下厨，记录美食与情感</div>
     </div>
   </div>
