@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert' as dart;
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
@@ -562,63 +563,16 @@ class _MainScreenState extends ConsumerState<MainScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 🎨 智能图标显示：优先emoji（预设+用户），其次3D图标
-              if (recipe['emojiIcon'] != null && recipe['emojiIcon'].toString().isNotEmpty)
-                // 显示emoji图标（预设菜谱或自动分配的用户菜谱）
-                GestureDetector(
-                  onTap: () {
-                    // 🔧 修复：点击图标进入对应菜谱详情
-                    final currentRecipe = _getCurrentRecipe();
-                    final recipeId = currentRecipe['id'];
-                    
-                    // 如果没有真实菜谱，引导用户导入菜谱
-                    if (recipeId == 'empty' || _allRecipes.isEmpty) {
-                      _showImportRecipeDialog();
-                      return;
-                    }
-                    
-                    _navigateToRecipeDetail(recipeId);
-                  },
-                  child: Container(
-                    width: 150,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primaryGradient.colors[0].withOpacity(0.1),
-                          AppColors.primaryGradient.colors[1].withOpacity(0.05),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Center(
-                      child: Text(
-                        recipe['emojiIcon'],
-                        style: const TextStyle(fontSize: 80),
-                      ),
-                    ),
-                  ),
-                )
+              // 🎨 智能图标显示：预设菜谱用emoji，用户菜谱优先显示上传图片
+              if (recipe['isPreset'] == true && recipe['emojiIcon'] != null && recipe['emojiIcon'].toString().isNotEmpty)
+                // 预设菜谱：显示emoji图标
+                _buildEmojiIcon(recipe, isDark)
+              else if (recipe['isPreset'] != true && _hasUserUploadedImage(recipe))
+                // 用户菜谱且有上传图片：显示用户上传的图片
+                _buildUserRecipeImage(recipe, isDark)
               else
-                // 用户菜谱显示3D图标
-                AppIcon3D(
-                  type: recipe['iconType'],
-                  size: 150,
-                  isAnimated: true,
-                  onTap: () {
-                    // 🔧 修复：点击图标进入对应菜谱详情
-                    final currentRecipe = _getCurrentRecipe();
-                    final recipeId = currentRecipe['id'];
-                    
-                    // 如果没有真实菜谱，引导用户导入菜谱
-                    if (recipeId == 'empty' || _allRecipes.isEmpty) {
-                      _showImportRecipeDialog();
-                      return;
-                    }
-                    
-                    _navigateToRecipeDetail(recipeId);
-                  },
-                ),
+                // 其他情况：显示3D图标
+                _buildDefault3DIcon(recipe),
               
               Space.h32,
               
@@ -1161,5 +1115,225 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void _navigateToIntimacy() {
     HapticFeedback.mediumImpact();
     context.push(AppRouter.intimacy);
+  }
+  
+  // ==================== 图标构建方法 ====================
+  
+  /// 检查用户是否上传了图片
+  bool _hasUserUploadedImage(Map<String, dynamic> recipe) {
+    return (recipe['imageUrl'] != null && recipe['imageUrl'].toString().isNotEmpty) ||
+           (recipe['imageBase64'] != null && recipe['imageBase64'].toString().isNotEmpty) ||
+           (recipe['imagePath'] != null && recipe['imagePath'].toString().isNotEmpty);
+  }
+  
+  /// 构建emoji图标（预设菜谱专用）
+  Widget _buildEmojiIcon(Map<String, dynamic> recipe, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        final currentRecipe = _getCurrentRecipe();
+        final recipeId = currentRecipe['id'];
+        
+        if (recipeId == 'empty' || _allRecipes.isEmpty) {
+          _showImportRecipeDialog();
+          return;
+        }
+        
+        _navigateToRecipeDetail(recipeId);
+      },
+      child: Container(
+        width: 150,
+        height: 150,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryGradient.colors[0].withOpacity(0.1),
+              AppColors.primaryGradient.colors[1].withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Center(
+          child: Text(
+            recipe['emojiIcon'] ?? '🍳',
+            style: const TextStyle(fontSize: 80),
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// 构建用户上传的菜谱图片（用户菜谱专用）
+  Widget _buildUserRecipeImage(Map<String, dynamic> recipe, bool isDark) {
+    return GestureDetector(
+      onTap: () {
+        final currentRecipe = _getCurrentRecipe();
+        final recipeId = currentRecipe['id'];
+        
+        if (recipeId == 'empty' || _allRecipes.isEmpty) {
+          _showImportRecipeDialog();
+          return;
+        }
+        
+        _navigateToRecipeDetail(recipeId);
+      },
+      child: Container(
+        width: 150,
+        height: 150,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.getShadowColor(isDark).withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(30),
+          child: Stack(
+            children: [
+              // 主图片
+              _buildImageWidget(recipe),
+              
+              // 渐变遮罩（增强对比度，确保与emoji视觉一致）
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.1),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+  
+  /// 构建图片组件 - 支持多种图片源
+  Widget _buildImageWidget(Map<String, dynamic> recipe) {
+    // 优先级：imageUrl > imageBase64 > imagePath
+    final imageUrl = recipe['imageUrl'];
+    final imageBase64 = recipe['imageBase64'];
+    final imagePath = recipe['imagePath'];
+    
+    if (imageUrl != null && imageUrl.toString().isNotEmpty) {
+      // Firebase Storage URL
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: 150,
+        height: 150,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 150,
+            height: 150,
+            color: AppColors.backgroundSecondary,
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                color: AppColors.primary,
+                strokeWidth: 3,
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+      );
+    }
+    
+    if (imageBase64 != null && imageBase64.toString().isNotEmpty) {
+      // Base64图片
+      try {
+        // 处理data URL格式
+        String base64String = imageBase64.toString();
+        if (base64String.startsWith('data:image/')) {
+          base64String = base64String.split(',')[1];
+        }
+        
+        final bytes = dart.convert.base64Decode(base64String);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: 150,
+          height: 150,
+          errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+        );
+      } catch (e) {
+        debugPrint('❌ Base64图片解析失败: $e');
+        return _buildImageFallback();
+      }
+    }
+    
+    if (imagePath != null && imagePath.toString().isNotEmpty) {
+      // 本地图片路径
+      return Image.asset(
+        imagePath,
+        fit: BoxFit.cover,
+        width: 150,
+        height: 150,
+        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+      );
+    }
+    
+    return _buildImageFallback();
+  }
+  
+  /// 图片加载失败时的fallback
+  Widget _buildImageFallback() {
+    return Container(
+      width: 150,
+      height: 150,
+      color: AppColors.backgroundSecondary,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_not_supported,
+              size: 40,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '图片加载失败',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 构建默认3D图标（fallback）
+  Widget _buildDefault3DIcon(Map<String, dynamic> recipe) {
+    return AppIcon3D(
+      type: recipe['iconType'] ?? 'cooking',
+      size: 150,
+      isAnimated: true,
+      onTap: () {
+        final currentRecipe = _getCurrentRecipe();
+        final recipeId = currentRecipe['id'];
+        
+        if (recipeId == 'empty' || _allRecipes.isEmpty) {
+          _showImportRecipeDialog();
+          return;
+        }
+        
+        _navigateToRecipeDetail(recipeId);
+      },
+    );
   }
 }

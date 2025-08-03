@@ -734,16 +734,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   Icons.lock_outline,
                   color: Color(0xFF999999),
                 ),
-                suffixIcon: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                  child: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    color: const Color(0xFF999999),
+                suffixIcon: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(12),
+                      child: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: const Color(0xFF999999),
+                        size: 20,
+                      ),
+                    ),
                   ),
                 ),
                 onSubmitted: (_) => _handleEmailLoginFromDialog(),
