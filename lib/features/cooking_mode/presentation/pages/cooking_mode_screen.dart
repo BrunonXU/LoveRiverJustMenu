@@ -12,6 +12,7 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../domain/models/recipe.dart';
 import '../../../recipe/presentation/providers/recipe_providers.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/utils/emoji_allocator.dart';
 
 /// 烹饪模式界面
 /// 横屏全屏模式，48px超大字体，环形进度条，大触摸区域设计
@@ -130,13 +131,24 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
         final index = entry.key;
         final step = entry.value;
         
+        // 🎨 智能emoji分配：如果步骤没有emoji，自动分配一个
+        String stepEmoji = step.emojiIcon;
+        if (stepEmoji == null || stepEmoji.isEmpty) {
+          stepEmoji = EmojiAllocator.allocateStepEmoji(
+            step.title,
+            step.description,
+            index,
+          );
+          debugPrint('🎨 为步骤自动分配emoji: ${step.title} -> $stepEmoji');
+        }
+        
         return CookingStep(
           title: step.title,
           description: step.description,
           duration: step.duration * 60, // 转换为秒
           icon: _getStepIcon(index),
           imagePath: _getStepImagePath(step),
-          emojiIcon: step.emojiIcon, // 🔧 新增：传递步骤emoji
+          emojiIcon: stepEmoji, // 🔧 使用智能分配的emoji
           tips: step.tips != null && step.tips!.isNotEmpty 
               ? [step.tips!] 
               : [],
@@ -426,20 +438,14 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
         Expanded(
           child: Column(
             children: [
-              // 🎨 图片/emoji区域（优先显示emoji，其次图片）
-              if (currentStepData.emojiIcon != null && currentStepData.emojiIcon!.isNotEmpty) ...[
-                // 显示emoji图标
-                Expanded(
-                  child: _buildStepEmoji(currentStepData.emojiIcon!, isDark),
+              // 🎨 始终显示emoji区域（智能分配确保每个步骤都有emoji）
+              Expanded(
+                child: _buildStepEmoji(
+                  currentStepData.emojiIcon ?? '👨‍🍳', // 回退到默认emoji
+                  isDark,
                 ),
-                Space.h24,
-              ] else if (currentStepData.imagePath != null) ...[
-                // 显示传统图片
-                Expanded(
-                  child: _buildStepImage(currentStepData.imagePath!, isDark),
-                ),
-                Space.h24,
-              ],
+              ),
+              Space.h24,
               
               // 底部固定的步骤进度
               _buildStepProgress(isDark),

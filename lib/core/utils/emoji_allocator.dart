@@ -152,6 +152,138 @@ class EmojiAllocator {
     return categories;
   }
   
+  /// 🥄 为菜谱步骤分配emoji图标
+  /// 
+  /// 根据步骤内容智能分配合适的emoji图标
+  /// 优先级：步骤动作 > 食材类型 > 通用图标
+  static String allocateStepEmoji(String stepTitle, String stepDescription, int stepIndex) {
+    final title = stepTitle.toLowerCase().trim();
+    final description = stepDescription.toLowerCase().trim();
+    final content = '$title $description';
+    
+    // 🔥 加热烹饪类
+    if (_containsAny(content, ['炒', '爆炒', '煸炒', '翻炒', '大火炒', '热锅'])) {
+      return '🔥';
+    }
+    
+    // 🔪 切配准备类
+    if (_containsAny(content, ['切', '切片', '切块', '切丝', '切段', '刀工', '处理', '准备', '洗净'])) {
+      return '🔪';
+    }
+    
+    // 💧 清洗浸泡类
+    if (_containsAny(content, ['洗', '清洗', '冲洗', '浸泡', '泡水', '过水', '焯水'])) {
+      return '💧';
+    }
+    
+    // 🥄 搅拌调味类
+    if (_containsAny(content, ['搅拌', '拌匀', '调味', '加盐', '调料', '腌制', '搅', '拌'])) {
+      return '🥄';
+    }
+    
+    // 🍳 煎炸类
+    if (_containsAny(content, ['煎', '炸', '油炸', '煎制', '煎至', '下锅煎', '小火煎'])) {
+      return '🍳';
+    }
+    
+    // ⏱️ 时间控制类
+    if (_containsAny(content, ['分钟', '小时', '时间', '煮至', '炖煮', '焖煮', '慢炖', '等待'])) {
+      return '⏱️';
+    }
+    
+    // 🌡️ 温度控制类
+    if (_containsAny(content, ['大火', '小火', '中火', '关火', '调火', '火候', '温度'])) {
+      return '🌡️';
+    }
+    
+    // 🥢 夹取装盘类
+    if (_containsAny(content, ['装盘', '盛起', '起锅', '夹出', '捞出', '摆盘', '出锅'])) {
+      return '🥢';
+    }
+    
+    // 🧂 调料类
+    if (_containsAny(content, ['盐', '糖', '醋', '酱油', '料酒', '胡椒', '味精', '鸡精', '香油', '芝麻油'])) {
+      return '🧂';
+    }
+    
+    // 🥩 肉类处理
+    if (_containsAny(content, ['肉', '排骨', '牛肉', '猪肉', '鸡肉', '鱼肉', '虾'])) {
+      return '🥩';
+    }
+    
+    // 🥬 蔬菜处理
+    if (_containsAny(content, ['蔬菜', '青菜', '白菜', '菠菜', '韭菜', '豆芽', '胡萝卜'])) {
+      return '🥬';
+    }
+    
+    // 🍅 番茄相关
+    if (_containsAny(content, ['番茄', '西红柿', '茄汁', '酸甜'])) {
+      return '🍅';
+    }
+    
+    // 🥚 蛋类处理
+    if (_containsAny(content, ['蛋', '鸡蛋', '蛋液', '打散', '蛋花'])) {
+      return '🥚';
+    }
+    
+    // 🫗 倒入添加类
+    if (_containsAny(content, ['倒入', '加入', '放入', '下入', '投入', '添加'])) {
+      return '🫗';
+    }
+    
+    // ✨ 最终装饰
+    if (_containsAny(content, ['撒上', '点缀', '装饰', '最后', '完成', '即可', '享用'])) {
+      return '✨';
+    }
+    
+    // 📦 储存保存
+    if (_containsAny(content, ['保存', '储存', '冷藏', '放置', '静置', '晾凉'])) {
+      return '📦';
+    }
+    
+    // 🍽️ 上菜品尝
+    if (_containsAny(content, ['上菜', '享用', '品尝', '开吃', '美味', '完成'])) {
+      return '🍽️';
+    }
+    
+    // 根据步骤顺序分配通用图标
+    const stepEmojis = [
+      '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
+    ];
+    
+    if (stepIndex < stepEmojis.length) {
+      return stepEmojis[stepIndex];
+    }
+    
+    // 默认烹饪图标
+    return '👨‍🍳';
+  }
+  
+  /// 🔄 为菜谱的所有步骤批量分配emoji
+  static List<String> allocateStepEmojis(List<Map<String, dynamic>> steps) {
+    final result = <String>[];
+    
+    for (int i = 0; i < steps.length; i++) {
+      final step = steps[i];
+      final title = step['title'] as String? ?? '';
+      final description = step['description'] as String? ?? '';
+      
+      final emoji = allocateStepEmoji(title, description, i);
+      result.add(emoji);
+    }
+    
+    return result;
+  }
+  
+  /// 📊 获取所有步骤emoji列表
+  static List<String> getAllStepEmojis() {
+    return [
+      '🔥', '🔪', '💧', '🥄', '🍳', '⏱️', '🌡️', '🥢', '🧂', '🥩',
+      '🥬', '🍅', '🥚', '🫗', '✨', '📦', '🍽️', '👨‍🍳',
+      '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'
+    ];
+  }
+
   /// 🧪 测试emoji分配器
   static void testEmojiAllocator() {
     debugPrint('🧪 测试emoji分配器...');
@@ -173,5 +305,20 @@ class EmojiAllocator {
     categories.forEach((emoji, names) {
       debugPrint('  $emoji: ${names.length}个 ${names.join(', ')}');
     });
+    
+    // 测试步骤emoji分配
+    debugPrint('🥄 测试步骤emoji分配：');
+    final testSteps = [
+      {'title': '准备食材', 'description': '洗净蔬菜，切成小块'},
+      {'title': '热锅下油', 'description': '大火加热炒锅，倒入食用油'},
+      {'title': '炒制蔬菜', 'description': '下入蔬菜快速翻炒'},
+      {'title': '调味出锅', 'description': '加盐调味，装盘即可享用'},
+    ];
+    
+    for (int i = 0; i < testSteps.length; i++) {
+      final step = testSteps[i];
+      final emoji = allocateStepEmoji(step['title']!, step['description']!, i);
+      debugPrint('  ${step['title']} -> $emoji');
+    }
   }
 }

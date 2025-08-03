@@ -15,6 +15,7 @@ import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/utils/clean_duplicate_presets_script.dart';
 import '../../../../core/utils/reset_presets_script.dart';
+import '../../../../core/utils/add_step_emojis_script.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -228,6 +229,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           subtitle: '🧹 删除数据库中没有emoji的旧版本预设菜谱',
           isDark: isDark,
           onTap: _isProcessing ? null : () => _cleanDuplicatePresets(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
+        
+        // 🎨 新增：为烹饪步骤添加emoji
+        _buildSettingItem(
+          icon: Icons.emoji_emotions,
+          iconColor: Colors.pink,
+          title: '🎨 添加烹饪步骤emoji',
+          subtitle: '为所有菜谱的烹饪步骤自动添加emoji图标',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _addStepEmojis(),
         ),
         
         const SizedBox(height: AppSpacing.sm),
@@ -594,6 +607,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     } catch (e) {
       debugPrint('❌ 重置预设菜谱失败: $e');
       _showErrorMessage('重置失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+  /// 🎨 为烹饪步骤添加emoji图标
+  Future<void> _addStepEmojis() async {
+    if (_isProcessing) return;
+    
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 先分析现状
+      final analysis = await AddStepEmojisScript.analyzeStepEmojiStatus(repository);
+      
+      if (analysis.containsKey('error')) {
+        _showErrorMessage('分析失败：${analysis['error']}');
+        return;
+      }
+      
+      // 显示分析结果并确认添加
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('🎨 烹饪步骤emoji添加'),
+          content: Text(
+            '当前烹饪步骤emoji状态：\\n\\n'
+            '📊 数据分析：\\n'
+            '• 总菜谱数：${analysis['total_recipes']} 个\\n'
+            '• 总步骤数：${analysis['total_steps']} 个\\n'
+            '• 有emoji步骤：${analysis['steps_with_emoji']} 个\\n'
+            '• 无emoji步骤：${analysis['steps_without_emoji']} 个\\n'
+            '• emoji覆盖率：${analysis['coverage_percentage']}%\\n'
+            '• 需要更新菜谱：${analysis['recipes_needing_update']} 个\\n\\n'
+            '🎨 将执行操作：\\n'
+            '• 为每个烹饪步骤智能分配emoji图标\\n'
+            '• 根据步骤内容选择最合适的emoji\\n'
+            '• 保持已有emoji不变\\n'
+            '• 提升烹饪模式视觉体验\\n\\n'
+            '✨ 这将让烹饪过程更加生动有趣！',
+            style: const TextStyle(height: 1.5),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                '确认添加',
+                style: TextStyle(color: Colors.pink),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 执行添加emoji
+      final result = await AddStepEmojisScript.addStepEmojisToPresets(repository);
+      
+      if (result['status'] == 'success') {
+        _showSuccessMessage(
+          '🎉 步骤emoji添加成功！\\n\\n'
+          '📊 处理结果：\\n'
+          '• 总菜谱数：${result['total_recipes']} 个\\n'
+          '• 更新菜谱：${result['updated_count']} 个\\n'
+          '• 跳过菜谱：${result['skip_count']} 个\\n\\n'
+          '✨ 现在所有烹饪步骤都有生动的emoji图标了！\\n'
+          '🍳 快去烹饪模式体验全新的视觉效果吧！'
+        );
+      } else if (result['status'] == 'partial_success') {
+        _showErrorMessage(
+          '⚠️ 步骤emoji添加部分成功\\n\\n'
+          '更新：${result['updated_count']} 个\\n'
+          '跳过：${result['skip_count']} 个\\n'
+          '错误：${result['error_count']} 个\\n\\n'
+          '请检查控制台日志了解详情'
+        );
+      } else {
+        _showErrorMessage(
+          '❌ 步骤emoji添加失败\\n\\n'
+          '${result.containsKey('error') ? result['error'] : '未知错误'}'
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('❌ 添加步骤emoji失败: $e');
+      _showErrorMessage('添加失败：$e');
     } finally {
       setState(() => _isProcessing = false);
     }

@@ -577,14 +577,31 @@ class RecipeRepository {
       'totalTime': recipe.totalTime,
       'difficulty': recipe.difficulty,
       'servings': recipe.servings,
-      'steps': recipe.steps.map((step) => {
-        'title': step.title,
-        'description': step.description,
-        'duration': step.duration,
-        'tips': step.tips,
-        // 🚫 重要：不存储步骤图片base64数据，避免文档过大导致Firebase控制台卡死
-        // 'imageBase64': step.imageBase64, // 临时禁用，避免文档过大
-        'ingredients': step.ingredients,
+      'steps': recipe.steps.asMap().entries.map((entry) {
+        final index = entry.key;
+        final step = entry.value;
+        
+        // 🎨 为步骤自动分配emoji（如果没有）
+        String stepEmoji = step.emojiIcon ?? '';
+        if (stepEmoji.isEmpty) {
+          stepEmoji = EmojiAllocator.allocateStepEmoji(
+            step.title,
+            step.description,
+            index,
+          );
+          debugPrint('🎨 为步骤保存时自动分配emoji: ${step.title} -> $stepEmoji');
+        }
+        
+        return {
+          'title': step.title,
+          'description': step.description,
+          'duration': step.duration,
+          'tips': step.tips,
+          'emojiIcon': stepEmoji, // 🎨 保存步骤emoji
+          // 🚫 重要：不存储步骤图片base64数据，避免文档过大导致Firebase控制台卡死
+          // 'imageBase64': step.imageBase64, // 临时禁用，避免文档过大
+          'ingredients': step.ingredients,
+        };
       }).toList(),
       'createdBy': userId,
       'createdAt': FieldValue.serverTimestamp(),
@@ -619,11 +636,22 @@ class RecipeRepository {
       steps: (data['steps'] as List? ?? []).asMap().entries.map((entry) {
         final index = entry.key;
         final stepData = entry.value as Map<String, dynamic>;
+        
+        // 🎨 步骤emoji：优先使用存储的，否则智能分配
+        String stepEmoji = stepData['emojiIcon'] as String? ?? '';
+        if (stepEmoji.isEmpty) {
+          final title = stepData['title'] as String? ?? '';
+          final description = stepData['description'] as String? ?? '';
+          stepEmoji = EmojiAllocator.allocateStepEmoji(title, description, index);
+          debugPrint('🎨 读取时为步骤自动分配emoji: $title -> $stepEmoji');
+        }
+        
         return RecipeStep(
           title: stepData['title'] as String? ?? '',
           description: stepData['description'] as String,
           duration: stepData['duration'] as int? ?? 0,
           tips: stepData['tips'] as String?,
+          emojiIcon: stepEmoji, // 🎨 步骤emoji
           // 🆕 优先使用子集合中的图片，fallback到原来的数据
           imageBase64: stepImages?[index] ?? stepData['imageBase64'] as String?,
           ingredients: List<String>.from(stepData['ingredients'] as List? ?? []),
