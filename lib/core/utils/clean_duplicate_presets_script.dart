@@ -10,7 +10,7 @@ import '../../features/recipe/domain/models/recipe.dart';
 
 class CleanDuplicatePresetsScript {
   
-  /// 🗑️ 清理重复的预设菜谱数据
+  /// 🗑️ 清理重复的预设菜谱数据 - 加强版
   static Future<Map<String, int>> cleanDuplicatePresets(RecipeRepository repository) async {
     try {
       debugPrint('🗑️ 开始清理重复预设菜谱...');
@@ -49,35 +49,56 @@ class CleanDuplicatePresetsScript {
         }
       }
       
-      // 4. 检查菜谱名称重复情况
+      // 4. 使用更严格的去重逻辑：按菜谱名称分组，每个名称只保留一个
       final nameGroups = <String, List<Recipe>>{};
-      for (final recipe in presetsWithEmoji) {
+      final allPresetsToProcess = [...presetsWithEmoji, ...presetsWithoutEmoji]; // 包含所有预设菜谱
+      
+      for (final recipe in allPresetsToProcess) {
         nameGroups.putIfAbsent(recipe.name, () => []).add(recipe);
       }
       
-      // 5. 删除同名菜谱中多余的版本（保留最新的）
+      // 5. 每个菜谱名称只保留最好的版本
       int duplicateDeletedCount = 0;
+      final keepList = <Recipe>[];
+      
       for (final entry in nameGroups.entries) {
         final recipesWithSameName = entry.value;
-        if (recipesWithSameName.length > 1) {
-          debugPrint('⚠️ 发现同名菜谱: ${entry.key} (${recipesWithSameName.length}个)');
-          
-          // 按创建时间排序，保留最新的
+        debugPrint('📝 处理菜谱: ${entry.key} (${recipesWithSameName.length}个版本)');
+        
+        if (recipesWithSameName.length == 1) {
+          // 只有一个版本，直接保留
+          keepList.add(recipesWithSameName.first);
+          continue;
+        }
+        
+        // 多个版本：优先保留有emoji的，其次按创建时间排序
+        Recipe? bestRecipe;
+        
+        // 首先查找有emoji的版本
+        final withEmoji = recipesWithSameName.where((r) => r.emojiIcon != null && r.emojiIcon!.isNotEmpty).toList();
+        if (withEmoji.isNotEmpty) {
+          // 按创建时间排序，保留最新的有emoji版本
+          withEmoji.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          bestRecipe = withEmoji.first;
+        } else {
+          // 没有emoji版本，按创建时间保留最新的
           recipesWithSameName.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          final toKeep = recipesWithSameName.first;
-          final toDelete = recipesWithSameName.skip(1).toList();
-          
-          debugPrint('✅ 保留: ${toKeep.name} (${toKeep.createdAt})');
-          
-          for (final duplicateRecipe in toDelete) {
-            try {
-              await repository.deleteRecipe(duplicateRecipe.id, duplicateRecipe.createdBy);
-              debugPrint('🗑️ 删除重复: ${duplicateRecipe.name} (${duplicateRecipe.createdAt})');
-              duplicateDeletedCount++;
-            } catch (e) {
-              debugPrint('❌ 删除重复菜谱失败: ${duplicateRecipe.name} - $e');
-              errorCount++;
-            }
+          bestRecipe = recipesWithSameName.first;
+        }
+        
+        keepList.add(bestRecipe);
+        debugPrint('✅ 保留: ${bestRecipe.name} (emoji: ${bestRecipe.emojiIcon}, 时间: ${bestRecipe.createdAt})');
+        
+        // 删除其他版本
+        final toDelete = recipesWithSameName.where((r) => r.id != bestRecipe!.id).toList();
+        for (final duplicateRecipe in toDelete) {
+          try {
+            await repository.deleteRecipe(duplicateRecipe.id, duplicateRecipe.createdBy);
+            debugPrint('🗑️ 删除重复: ${duplicateRecipe.name} (${duplicateRecipe.id})');
+            duplicateDeletedCount++;
+          } catch (e) {
+            debugPrint('❌ 删除重复菜谱失败: ${duplicateRecipe.name} - $e');
+            errorCount++;
           }
         }
       }
@@ -86,7 +107,7 @@ class CleanDuplicatePresetsScript {
         'deleted_old': deletedCount,
         'deleted_duplicates': duplicateDeletedCount,
         'errors': errorCount,
-        'remaining': presetsWithEmoji.length - duplicateDeletedCount,
+        'remaining': keepList.length, // 实际保留的菜谱数量
       };
       
       debugPrint('🎉 清理完成！');
