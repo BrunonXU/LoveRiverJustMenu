@@ -231,6 +231,15 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
+    // 🔍 强制调试输出界面状态
+    debugPrint('🔍 烹饪模式界面状态检查:');
+    debugPrint('  _isLoading: $_isLoading');
+    debugPrint('  _errorMessage: $_errorMessage');
+    debugPrint('  _steps.isEmpty: ${_steps.isEmpty}');
+    debugPrint('  _steps.length: ${_steps.length}');
+    debugPrint('  _currentRecipe == null: ${_currentRecipe == null}');
+    debugPrint('  _currentRecipe?.name: ${_currentRecipe?.name}');
+    
     return Scaffold(
       backgroundColor: AppColors.getBackgroundColor(isDark),
       body: SafeArea(
@@ -240,7 +249,9 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
                 ? _buildErrorScreen(isDark)
                 : _steps.isEmpty
                     ? _buildEmptyScreen(isDark)
-                    : Padding(
+                    : _currentRecipe == null 
+                        ? _buildEmptyScreen(isDark)
+                        : Padding(
                         padding: AppSpacing.pagePadding,
                         child: Row(
                           children: [
