@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:convert' as dart;
+import 'dart:convert';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
@@ -1260,7 +1260,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           base64String = base64String.split(',')[1];
         }
         
-        final bytes = dart.convert.base64Decode(base64String);
+        final bytes = base64Decode(base64String);
         return Image.memory(
           bytes,
           fit: BoxFit.cover,
