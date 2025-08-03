@@ -362,6 +362,7 @@ class JsonRecipeImporter {
       sourceType: json['sourceType'] as String? ?? 'user',
       isPreset: json['isPreset'] as bool? ?? false,
       favoriteCount: json['favoriteCount'] as int? ?? 0,
+      emojiIcon: json['emojiIcon'] as String?, // 🔧 新增：emoji图标
     );
   }
   

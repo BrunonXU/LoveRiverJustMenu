@@ -17,6 +17,7 @@ class Recipe {
   final String sourceType;
   final bool isPreset;
   final int favoriteCount;
+  final String? emojiIcon; // 🔧 新增：emoji图标（用于预设菜谱）
 
   Recipe({
     required this.id,
@@ -36,6 +37,7 @@ class Recipe {
     this.sourceType = 'user',
     this.isPreset = false,
     this.favoriteCount = 0,
+    this.emojiIcon, // 🔧 新增：emoji图标
   });
 
   /// 从JSON创建Recipe对象
@@ -60,6 +62,7 @@ class Recipe {
       sourceType: json['sourceType'] ?? 'user',
       isPreset: json['isPreset'] ?? false,
       favoriteCount: json['favoriteCount'] ?? 0,
+      emojiIcon: json['emojiIcon'], // 🔧 新增：emoji图标
     );
   }
 }
