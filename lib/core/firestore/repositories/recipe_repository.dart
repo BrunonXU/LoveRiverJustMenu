@@ -328,6 +328,24 @@ class RecipeRepository {
     }
   }
 
+  /// 🗑️ 管理员强制删除菜谱（无权限检查）
+  /// ⚠️ 仅用于数据清理，跳过权限验证
+  Future<bool> forceDeleteRecipe(String recipeId) async {
+    try {
+      // 直接删除主文档，不检查权限
+      await _recipesCollection.doc(recipeId).delete();
+      
+      // TODO: 后续可以添加删除关联图片的逻辑
+      // 目前专注于解决重复数据问题
+      
+      debugPrint('✅ 强制删除菜谱成功: $recipeId');
+      return true;
+    } catch (e) {
+      debugPrint('❌ 强制删除菜谱失败: $recipeId -> $e');
+      return false;
+    }
+  }
+
   /// 🗑️ 删除菜谱
   /// 
   /// [recipeId] 菜谱ID

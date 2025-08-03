@@ -40,11 +40,16 @@ class CleanDuplicatePresetsScript {
       
       for (final oldRecipe in presetsWithoutEmoji) {
         try {
-          await repository.deleteRecipe(oldRecipe.id, oldRecipe.createdBy);
-          debugPrint('🗑️ 已删除旧预设菜谱: ${oldRecipe.name}');
-          deletedCount++;
+          final success = await repository.forceDeleteRecipe(oldRecipe.id);
+          if (success) {
+            debugPrint('🗑️ 已删除旧预设菜谱: ${oldRecipe.name}');
+            deletedCount++;
+          } else {
+            debugPrint('❌ 删除失败: ${oldRecipe.name}');
+            errorCount++;
+          }
         } catch (e) {
-          debugPrint('❌ 删除失败: ${oldRecipe.name} - $e');
+          debugPrint('❌ 删除异常: ${oldRecipe.name} - $e');
           errorCount++;
         }
       }
@@ -93,11 +98,16 @@ class CleanDuplicatePresetsScript {
         final toDelete = recipesWithSameName.where((r) => r.id != bestRecipe!.id).toList();
         for (final duplicateRecipe in toDelete) {
           try {
-            await repository.deleteRecipe(duplicateRecipe.id, duplicateRecipe.createdBy);
-            debugPrint('🗑️ 删除重复: ${duplicateRecipe.name} (${duplicateRecipe.id})');
-            duplicateDeletedCount++;
+            final success = await repository.forceDeleteRecipe(duplicateRecipe.id);
+            if (success) {
+              debugPrint('🗑️ 删除重复: ${duplicateRecipe.name} (${duplicateRecipe.id})');
+              duplicateDeletedCount++;
+            } else {
+              debugPrint('❌ 删除重复菜谱失败: ${duplicateRecipe.name}');
+              errorCount++;
+            }
           } catch (e) {
-            debugPrint('❌ 删除重复菜谱失败: ${duplicateRecipe.name} - $e');
+            debugPrint('❌ 删除重复菜谱异常: ${duplicateRecipe.name} - $e');
             errorCount++;
           }
         }

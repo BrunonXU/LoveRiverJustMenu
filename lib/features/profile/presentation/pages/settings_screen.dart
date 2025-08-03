@@ -14,6 +14,7 @@ import '../../../../core/utils/json_recipe_importer.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/utils/clean_duplicate_presets_script.dart';
+import '../../../../core/utils/reset_presets_script.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -207,7 +208,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
-        // 🗑️ 新增：清理重复预设菜谱
+        // 🔄 新增：一键重置预设菜谱（彻底解决）
+        _buildSettingItem(
+          icon: Icons.refresh,
+          iconColor: Colors.red,
+          title: '🚨 一键重置预设菜谱',
+          subtitle: '彻底删除所有预设菜谱，重新创建干净的12个标准版本',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _resetAllPresets(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
+        
+        // 🗑️ 清理重复预设菜谱（温和方案）
         _buildSettingItem(
           icon: Icons.cleaning_services,
           iconColor: Colors.purple,
@@ -492,6 +505,100 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
+  /// 🔄 一键重置预设菜谱（彻底解决方案）
+  Future<void> _resetAllPresets() async {
+    if (_isProcessing) return;
+    
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 先检查当前状态
+      final status = await ResetPresetsScript.checkPresetStatus(repository);
+      
+      if (status.containsKey('error')) {
+        _showErrorMessage('检查状态失败：${status['error']}');
+        return;
+      }
+      
+      // 显示详细的重置确认
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('🚨 预设菜谱完全重置'),
+          content: Text(
+            '当前预设菜谱状态：\n\n'
+            '📊 总数量：${status['total_presets']} 个\n'
+            '📊 唯一名称：${status['unique_names']} 种\n'
+            '📊 有emoji：${status['with_emoji']} 个\n'
+            '📊 无emoji：${status['without_emoji']} 个\n'
+            '📊 期望数量：${status['expected_count']} 个\n\n'
+            '🔄 重置操作将：\n'
+            '• 强制删除所有现有预设菜谱\n'
+            '• 重新创建12个标准预设菜谱\n'
+            '• 每个菜谱都有emoji图标\n'
+            '• 彻底解决重复问题\n\n'
+            '⚠️ 此操作不可撤销，是否继续？',
+            style: const TextStyle(height: 1.5),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                '确认重置',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 执行重置
+      final result = await ResetPresetsScript.resetAllPresets(repository);
+      
+      if (result['final_status'] == 'success') {
+        _showSuccessMessage(
+          '🎉 预设菜谱重置成功！\n\n'
+          '📊 重置结果：\n'
+          '• 删除旧菜谱：${result['total_deleted']} 个\n'
+          '• 创建新菜谱：${result['created_new']} 个\n'
+          '• 删除错误：${result['delete_errors']} 个\n\n'
+          '✅ 现在数据库中有12个标准预设菜谱，\n每个都有emoji图标！'
+        );
+      } else if (result['final_status'] == 'partial_success') {
+        _showErrorMessage(
+          '⚠️ 重置部分成功\n\n'
+          '删除：${result['total_deleted']} 个\n'
+          '创建：${result['created_new']} 个\n'
+          '错误：${result['delete_errors']} 个\n\n'
+          '请检查控制台日志了解详情'
+        );
+      } else {
+        _showErrorMessage(
+          '❌ 重置失败\n\n'
+          '${result.containsKey('error') ? result['error'] : '未知错误'}'
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('❌ 重置预设菜谱失败: $e');
+      _showErrorMessage('重置失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   /// 🗑️ 清理重复预设菜谱
   Future<void> _cleanDuplicatePresets() async {
     if (_isProcessing) return;
