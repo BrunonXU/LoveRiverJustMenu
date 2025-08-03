@@ -255,59 +255,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           isDark: isDark,
           onTap: _isProcessing ? null : () => _addStepEmojis(),
         ),
-        
-        const SizedBox(height: AppSpacing.sm),
-        
-        // 快速备份
-        _buildSettingItem(
-          icon: Icons.backup,
-          iconColor: Colors.orange,
-          title: '快速备份',
-          subtitle: '备份到应用内部存储',
-          isDark: isDark,
-          onTap: _isProcessing ? null : () => _quickBackup(),
-        ),
-        
-        const SizedBox(height: AppSpacing.sm),
-        
-        // 清空数据
-        _buildSettingItem(
-          icon: Icons.delete_forever,
-          iconColor: Colors.red,
-          title: '清空所有数据',
-          subtitle: '⚠️ 此操作不可恢复',
-          isDark: isDark,
-          onTap: _isProcessing ? null : () => _clearAllData(),
-        ),
       ],
     );
   }
   
-  /// ⚙️ 应用设置板块
+  /// ⚙️ 应用设置板块（暂时移除未实现功能）
   Widget _buildAppSettingsSection(bool isDark) {
     return Column(
       children: [
-        // 深色模式（暂未实现）
+        // 🔧 当前没有已实现的应用设置功能
+        // 未来可以在这里添加：深色模式、通知设置、语言选择等
         _buildSettingItem(
-          icon: Icons.dark_mode,
-          iconColor: Colors.indigo,
-          title: '深色模式',
-          subtitle: '即将推出',
-          isDark: isDark,
-          trailing: Switch(
-            value: false,
-            onChanged: null, // 暂时禁用
-          ),
-        ),
-        
-        const SizedBox(height: AppSpacing.sm),
-        
-        // 通知设置
-        _buildSettingItem(
-          icon: Icons.notifications,
-          iconColor: Colors.blue,
-          title: '烹饪提醒',
-          subtitle: '定时提醒功能开发中',
+          icon: Icons.settings,
+          iconColor: Colors.grey,
+          title: '应用设置',
+          subtitle: '更多设置功能正在开发中...',
           isDark: isDark,
           onTap: null,
         ),
@@ -322,24 +284,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         // 版本信息
         _buildSettingItem(
           icon: Icons.info,
-          iconColor: Colors.grey,
-          title: '版本信息',
-          subtitle: 'v1.0.0',
+          iconColor: Colors.blue,
+          title: '应用信息',
+          subtitle: '爱心食谱 v1.0.0 - 极简高级美食菜谱应用',
           isDark: isDark,
         ),
         
         const SizedBox(height: AppSpacing.sm),
         
-        // 隐私政策
+        // 技术栈信息
         _buildSettingItem(
-          icon: Icons.privacy_tip,
-          iconColor: Colors.teal,
-          title: '隐私政策',
-          subtitle: '了解我们如何保护您的数据',
+          icon: Icons.code,
+          iconColor: Colors.green,
+          title: '技术实现',
+          subtitle: 'Flutter + Firebase + Claude Code 联合开发',
           isDark: isDark,
-          onTap: () {
-            // TODO: 打开隐私政策页面
-          },
         ),
       ],
     );
@@ -902,91 +861,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
-  /// 💾 快速备份
-  Future<void> _quickBackup() async {
-    if (_isProcessing) return;
-    
-    setState(() => _isProcessing = true);
-    HapticFeedback.mediumImpact();
-    
-    try {
-      await _backupService.quickBackup(context);
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
-  
-
-  /// 🗑️ 清空数据
-  Future<void> _clearAllData() async {
-    if (_isProcessing) return;
-    
-    // 二次确认
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('⚠️ 危险操作'),
-        content: Text(
-          '确定要清空所有菜谱数据吗？\n\n此操作不可恢复！建议先导出备份。',
-          style: TextStyle(height: 1.5),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              '确定清空',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    
-    if (confirm != true) return;
-    
-    setState(() => _isProcessing = true);
-    HapticFeedback.heavyImpact();
-    
-    try {
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      final allRecipes = repository.getAllRecipes();
-      
-      for (final recipe in allRecipes) {
-        await repository.deleteRecipe(recipe.id);
-      }
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已清空所有数据'),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('清空失败：$e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
-    }
-  }
+  // 🗑️ 已删除未实现的功能：
+  // - _quickBackup(): 快速备份功能依赖未实现的DataBackupService.quickBackup
+  // - _clearAllData(): 清空数据使用错误的repository，逻辑有问题
+  // 这些功能可以在未来需要时重新设计和实现
 }
