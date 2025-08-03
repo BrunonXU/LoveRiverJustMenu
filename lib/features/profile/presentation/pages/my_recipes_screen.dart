@@ -890,10 +890,15 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
-                  child: AppIcon3D(
-                    type: _parseIconType(recipe.iconType),
-                    size: 40,
-                  ),
+                  child: recipe.isPreset && recipe.emojiIcon != null && recipe.emojiIcon!.isNotEmpty
+                      ? Text(
+                          recipe.emojiIcon!,
+                          style: const TextStyle(fontSize: 32),
+                        )
+                      : AppIcon3D(
+                          type: _parseIconType(recipe.iconType),
+                          size: 40,
+                        ),
                 ),
               ),
 
@@ -1172,10 +1177,15 @@ class _MyRecipesScreenState extends ConsumerState<MyRecipesScreen>
             // 菜谱信息
             Row(
               children: [
-                AppIcon3D(
-                  type: _parseIconType(recipe.iconType),
-                  size: 40,
-                ),
+                recipe.isPreset && recipe.emojiIcon != null && recipe.emojiIcon!.isNotEmpty
+                    ? Text(
+                        recipe.emojiIcon!,
+                        style: const TextStyle(fontSize: 32),
+                      )
+                    : AppIcon3D(
+                        type: _parseIconType(recipe.iconType),
+                        size: 40,
+                      ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(

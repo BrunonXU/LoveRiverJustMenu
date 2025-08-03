@@ -62,6 +62,7 @@ class CreatePresetRecipesScript {
             rating: 4.5 + (i % 3) * 0.15,  // 4.5-4.8分
             cookCount: 100 + i * 20,        // 100-320次
             favoriteCount: 50 + i * 10,     // 50-160次收藏
+            emojiIcon: recipeData['emojiIcon'], // 🔧 新增：emoji图标
           );
           
           final recipeId = await repository.saveRecipe(recipe, 'system');
@@ -89,6 +90,7 @@ class CreatePresetRecipesScript {
         'name': '银耳莲子羹',
         'description': '滋润养颜的经典甜品，口感清香甜美，是秋冬季节的最佳选择',
         'iconType': 'AppIcon3DType.bowl',
+        'emojiIcon': '🥣', // 3D立体碗emoji
         'totalTime': 45,
         'difficulty': '简单',
         'servings': 2,
@@ -120,6 +122,7 @@ class CreatePresetRecipesScript {
         'name': '番茄鸡蛋面',
         'description': '家常经典面条，酸甜可口，营养丰富，是最温暖的家的味道',
         'iconType': 'AppIcon3DType.spoon',
+        'emojiIcon': '🍜', // 3D立体拉面碗emoji
         'totalTime': 15,
         'difficulty': '简单',
         'servings': 1,
@@ -151,6 +154,7 @@ class CreatePresetRecipesScript {
         'name': '红烧排骨',
         'description': '色泽红亮，口感软糯，是经典的家常硬菜，老少皆宜',
         'iconType': 'AppIcon3DType.meat',
+        'emojiIcon': '🍖', // 3D立体肉块emoji
         'totalTime': 60,
         'difficulty': '中等',
         'servings': 3,
@@ -182,6 +186,7 @@ class CreatePresetRecipesScript {
         'name': '蒸蛋羹',
         'description': '嫩滑如豆腐，营养丰富，适合老人小孩的温润美食',
         'iconType': 'AppIcon3DType.egg',
+        'emojiIcon': '🥚', // 3D立体鸡蛋emoji
         'totalTime': 20,
         'difficulty': '简单',
         'servings': 2,
@@ -206,6 +211,7 @@ class CreatePresetRecipesScript {
         'name': '青椒肉丝',
         'description': '清爽下饭的经典川菜，色泽搭配完美，口感爽脆',
         'iconType': 'AppIcon3DType.pepper',
+        'emojiIcon': '🫑', // 3D立体青椒emoji
         'totalTime': 20,
         'difficulty': '简单',
         'servings': 2,
@@ -230,6 +236,7 @@ class CreatePresetRecipesScript {
         'name': '爱心早餐',
         'description': '营养丰富的浪漫早餐，用心意温暖每个清晨',
         'iconType': 'AppIcon3DType.heart',
+        'emojiIcon': '🥞', // 3D立体煎饼emoji
         'totalTime': 25,
         'difficulty': '简单',
         'servings': 2,
@@ -262,6 +269,7 @@ class CreatePresetRecipesScript {
         'name': '糖醋排骨',
         'description': '酸甜开胃的经典菜品，老少皆宜的家常美味',
         'iconType': 'AppIcon3DType.meat',
+        'emojiIcon': '🍗', // 3D立体鸡腿肉emoji
         'totalTime': 45,
         'difficulty': '中等',
         'servings': 3,
@@ -293,6 +301,7 @@ class CreatePresetRecipesScript {
         'name': '宫保鸡丁',
         'description': '川菜经典，麻辣鲜香，花生米增加口感层次',
         'iconType': 'AppIcon3DType.spoon',
+        'emojiIcon': '🌶️', // 3D立体辣椒emoji
         'totalTime': 25,
         'difficulty': '中等',
         'servings': 2,
@@ -317,6 +326,7 @@ class CreatePresetRecipesScript {
         'name': '麻婆豆腐',
         'description': '经典川菜，麻辣鲜香，豆腐嫩滑入味',
         'iconType': 'AppIcon3DType.tofu',
+        'emojiIcon': '🧈', // 3D立体豆腐块emoji
         'totalTime': 20,
         'difficulty': '简单',
         'servings': 2,
@@ -341,6 +351,7 @@ class CreatePresetRecipesScript {
         'name': '清蒸鲈鱼',
         'description': '清淡鲜美的粤菜经典，保持鱼肉原汁原味',
         'iconType': 'AppIcon3DType.fish',
+        'emojiIcon': '🐟', // 3D立体鱼emoji
         'totalTime': 25,
         'difficulty': '中等',
         'servings': 3,
@@ -365,6 +376,7 @@ class CreatePresetRecipesScript {
         'name': '蚂蚁上树',
         'description': '四川传统名菜，粉条爽滑，肉末香浓',
         'iconType': 'AppIcon3DType.noodle',
+        'emojiIcon': '🍝', // 3D立体意面emoji
         'totalTime': 20,
         'difficulty': '简单',
         'servings': 2,
@@ -389,6 +401,7 @@ class CreatePresetRecipesScript {
         'name': '西红柿牛腩',
         'description': '酸甜开胃的炖菜，牛腩软烂，汤汁浓郁',
         'iconType': 'AppIcon3DType.pot',
+        'emojiIcon': '🍅', // 3D立体番茄emoji
         'totalTime': 90,
         'difficulty': '中等',
         'servings': 4,

@@ -828,8 +828,30 @@ class _RecipeDetailScreenV2State extends ConsumerState<RecipeDetailScreenV2>
     );
   }
   
-  /// 📷 构建封面图片 - 300px高度，支持Base64图片
+  /// 📷 构建封面图片 - 300px高度，支持Base64图片和emoji
   Widget _buildCoverImage() {
+    // 🔧 新增：如果是预设菜谱且有emoji图标，显示emoji
+    if (_recipe!.isPreset && _recipe!.emojiIcon != null && _recipe!.emojiIcon!.isNotEmpty) {
+      return Container(
+        height: _coverImageHeight,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryGradient.colors[0].withOpacity(0.1),
+              AppColors.primaryGradient.colors[1].withOpacity(0.05),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            _recipe!.emojiIcon!,
+            style: const TextStyle(fontSize: 120),
+          ),
+        ),
+      );
+    }
+    
     // 优先使用Base64数据，对于旧数据保留imagePath兼容性
     final imageBase64 = _recipe!.imageBase64;
     final imagePath = _recipe!.imagePath;

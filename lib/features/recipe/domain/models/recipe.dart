@@ -74,6 +74,9 @@ class Recipe extends HiveObject {
   @HiveField(22)
   int favoriteCount; // 🔧 新增：收藏数量
 
+  @HiveField(23)
+  String? emojiIcon; // 🔧 新增：emoji图标（用于预设菜谱）
+
   Recipe({
     required this.id,
     required this.name,
@@ -98,6 +101,7 @@ class Recipe extends HiveObject {
     this.sourceType = 'user',
     this.isPreset = false,
     this.favoriteCount = 0,
+    this.emojiIcon, // 🔧 新增：emoji图标
   });
 
   /// 从JSON创建Recipe对象
@@ -128,6 +132,7 @@ class Recipe extends HiveObject {
       sourceType: json['sourceType'] ?? 'user',
       isPreset: json['isPreset'] ?? false,
       favoriteCount: json['favoriteCount'] ?? 0,
+      emojiIcon: json['emojiIcon'], // 🔧 新增：emoji图标
     );
   }
 
@@ -157,6 +162,7 @@ class Recipe extends HiveObject {
       'sourceType': sourceType,
       'isPreset': isPreset,
       'favoriteCount': favoriteCount,
+      'emojiIcon': emojiIcon, // 🔧 新增：emoji图标
     };
   }
 
@@ -185,6 +191,7 @@ class Recipe extends HiveObject {
     String? sourceType,
     bool? isPreset,
     int? favoriteCount,
+    String? emojiIcon,
   }) {
     return Recipe(
       id: id ?? this.id,
@@ -210,6 +217,7 @@ class Recipe extends HiveObject {
       sourceType: sourceType ?? this.sourceType,
       isPreset: isPreset ?? this.isPreset,
       favoriteCount: favoriteCount ?? this.favoriteCount,
+      emojiIcon: emojiIcon ?? this.emojiIcon, // 🔧 新增：emoji图标
     );
   }
 }

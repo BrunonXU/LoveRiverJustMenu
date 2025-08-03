@@ -572,6 +572,7 @@ class RecipeRepository {
       'sourceType': recipe.sourceType,
       'isShared': recipe.isShared,
       'originalRecipeId': recipe.originalRecipeId,
+      'emojiIcon': recipe.emojiIcon, // 🔧 新增：emoji图标
     };
   }
 
@@ -617,6 +618,7 @@ class RecipeRepository {
       sourceType: data['sourceType'] as String? ?? 'user',
       isPreset: data['isPreset'] as bool? ?? false,
       favoriteCount: data['favoriteCount'] as int? ?? 0,
+      emojiIcon: data['emojiIcon'] as String?, // 🔧 新增：从Firestore读取emoji图标
     );
   }
 }

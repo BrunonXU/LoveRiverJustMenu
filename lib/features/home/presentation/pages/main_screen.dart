@@ -562,25 +562,63 @@ class _MainScreenState extends ConsumerState<MainScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 3D扁平图标 - 100x100px (适配更窄卡片)
-              AppIcon3D(
-                type: recipe['iconType'],
-                size: 150,
-                isAnimated: true,
-                onTap: () {
-                  // 🔧 修复：点击图标进入对应菜谱详情
-                  final currentRecipe = _getCurrentRecipe();
-                  final recipeId = currentRecipe['id'];
-                  
-                  // 如果没有真实菜谱，引导用户导入菜谱
-                  if (recipeId == 'empty' || _allRecipes.isEmpty) {
-                    _showImportRecipeDialog();
-                    return;
-                  }
-                  
-                  _navigateToRecipeDetail(recipeId);
-                },
-              ),
+              // 🔧 新增：预设菜谱显示emoji，用户菜谱显示3D图标
+              if (recipe['isPreset'] == true && recipe['emojiIcon'] != null)
+                // 预设菜谱显示3D emoji
+                GestureDetector(
+                  onTap: () {
+                    // 🔧 修复：点击图标进入对应菜谱详情
+                    final currentRecipe = _getCurrentRecipe();
+                    final recipeId = currentRecipe['id'];
+                    
+                    // 如果没有真实菜谱，引导用户导入菜谱
+                    if (recipeId == 'empty' || _allRecipes.isEmpty) {
+                      _showImportRecipeDialog();
+                      return;
+                    }
+                    
+                    _navigateToRecipeDetail(recipeId);
+                  },
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primaryGradient.colors[0].withOpacity(0.1),
+                          AppColors.primaryGradient.colors[1].withOpacity(0.05),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Center(
+                      child: Text(
+                        recipe['emojiIcon'],
+                        style: const TextStyle(fontSize: 80),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                // 用户菜谱显示3D图标
+                AppIcon3D(
+                  type: recipe['iconType'],
+                  size: 150,
+                  isAnimated: true,
+                  onTap: () {
+                    // 🔧 修复：点击图标进入对应菜谱详情
+                    final currentRecipe = _getCurrentRecipe();
+                    final recipeId = currentRecipe['id'];
+                    
+                    // 如果没有真实菜谱，引导用户导入菜谱
+                    if (recipeId == 'empty' || _allRecipes.isEmpty) {
+                      _showImportRecipeDialog();
+                      return;
+                    }
+                    
+                    _navigateToRecipeDetail(recipeId);
+                  },
+                ),
               
               Space.h32,
               
@@ -890,6 +928,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
         'time': recipe.totalTime,
         'iconType': iconType,
         'id': recipe.id,
+        'emojiIcon': recipe.emojiIcon, // 🔧 新增：传递emoji图标
+        'isPreset': recipe.isPreset,   // 🔧 新增：标记是否为预设菜谱
       };
     }
     
