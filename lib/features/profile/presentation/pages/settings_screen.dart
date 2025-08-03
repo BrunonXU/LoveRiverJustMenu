@@ -207,6 +207,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
+        // 🔧 新增：清空并重新导入预设菜谱
+        _buildSettingItem(
+          icon: Icons.refresh,
+          iconColor: Colors.orange,
+          title: '清空并重新导入预设菜谱',
+          subtitle: '删除所有旧预设菜谱，重新导入带emoji的新版本',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _clearAndReimportPresets(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
+        
         // 🔧 临时功能：创建公共预设菜谱（一次性执行）
         _buildSettingItem(
           icon: Icons.restaurant_menu,
@@ -638,6 +650,102 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     } catch (e) {
       debugPrint('❌ 创建公共预设菜谱失败: $e');
       _showErrorMessage('创建失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
+  /// 🔄 清空并重新导入预设菜谱
+  Future<void> _clearAndReimportPresets() async {
+    if (_isProcessing) return;
+    
+    // 获取当前用户
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) {
+      _showErrorMessage('请先登录');
+      return;
+    }
+    
+    // 确认操作
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('🔄 重新导入预设菜谱'),
+        content: const Text(
+          '这将删除所有现有的预设菜谱，然后重新导入带有emoji图标的新版本。\n\n'
+          '• 你的自创菜谱不会受影响\n'
+          '• 预设菜谱将获得emoji图标\n'
+          '• 烹饪步骤将显示对应emoji\n\n'
+          '是否继续？',
+          style: TextStyle(height: 1.5),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text(
+              '开始重新导入',
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm != true) return;
+    
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      // 获取云端仓库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 🗑️ 第一步：删除所有现有的预设菜谱
+      debugPrint('🗑️ 开始删除现有预设菜谱...');
+      
+      // 获取所有预设菜谱
+      final presetRecipes = await repository.getPresetRecipes();
+      int deletedCount = 0;
+      
+      for (final recipe in presetRecipes) {
+        try {
+          await repository.deleteRecipe(recipe.id);
+          debugPrint('🗑️ 已删除预设菜谱: ${recipe.name}');
+          deletedCount++;
+        } catch (e) {
+          debugPrint('❌ 删除预设菜谱失败: ${recipe.name} - $e');
+        }
+      }
+      
+      debugPrint('✅ 已删除 $deletedCount 个预设菜谱');
+      
+      // 🔄 第二步：重新导入带emoji的预设菜谱
+      debugPrint('🔄 开始重新导入预设菜谱...');
+      
+      // 使用公共预设菜谱创建脚本重新创建
+      final successCount = await CreatePresetRecipesScript.createPresetRecipes();
+      
+      if (successCount > 0) {
+        _showSuccessMessage(
+          '✅ 重新导入完成！\n\n'
+          '• 已删除 $deletedCount 个旧预设菜谱\n'
+          '• 已创建 $successCount 个新预设菜谱\n'
+          '• 新菜谱包含emoji图标和步骤emoji'
+        );
+      } else {
+        _showErrorMessage('重新导入失败，请检查网络连接后重试');
+      }
+      
+    } catch (e) {
+      debugPrint('❌ 清空并重新导入预设菜谱失败: $e');
+      _showErrorMessage('操作失败：$e');
     } finally {
       setState(() => _isProcessing = false);
     }

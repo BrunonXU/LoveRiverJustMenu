@@ -376,6 +376,7 @@ class JsonRecipeImporter {
         duration: step['duration'] as int? ?? 0,
         tips: step['tips'] as String?,
         imageBase64: step['imageBase64'] as String?,
+        emojiIcon: step['emojiIcon'] as String?, // 🔧 新增：步骤emoji图标
         ingredients: List<String>.from(step['ingredients'] as List? ?? []),
       );
     }).toList();

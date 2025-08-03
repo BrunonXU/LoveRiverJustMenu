@@ -246,6 +246,9 @@ class RecipeStep extends HiveObject {
   @HiveField(5)
   List<String> ingredients; // 🔧 新增：此步骤需要的食材
 
+  @HiveField(7)
+  String? emojiIcon; // 🔧 新增：步骤emoji图标
+
   RecipeStep({
     required this.title,
     required this.description,
@@ -254,6 +257,7 @@ class RecipeStep extends HiveObject {
     this.imagePath,
     this.imageBase64, // 📷 Base64图片数据
     this.ingredients = const [],
+    this.emojiIcon, // 🔧 新增：步骤emoji图标
   });
 
   /// 从JSON创建RecipeStep对象
@@ -266,6 +270,7 @@ class RecipeStep extends HiveObject {
       imagePath: json['imagePath'],
       imageBase64: json['imageBase64'], // 📷 Base64图片数据
       ingredients: List<String>.from(json['ingredients'] ?? []),
+      emojiIcon: json['emojiIcon'], // 🔧 新增：步骤emoji图标
     );
   }
 
@@ -279,6 +284,7 @@ class RecipeStep extends HiveObject {
       'imagePath': imagePath,
       'imageBase64': imageBase64, // 📷 Base64图片数据
       'ingredients': ingredients,
+      'emojiIcon': emojiIcon, // 🔧 新增：步骤emoji图标
     };
   }
 
@@ -291,6 +297,7 @@ class RecipeStep extends HiveObject {
     String? imagePath,
     String? imageBase64, // 📷 Base64图片数据
     List<String>? ingredients,
+    String? emojiIcon, // 🔧 新增：步骤emoji图标
   }) {
     return RecipeStep(
       title: title ?? this.title,
@@ -300,6 +307,7 @@ class RecipeStep extends HiveObject {
       imagePath: imagePath ?? this.imagePath,
       imageBase64: imageBase64 ?? this.imageBase64, // 📷 Base64图片数据
       ingredients: ingredients ?? this.ingredients,
+      emojiIcon: emojiIcon ?? this.emojiIcon, // 🔧 新增：步骤emoji图标
     );
   }
 }
