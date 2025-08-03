@@ -16,6 +16,7 @@ import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/utils/clean_duplicate_presets_script.dart';
 import '../../../../core/utils/reset_presets_script.dart';
 import '../../../../core/utils/add_step_emojis_script.dart';
+import '../../../../core/utils/setup_root_preset_recipes_script.dart';
 
 /// 设置中心页面 - 包含数据备份恢复功能
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -209,11 +210,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         
         const SizedBox(height: AppSpacing.sm),
         
-        // 🔄 新增：一键重置预设菜谱（彻底解决）
+        // 🏗️ 新增：Root架构重置（推荐方案）
+        _buildSettingItem(
+          icon: Icons.architecture,
+          iconColor: Colors.blue,
+          title: '🏗️ Root架构重置预设菜谱',
+          subtitle: '正确的架构：Root用户统一管理，所有用户共享查看',
+          isDark: isDark,
+          onTap: _isProcessing ? null : () => _setupRootPresetRecipes(),
+        ),
+        
+        const SizedBox(height: AppSpacing.sm),
+        
+        // 🔄 旧方案：一键重置预设菜谱（临时方案）
         _buildSettingItem(
           icon: Icons.refresh,
           iconColor: Colors.red,
-          title: '🚨 一键重置预设菜谱',
+          title: '🚨 一键重置预设菜谱（旧方案）',
           subtitle: '彻底删除所有预设菜谱，重新创建干净的12个标准版本',
           isDark: isDark,
           onTap: _isProcessing ? null : () => _resetAllPresets(),
@@ -518,6 +531,100 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
   
+  /// 🏗️ Root架构重置预设菜谱（正确的解决方案）
+  Future<void> _setupRootPresetRecipes() async {
+    if (_isProcessing) return;
+    
+    setState(() => _isProcessing = true);
+    HapticFeedback.mediumImpact();
+    
+    try {
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      
+      // 显示架构说明并确认
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('🏗️ Root架构重置预设菜谱'),
+          content: const Text(
+            '正确的预设菜谱架构设计：\\n\\n'
+            '🔧 架构原理：\\n'
+            '• Root用户(2352...@qq.com)统一管理所有预设菜谱\\n'
+            '• 预设菜谱标记为：isPreset=true, isPublic=true\\n'
+            '• 所有用户通过查询共享这些菜谱\\n'
+            '• 用户可以收藏，但不复制数据\\n\\n'
+            '🎯 解决问题：\\n'
+            '• 消除数据源混乱（本地JSON vs 云端数据）\\n'
+            '• 确保所有用户看到相同的预设菜谱\\n'
+            '• 简化数据同步和更新流程\\n'
+            '• 提供统一的管理入口\\n\\n'
+            '⚠️ 此操作将：\\n'
+            '• 删除所有现有的错误预设菜谱\\n'
+            '• 创建12个标准Root预设菜谱\\n'
+            '• 每个菜谱包含完整的步骤emoji\\n\\n'
+            '✨ 执行后，所有用户将看到统一的预设菜谱！',
+            style: TextStyle(height: 1.4),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                '确认重置',
+                style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      );
+      
+      if (confirmed != true) return;
+      
+      // 执行Root架构重置
+      final result = await SetupRootPresetRecipesScript.resetRootPresetRecipes(repository);
+      
+      if (result['final_status'] == 'success') {
+        _showSuccessMessage(
+          '🎉 Root架构重置成功！\\n\\n'
+          '📊 执行结果：\\n'
+          '• 清理旧预设：${result['cleanup_deleted']} 个\\n'
+          '• 创建Root预设：${result['created_count']} 个\\n'
+          '• 清理错误：${result['cleanup_errors']} 个\\n'
+          '• 创建错误：${result['create_errors']} 个\\n\\n'
+          '✅ 现在所有用户都将看到Root用户管理的\\n'
+          '统一标准预设菜谱！\\n\\n'
+          '🔧 每个预设菜谱都有完整的emoji图标，\\n'
+          '烹饪模式现在应该正常显示了！'
+        );
+      } else if (result['final_status'] == 'partial_success') {
+        _showErrorMessage(
+          '⚠️ Root架构重置部分成功\\n\\n'
+          '清理：${result['cleanup_deleted']} 个\\n'
+          '创建：${result['created_count']} 个\\n'
+          '总错误：${(result['cleanup_errors'] ?? 0) + (result['create_errors'] ?? 0)} 个\\n\\n'
+          '请检查控制台日志了解详情'
+        );
+      } else {
+        _showErrorMessage(
+          '❌ Root架构重置失败\\n\\n'
+          '${result.containsKey('error') ? result['error'] : '未知错误'}'
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('❌ Root架构重置失败: $e');
+      _showErrorMessage('架构重置失败：$e');
+    } finally {
+      setState(() => _isProcessing = false);
+    }
+  }
+
   /// 🔄 一键重置预设菜谱（彻底解决方案）
   Future<void> _resetAllPresets() async {
     if (_isProcessing) return;
