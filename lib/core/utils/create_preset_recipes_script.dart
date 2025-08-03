@@ -8,6 +8,7 @@
 import 'package:flutter/foundation.dart';
 import '../firestore/repositories/recipe_repository.dart';
 import '../../features/recipe/domain/models/recipe.dart';
+import 'emoji_allocator.dart';
 
 class CreatePresetRecipesScript {
   
@@ -40,13 +41,26 @@ class CreatePresetRecipesScript {
             totalTime: recipeData['totalTime'],
             difficulty: recipeData['difficulty'],
             servings: recipeData['servings'],
-            steps: (recipeData['steps'] as List).map((stepData) => RecipeStep(
-              title: stepData['title'],
-              description: stepData['description'],
-              duration: stepData['duration'],
-              tips: stepData['tips'],
-              ingredients: List<String>.from(stepData['ingredients']),
-            )).toList(),
+            steps: (recipeData['steps'] as List).asMap().entries.map((entry) {
+              final index = entry.key;
+              final stepData = entry.value;
+              
+              // 🎨 自动为每个步骤分配emoji
+              final stepEmoji = EmojiAllocator.allocateStepEmoji(
+                stepData['title'],
+                stepData['description'],
+                index,
+              );
+              
+              return RecipeStep(
+                title: stepData['title'],
+                description: stepData['description'],
+                duration: stepData['duration'],
+                tips: stepData['tips'],
+                emojiIcon: stepEmoji, // 🎨 添加步骤emoji
+                ingredients: List<String>.from(stepData['ingredients']),
+              );
+            }).toList(),
             
             // 🔧 关键字段：标记为公共预设菜谱
             createdBy: 'system',           // 系统创建
