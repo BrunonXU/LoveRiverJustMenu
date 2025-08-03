@@ -162,6 +162,15 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
         _calculateTotalTime();
       });
       
+      // 🔍 调试信息：检查步骤数量
+      debugPrint('🔍 烹饪模式加载完成: 菜谱"${recipe.name}"');
+      debugPrint('🔍 原始步骤数量: ${recipe.steps.length}');
+      debugPrint('🔍 转换后步骤数量: ${cookingSteps.length}');
+      debugPrint('🔍 _steps变量长度: ${_steps.length}');
+      for (int i = 0; i < _steps.length; i++) {
+        debugPrint('🔍 步骤$i: "${_steps[i].title}" emoji="${_steps[i].emojiIcon}"');
+      }
+      
     } catch (e) {
       debugPrint('❌ 加载菜谱数据失败: $e');
       setState(() {
@@ -363,6 +372,11 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
         ? _steps[_currentStep] 
         : _steps.last;
     
+    // 🔍 调试信息：输出当前步骤的emoji状态
+    debugPrint('🔍 当前步骤emoji调试: ${currentStepData.title}');
+    debugPrint('🔍 步骤emoji值: "${currentStepData.emojiIcon}"');
+    debugPrint('🔍 是否为空: ${currentStepData.emojiIcon == null || currentStepData.emojiIcon!.isEmpty}');
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -440,9 +454,29 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
             children: [
               // 🎨 始终显示emoji区域（智能分配确保每个步骤都有emoji）
               Expanded(
-                child: _buildStepEmoji(
-                  currentStepData.emojiIcon ?? '👨‍🍳', // 回退到默认emoji
-                  isDark,
+                child: Builder(
+                  builder: (context) {
+                    // 🔧 临时强制测试：直接显示一个固定emoji
+                    String emoji = currentStepData.emojiIcon;
+                    
+                    // 如果步骤没有emoji，智能分配一个
+                    if (emoji == null || emoji.isEmpty) {
+                      emoji = EmojiAllocator.allocateStepEmoji(
+                        currentStepData.title,
+                        currentStepData.description,
+                        _currentStep,
+                      );
+                      debugPrint('🎨 实时分配emoji: "${currentStepData.title}" -> "$emoji"');
+                    }
+                    
+                    // 最终回退
+                    if (emoji.isEmpty) {
+                      emoji = '👨‍🍳';
+                    }
+                    
+                    debugPrint('🎨 最终显示emoji: "$emoji"');
+                    return _buildStepEmoji(emoji, isDark);
+                  },
                 ),
               ),
               Space.h24,
@@ -458,6 +492,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
   
   /// 🎨 构建步骤emoji图标展示区
   Widget _buildStepEmoji(String emoji, bool isDark) {
+    debugPrint('🎨 _buildStepEmoji调用: emoji="$emoji", 长度=${emoji.length}');
     return BreathingWidget(
       child: Container(
         width: double.infinity,
