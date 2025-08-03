@@ -125,22 +125,42 @@ class _MainScreenState extends ConsumerState<MainScreen>
       
       debugPrint('🔍 开始查询用户菜谱: ${currentUser.uid}');
       
-      // 🔧 从云端数据库加载用户菜谱数据
+      // 🔧 从云端数据库加载所有可用菜谱数据
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
       debugPrint('✅ 获取Repository成功');
       
-      final userRecipes = await repository.getUserRecipes(currentUser.uid);
-      debugPrint('📊 查询结果: 找到 ${userRecipes.length} 个菜谱');
+      // 🔧 同时加载用户菜谱和公共预设菜谱
+      final Future<List<Recipe>> userRecipesFuture = repository.getUserRecipes(currentUser.uid);
+      final Future<List<Recipe>> presetRecipesFuture = repository.getPresetRecipes();
+      
+      final results = await Future.wait([userRecipesFuture, presetRecipesFuture]);
+      final userRecipes = results[0];
+      final presetRecipes = results[1];
+      
+      debugPrint('📊 用户菜谱: ${userRecipes.length} 个');
+      debugPrint('📊 预设菜谱: ${presetRecipes.length} 个');
+      
+      // 🔧 合并所有菜谱（用户菜谱 + 预设菜谱）
+      final List<Recipe> allAvailableRecipes = [];
+      
+      // 添加预设菜谱（显示在前面，因为这些是精选菜谱）
+      allAvailableRecipes.addAll(presetRecipes);
+      
+      // 添加用户自己创建的菜谱
+      allAvailableRecipes.addAll(userRecipes);
+      
+      debugPrint('📊 总计可用菜谱: ${allAvailableRecipes.length} 个');
       
       // 打印菜谱详情便于调试
-      for (int i = 0; i < userRecipes.length; i++) {
-        final recipe = userRecipes[i];
-        debugPrint('📖 菜谱$i: ${recipe.name} (ID: ${recipe.id}, 创建者: ${recipe.createdBy})');
+      for (int i = 0; i < allAvailableRecipes.length; i++) {
+        final recipe = allAvailableRecipes[i];
+        final type = recipe.isPreset ? '预设' : '用户';
+        debugPrint('📖 菜谱$i: ${recipe.name} (类型: $type, ID: ${recipe.id})');
       }
       
       if (mounted) {
         setState(() {
-          _allRecipes = userRecipes;
+          _allRecipes = allAvailableRecipes;
           _isLoading = false;
         });
         debugPrint('✅ 首页数据加载完成: ${_allRecipes.length} 个菜谱');
