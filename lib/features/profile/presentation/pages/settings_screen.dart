@@ -10,10 +10,10 @@ import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../recipe/data/repositories/recipe_repository.dart';
 import '../../../recipe/domain/services/data_backup_service.dart';
-import '../../../../core/utils/json_recipe_importer.dart';
+// import '../../../../core/utils/json_recipe_importer.dart'; // 已删除
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
-import '../../../../core/utils/clean_orphaned_favorites_script.dart';
+import '../../../../core/utils/placeholder_utils.dart';
 import '../../../../core/services/favorites_service.dart';
 import '../../../../core/auth/providers/auth_providers.dart' as auth;
 

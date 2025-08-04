@@ -67,6 +67,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   /// 错误消息
   String? _errorMessage;
   
+  /// 是否可以登录（表单验证通过）
+  bool get _canLogin => _emailController.text.trim().isNotEmpty && 
+                       _passwordController.text.isNotEmpty &&
+                       !_isProcessing;
+  
   /// 主动画控制器
   late AnimationController _mainController;
   
@@ -84,6 +89,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.initState();
     _initializeAnimations();
     _startAnimations();
+    
+    // 监听文本输入变化，更新按钮状态
+    _emailController.addListener(_updateButtonState);
+    _passwordController.addListener(_updateButtonState);
   }
 
   @override
@@ -137,6 +146,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (mounted) {
         _mainController.forward();
       }
+    });
+  }
+
+  /// 🔄 更新按钮状态
+  void _updateButtonState() {
+    setState(() {
+      // 触发重建以更新按钮状态
     });
   }
 
@@ -782,9 +798,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               // 登录按钮
               GradientButton(
                 text: _isProcessing ? '登录中...' : '登录',
-                onPressed: () => _handleEmailLoginFromDialog(),
+                onPressed: _canLogin ? () => _handleEmailLoginFromDialog() : () {},
                 isLoading: _isProcessing,
-                isEnabled: !_isProcessing,
+                isEnabled: _canLogin,
               ),
               
               const SizedBox(height: 16),

@@ -85,14 +85,16 @@ class _GradientButtonState extends State<GradientButton>
               height: 56,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                gradient: widget.isPrimary
+                gradient: widget.isPrimary && widget.isEnabled
                     ? const LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [Color(0xFF5B6FED), Color(0xFF8B9BF3)],
                       )
                     : null,
-                color: widget.isPrimary ? null : const Color(0xFFF7F7F7),
+                color: widget.isPrimary 
+                    ? (widget.isEnabled ? null : const Color(0xFFCCCCCC))
+                    : const Color(0xFFF7F7F7),
                 border: widget.isPrimary
                     ? null
                     : Border.all(color: const Color(0xFFF7F7F7), width: 2),
@@ -164,7 +166,7 @@ class _GradientButtonState extends State<GradientButton>
                                   fontSize: 18,
                                   fontWeight: FontWeight.w500,
                                   color: widget.isPrimary
-                                      ? Colors.white
+                                      ? (widget.isEnabled ? Colors.white : const Color(0xFF888888))
                                       : Colors.black,
                                 ),
                               ),

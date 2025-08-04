@@ -34,7 +34,10 @@
       "Bash(dart:*)",
       "WebFetch(domain:localhost)",
       "Bash(ls:*)",
-      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\test_emoji_fix.dart\")"
+      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\test_emoji_fix.dart\")",
+      "Bash(mv:*)",
+      "Bash(pkill:*)",
+      "Bash(del nul)"
     ],
     "deny": []
   }

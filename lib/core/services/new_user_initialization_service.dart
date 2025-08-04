@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/json_recipe_importer.dart';
+import '../utils/placeholder_utils.dart';
 import '../firestore/repositories/recipe_repository.dart';
-import '../utils/create_preset_recipes_script.dart';
 
 /// 🚀 新用户初始化服务
 /// 

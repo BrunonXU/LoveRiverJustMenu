@@ -13,7 +13,7 @@ import '../../../recipe/domain/models/recipe.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/services/providers/favorites_providers.dart';
-import '../../../../core/utils/json_recipe_importer.dart';
+import '../../../../core/utils/placeholder_utils.dart';
 
 /// 我的菜谱页面
 /// 显示预设菜谱、用户创建的菜谱和收藏的菜谱

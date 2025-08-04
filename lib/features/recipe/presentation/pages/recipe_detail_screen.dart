@@ -2,23 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
-import '../../../../shared/widgets/breathing_widget.dart';
-import '../../../../shared/widgets/minimal_card.dart';
-import '../../../../shared/widgets/app_icon_3d.dart';
-import '../../../cooking_mode/presentation/pages/cooking_mode_screen.dart';
+import '../../../../shared/pages/image_gallery_screen.dart';
+import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../domain/models/recipe.dart';
-import '../../data/repositories/recipe_repository.dart';
-import '../../../../core/services/providers/favorites_providers.dart';
-import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/services/providers/favorites_providers.dart';
 
-/// 食谱详情页面
-/// 支持修改步骤、时长记录、每步骤图片上传
+/// 🎨 极简菜谱详情页面 - 垂直滚动设计 V2.1
+/// 所有步骤在同一页面展示，通过垂直滚动浏览
+/// UI规格：
+/// - 封面图片：300px 高度
+/// - 步骤图片：200px 高度
+/// - 间距系统：使用 8 的倍数
 class RecipeDetailScreen extends ConsumerStatefulWidget {
   final String recipeId;
   
@@ -28,535 +29,430 @@ class RecipeDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
 }
 
-class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
+class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen> 
     with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-  
-  bool _isEditing = false;
-  int _currentStepIndex = 0;
-  
-  // 🔧 修复：使用新的Recipe模型
   Recipe? _recipe;
+  late ScrollController _scrollController; // 改用 ScrollController 实现垂直滚动
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  bool _isLoading = true;
+  String? _errorMessage;
+  
+  // UI 尺寸常量定义
+  static const double _coverImageHeight = 300.0; // 封面图片高度
+  static const double _stepImageHeight = 200.0;  // 步骤图片高度
+  static const double _pageHorizontalPadding = 24.0; // 页面水平内边距
+  static const double _sectionSpacing = 32.0; // 区块间距
+  static const double _itemSpacing = 16.0; // 项目间距
   
   @override
   void initState() {
     super.initState();
-    _initializeAnimation();
-    _loadRecipeData();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-  
-  void _initializeAnimation() {
-    _controller = AnimationController(
+    _scrollController = ScrollController(); // 初始化滚动控制器
+    _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    
     _fadeAnimation = CurvedAnimation(
-      parent: _controller,
+      parent: _fadeController,
       curve: Curves.easeInOut,
     );
-    
-    _controller.forward();
+    _fadeController.forward();
+    _loadRecipeData();
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.dispose(); // 释放滚动控制器
+    _fadeController.dispose();
+    super.dispose();
   }
   
   void _loadRecipeData() async {
+    debugPrint('🔍 开始从云端加载菜谱数据，ID: ${widget.recipeId}');
+    
     try {
-      // 🔧 修复：使用异步初始化的Repository避免LateInitializationError
-      final repository = await ref.read(initializedRecipeRepositoryProvider.future);
-      final recipe = repository.getRecipe(widget.recipeId);
+      // 🚀 使用云端Firestore数据库
+      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      debugPrint('✅ 云端RecipeRepository 获取成功');
       
-      if (recipe != null) {
+      // 异步获取云端数据
+      final recipe = await repository.getRecipe(widget.recipeId);
+      debugPrint('🔍 云端查找菜谱结果: ${recipe != null ? '找到 - ${recipe.name}' : '未找到'}');
+      
+      if (mounted) {
         setState(() {
-          _recipe = recipe;
-        });
-      } else {
-        // 如果找不到菜谱，显示错误或使用示例数据
-        setState(() {
-          _recipe = _getFallbackRecipeData(widget.recipeId);
+          if (recipe != null) {
+            _recipe = recipe;
+          } else {
+            // 菜谱不存在，显示错误
+            _errorMessage = '菜谱不存在或已被删除';
+          }
+          _isLoading = false;
         });
       }
     } catch (e) {
-      print('❌ 加载菜谱数据失败: $e');
-      // 出错时使用示例数据
-      setState(() {
-        _recipe = _getFallbackRecipeData(widget.recipeId);
-      });
+      debugPrint('❌ 从云端加载菜谱数据失败: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = '加载失败: $e';
+        });
+      }
     }
   }
   
-  // 解析图标类型字符串为枚举
-  AppIcon3DType _parseIconType(String? iconType) {
-    if (iconType == null) return AppIcon3DType.heart;
-    
-    try {
-      return AppIcon3DType.values.firstWhere(
-        (type) => type.toString() == iconType,
-        orElse: () => AppIcon3DType.heart,
-      );
-    } catch (e) {
-      return AppIcon3DType.heart;
-    }
-  }
   
-  Recipe _getFallbackRecipeData(String recipeId) {
-    final recipes = {
-      'recipe_1': RecipeData(
-        id: 'recipe_1',
-        name: '银耳莲子羹',
-        description: '滋补养颜，润燥清热的经典甜品',
-        iconType: AppIcon3DType.bowl,
-        totalTime: 45,
-        difficulty: '简单',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '准备食材',
-            description: '银耳15g，莲子20g，红枣6颗，冰糖适量',
-            duration: 5,
-            tips: '银耳要提前泡发，去除黄根部分',
+  /// 显示错误状态
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 64,
+            color: Colors.grey[400],
           ),
-          RecipeStep(
-            title: '银耳处理',
-            description: '将泡发的银耳撕成小朵，莲子去芯',
-            duration: 10,
-            tips: '银耳撕得越小，煮出来越粘稠',
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? '加载失败',
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+            textAlign: TextAlign.center,
           ),
-          RecipeStep(
-            title: '开始炖煮',
-            description: '锅中加水，放入银耳大火煮开转小火',
-            duration: 20,
-            tips: '水要一次性加够，中途不要加水',
-          ),
-          RecipeStep(
-            title: '加入配料',
-            description: '加入莲子和红枣继续炖煮',
-            duration: 15,
-            tips: '莲子不要过早放入，容易煮烂',
-          ),
-          RecipeStep(
-            title: '调味完成',
-            description: '最后加入冰糖调味即可',
-            duration: 2,
-            tips: '冰糖的用量根据个人喜好调整',
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => context.pop(),
+            child: const Text('返回'),
           ),
         ],
       ),
-      'recipe_2': RecipeData(
-        id: 'recipe_2',
-        name: '番茄鸡蛋面',
-        description: '家常美味，营养丰富的经典面条',
-        iconType: AppIcon3DType.spoon,
-        totalTime: 15,
-        difficulty: '简单',
-        servings: 1,
-        steps: [
-          RecipeStep(
-            title: '准备食材',
-            description: '面条100g，鸡蛋2个，番茄2个，葱花适量',
-            duration: 3,
-            tips: '番茄要选择熟透的，口感更好',
-          ),
-          RecipeStep(
-            title: '处理番茄',
-            description: '番茄切块，先炒出汁水',
-            duration: 5,
-            tips: '番茄皮可以先用开水烫一下再去皮',
-          ),
-          RecipeStep(
-            title: '炒制鸡蛋',
-            description: '鸡蛋打散炒熟盛起备用',
-            duration: 2,
-            tips: '鸡蛋要炒得嫩一些，口感更好',
-          ),
-          RecipeStep(
-            title: '下面条',
-            description: '水开后下面条煮至8分熟',
-            duration: 3,
-            tips: '面条不要煮得太软，有嚼劲更好',
-          ),
-          RecipeStep(
-            title: '汇合调味',
-            description: '将面条、鸡蛋、番茄汇合调味',
-            duration: 2,
-            tips: '最后撒上葱花提味',
-          ),
-        ],
-      ),
-      // 🔥 添加红烧排骨数据 - 修复用户问题
-      'recipe_3': RecipeData(
-        id: 'recipe_3',
-        name: '红烧排骨',
-        description: '软糯香甜，肥而不腻的经典家常菜',
-        iconType: AppIcon3DType.chef,
-        totalTime: 45,
-        difficulty: '中等',
-        servings: 3,
-        steps: [
-          RecipeStep(
-            title: '准备食材',
-            description: '排骨500g，生抽、老抽、料酒、冰糖适量',
-            duration: 5,
-            tips: '排骨要选择带点肥肉的，口感更好',
-          ),
-          RecipeStep(
-            title: '焯水处理',
-            description: '排骨冷水下锅焯水去血沫',
-            duration: 8,
-            tips: '焯水时加几片姜去腥效果更好',
-          ),
-          RecipeStep(
-            title: '炒糖色',
-            description: '热锅下冰糖炒出焦糖色',
-            duration: 5,
-            tips: '小火慢炒，糖色不要炒过头变苦',
-          ),
-          RecipeStep(
-            title: '下排骨炒色',
-            description: '下排骨翻炒至每面都裹上糖色',
-            duration: 5,
-            tips: '炒匀后排骨会呈现诱人的红亮色泽',
-          ),
-          RecipeStep(
-            title: '加调料炖煮',
-            description: '加生抽老抽料酒和水，大火煮开转小火',
-            duration: 25,
-            tips: '水量要没过排骨，最后大火收汁',
-          ),
-        ],
-      ),
-      'recipe_4': RecipeData(
-        id: 'recipe_4',
-        name: '蒸蛋羹',
-        description: '嫩滑如豆腐的营养蒸蛋',
-        iconType: AppIcon3DType.timer,
-        totalTime: 10,
-        difficulty: '简单',
-        servings: 1,
-        steps: [
-          RecipeStep(
-            title: '打蛋液',
-            description: '鸡蛋2个打散，加温水搅匀',
-            duration: 3,
-            tips: '蛋液和水的比例1:1.5最嫩滑',
-          ),
-          RecipeStep(
-            title: '过筛去泡',
-            description: '蛋液过筛去除泡沫',
-            duration: 2,
-            tips: '也可以用勺子撇去表面泡沫',
-          ),
-          RecipeStep(
-            title: '蒸制',
-            description: '盖保鲜膜扎孔，水开后蒸8分钟',
-            duration: 8,
-            tips: '中火蒸制，避免蜂窝状',
-          ),
-        ],
-      ),
-      'recipe_5': RecipeData(
-        id: 'recipe_5',
-        name: '青椒肉丝',
-        description: '色彩搭配完美的经典炒菜',
-        iconType: AppIcon3DType.recipe,
-        totalTime: 25,
-        difficulty: '中等',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '切丝备料',
-            description: '肉丝切细，青椒切丝',
-            duration: 8,
-            tips: '肉丝要顺着纹理切，更嫩',
-          ),
-          RecipeStep(
-            title: '肉丝腌制',
-            description: '肉丝加生抽、淀粉腌制',
-            duration: 10,
-            tips: '腌制时间不要太长',
-          ),
-          RecipeStep(
-            title: '炒制',
-            description: '先炒肉丝至变色，再下青椒丝',
-            duration: 7,
-            tips: '大火快炒保持青椒脆嫩',
-          ),
-        ],
-      ),
-      'recipe_6': RecipeData(
-        id: 'recipe_6',
-        name: '爱心早餐',
-        description: '营养搭配的温馨早餐',
-        iconType: AppIcon3DType.heart,
-        totalTime: 30,
-        difficulty: '简单',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '准备食材',
-            description: '面包、鸡蛋、牛奶、水果',
-            duration: 5,
-            tips: '选择新鲜食材，营养更丰富',
-          ),
-          RecipeStep(
-            title: '制作煎蛋',
-            description: '热锅煎制爱心形状的鸡蛋',
-            duration: 8,
-            tips: '用心形模具更容易成型',
-          ),
-          RecipeStep(
-            title: '搭配摆盘',
-            description: '面包、煎蛋、水果艺术摆盘',
-            duration: 12,
-            tips: '用心摆盘，爱意满满',
-          ),
-          RecipeStep(
-            title: '温牛奶',
-            description: '加热牛奶至适温',
-            duration: 5,
-            tips: '温度刚好，暖胃暖心',
-          ),
-        ],
-      ),
-      'recipe_7': RecipeData(
-        id: 'recipe_7',
-        name: '宫保鸡丁',
-        description: '酸甜微辣的经典川菜',
-        iconType: AppIcon3DType.chef,
-        totalTime: 20,
-        difficulty: '中等',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '鸡肉切丁',
-            description: '鸡胸肉切丁，用料酒腌制',
-            duration: 8,
-            tips: '鸡丁大小要均匀',
-          ),
-          RecipeStep(
-            title: '炸花生米',
-            description: '花生米过油炸酥脆',
-            duration: 5,
-            tips: '小火慢炸，避免糊掉',
-          ),
-          RecipeStep(
-            title: '炒制调味',
-            description: '下鸡丁炒熟，加调料炒匀',
-            duration: 7,
-            tips: '最后撒花生米增加口感',
-          ),
-        ],
-      ),
-      'recipe_8': RecipeData(
-        id: 'recipe_8',
-        name: '麻婆豆腐',
-        description: '麻辣鲜香的经典川菜',
-        iconType: AppIcon3DType.bowl,
-        totalTime: 15,
-        difficulty: '中等',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '豆腐处理',
-            description: '嫩豆腐切块，用盐水浸泡',
-            duration: 5,
-            tips: '盐水浸泡可以去豆腥味',
-          ),
-          RecipeStep(
-            title: '炒制肉末',
-            description: '热锅炒肉末至变色',
-            duration: 3,
-            tips: '用猪肉末味道更香',
-          ),
-          RecipeStep(
-            title: '下豆腐调味',
-            description: '加豆瓣酱和豆腐块翻炒',
-            duration: 7,
-            tips: '轻柔翻炒，避免豆腐碎',
-          ),
-        ],
-      ),
-      'recipe_9': RecipeData(
-        id: 'recipe_9',
-        name: '糖醋里脊',
-        description: '酸甜可口的经典菜品',
-        iconType: AppIcon3DType.recipe,
-        totalTime: 35,
-        difficulty: '中等',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '里脊处理',
-            description: '里脊肉切条，用蛋液淀粉裹匀',
-            duration: 10,
-            tips: '裹粉要均匀，炸出来更酥脆',
-          ),
-          RecipeStep(
-            title: '油炸定型',
-            description: '热油炸至金黄酥脆',
-            duration: 15,
-            tips: '二次复炸口感更好',
-          ),
-          RecipeStep(
-            title: '调糖醋汁',
-            description: '糖醋汁炒至粘稠，裹里脊',
-            duration: 10,
-            tips: '糖醋比例2:1最佳',
-          ),
-        ],
-      ),
-      'recipe_10': RecipeData(
-        id: 'recipe_10',
-        name: '酸菜鱼',
-        description: '麻辣鲜香的经典川菜',
-        iconType: AppIcon3DType.spoon,
-        totalTime: 40,
-        difficulty: '困难',
-        servings: 3,
-        steps: [
-          RecipeStep(
-            title: '鱼片处理',
-            description: '草鱼切片，用蛋清淀粉腌制',
-            duration: 15,
-            tips: '鱼片要薄厚均匀',
-          ),
-          RecipeStep(
-            title: '炒酸菜底',
-            description: '炒酸菜出香味，加水煮开',
-            duration: 10,
-            tips: '酸菜要先挤干水分',
-          ),
-          RecipeStep(
-            title: '煮鱼片',
-            description: '下鱼片煮熟，淋辣椒油',
-            duration: 15,
-            tips: '鱼片不要煮太久',
-          ),
-        ],
-      ),
-      'recipe_11': RecipeData(
-        id: 'recipe_11',
-        name: '口水鸡',
-        description: '麻辣爽口的经典凉菜',
-        iconType: AppIcon3DType.chef,
-        totalTime: 25,
-        difficulty: '中等',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '煮鸡肉',
-            description: '整鸡煮熟晾凉，撕成丝',
-            duration: 20,
-            tips: '煮鸡时加姜片去腥',
-          ),
-          RecipeStep(
-            title: '调制蘸料',
-            description: '生抽、香醋、辣椒油调匀',
-            duration: 3,
-            tips: '蘸料要提前调好入味',
-          ),
-          RecipeStep(
-            title: '拌制装盘',
-            description: '鸡丝淋蘸料，撒花生碎',
-            duration: 2,
-            tips: '最后撒香菜增加香味',
-          ),
-        ],
-      ),
-      'recipe_12': RecipeData(
-        id: 'recipe_12',
-        name: '蛋花汤',
-        description: '清淡鲜美的家常汤品',
-        iconType: AppIcon3DType.bowl,
-        totalTime: 5,
-        difficulty: '简单',
-        servings: 2,
-        steps: [
-          RecipeStep(
-            title: '烧开水',
-            description: '锅中加水烧开，调味',
-            duration: 3,
-            tips: '可以加点鸡精提鲜',
-          ),
-          RecipeStep(
-            title: '淋蛋液',
-            description: '蛋液打散，慢慢淋入开水中',
-            duration: 1,
-            tips: '边淋边搅拌形成蛋花',
-          ),
-          RecipeStep(
-            title: '出锅',
-            description: '撒葱花即可出锅',
-            duration: 1,
-            tips: '不要煮太久保持鲜嫩',
-          ),
-        ],
-      ),
-    };
-    
-    // 转换旧数据结构为新Recipe模型
-    final fallbackData = recipes[recipeId] ?? recipes['recipe_1']!;
-    return Recipe(
-      id: fallbackData.id,
-      name: fallbackData.name,
-      description: fallbackData.description,
-      iconType: fallbackData.iconType.toString(),
-      totalTime: fallbackData.totalTime,
-      difficulty: fallbackData.difficulty,
-      servings: fallbackData.servings,
-      steps: fallbackData.steps.map((step) => RecipeStep(
-        title: step.title,
-        description: step.description,
-        duration: step.duration,
-        tips: step.tips,
-        imagePath: null,
-        ingredients: [],
-      )).toList(),
-      createdBy: 'system',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
     );
   }
-
+  
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.getTimeBasedGradient(),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                // 顶部导航栏
-                _buildAppBar(isDark),
-                
-                // 主要内容
-                Expanded(
-                  child: _buildMainContent(isDark),
+    // 🔄 正在加载状态
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 简单的顶部导航
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        context.pop();
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          size: 20,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          '加载中...',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 40),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              
+              // 加载指示器
+              const Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Color(0xFF5B6FED),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        '正在加载菜谱详情...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      );
+    }
+    
+    // ❌ 错误状态
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 简单的顶部导航
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        context.pop();
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back,
+                          size: 20,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          '出错了',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 40),
+                  ],
+                ),
+              ),
+              
+              // 错误信息
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '菜谱加载失败',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () {
+                          // 重新加载
+                          setState(() {
+                            _isLoading = true;
+                            _errorMessage = null;
+                          });
+                          _loadRecipeData();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5B6FED),
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('重新加载'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
+    // ✅ 成功加载，显示菜谱内容
+    if (_recipe == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('数据异常'),
+        ),
+      );
+    }
+    
+    return Scaffold(
+      backgroundColor: Colors.white,
+      floatingActionButton: _buildCookingModeButton(), // 🍳 开始烹饪浮动按钮
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // 🎨 顶部导航栏 + 封面图片（使用 SliverAppBar 实现沉浸式效果）
+          SliverAppBar(
+            pinned: true, // 固定在顶部
+            expandedHeight: _coverImageHeight + 56, // 封面图片高度 + 导航栏高度
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  context.pop();
+                },
+                icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
+              ),
+            ),
+            // ✏️ 添加编辑按钮和收藏按钮
+            actions: [
+              // 🌟 收藏按钮
+              _buildFavoriteButton(),
+              const SizedBox(width: 8),
+              // ✏️ 编辑按钮
+              Container(
+                margin: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    _navigateToEditRecipe();
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
+                  tooltip: '编辑菜谱',
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 封面图片
+                  _buildCoverImage(),
+                  // 渐变遮罩，确保顶部文字可读
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // 🎨 主要内容区域
+          SliverToBoxAdapter(
+            child: AnimatedBuilder(
+              animation: _fadeAnimation,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.all(_pageHorizontalPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 📝 菜谱基本信息区域
+                        _buildRecipeHeader(),
+                        
+                        const SizedBox(height: _sectionSpacing),
+                        
+                        // 📊 菜谱元数据（时间、难度、份量）
+                        _buildRecipeMetadata(),
+                        
+                        const SizedBox(height: _sectionSpacing),
+                        
+                        // 📋 所有步骤列表（垂直展示）
+                        _buildAllSteps(),
+                        
+                        // 底部安全区域
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
   
-  Widget _buildAppBar(bool isDark) {
-    return Padding(
-      padding: AppSpacing.pagePadding,
+  // 注意：以下方法已被新的垂直滚动设计取代，保留供参考
+  
+  /// 🎨 极简顶部导航栏 (已废弃)
+  Widget _buildMinimalAppBar() {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // 返回按钮
           GestureDetector(
@@ -565,67 +461,47 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
               context.pop();
             },
             child: Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: AppColors.getBackgroundColor(isDark).withOpacity(0.9),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.getShadowColor(isDark),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(
-                Icons.arrow_back_ios_new,
-                color: AppColors.getTextPrimaryColor(isDark),
+              child: const Icon(
+                Icons.arrow_back,
                 size: 20,
+                color: Colors.black87,
               ),
             ),
           ),
           
-          const Spacer(),
-          
           // 标题
           Text(
-            _recipe?.name ?? '加载中...',
-            style: AppTypography.titleLargeStyle(isDark: isDark),
+            _recipe!.name,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
           ),
           
-          const Spacer(),
-          
-          // 编辑按钮
+          // 菜单按钮
           GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
-              setState(() {
-                _isEditing = !_isEditing;
-              });
+              // TODO: 显示更多选项
             },
             child: Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: _isEditing 
-                    ? AppColors.primary 
-                    : AppColors.getBackgroundColor(isDark).withOpacity(0.9),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.getShadowColor(isDark),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(
-                _isEditing ? Icons.check : Icons.edit,
-                color: _isEditing 
-                    ? Colors.white 
-                    : AppColors.getTextPrimaryColor(isDark),
+              child: const Icon(
+                Icons.more_horiz,
                 size: 20,
+                color: Colors.black87,
               ),
             ),
           ),
@@ -634,1183 +510,808 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
     );
   }
   
-  Widget _buildMainContent(bool isDark) {
-    return Expanded(
-      child: Padding(
-        padding: AppSpacing.pagePadding,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🔧 修复溢出：左侧菜品介绍区域（占40%宽度）- 移除固定高度
-            Expanded(
-              flex: 4,
-              child: Column(
-                children: [
-                  // 食谱信息卡片 - 使用Flexible替代固定高度
-                  Flexible(
-                    flex: 3,
-                    child: _buildRecipeInfo(isDark),
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 底部操作栏 - 固定在底部
-                  _buildBottomActions(isDark),
-                ],
-              ),
-            ),
-            
-            Space.w16, // 左右间距
-            
-            // 🔧 修复溢出：右侧步骤区域（占60%宽度）- 移除固定高度
-            Expanded(
-              flex: 6,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 步骤标题
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Text(
-                      '制作步骤',
-                      style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-                        fontWeight: AppTypography.medium,
-                      ),
-                    ),
-                  ),
-                  
-                  // 可滚动步骤列表 - 使用Expanded确保占满剩余空间
-                  Expanded(
-                    child: _buildScrollableSteps(isDark),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildRecipeInfo(bool isDark) {
-    return BreathingWidget(
-      child: MinimalCard(
-        child: Column(
-          children: [
-            // 🔧 修复溢出：使用Expanded包装ScrollView确保不溢出
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Space.h16, // 顶部留白
-                    
-                    // 🔧 压缩图标大小以节省空间
-                    AppIcon3D(
-                      type: _parseIconType(_recipe?.iconType),
-                      size: 50, // 进一步减少到50
-                      isAnimated: true,
-                    ),
-                    
-                    Space.h12,
-                    
-                    // 食谱名称
-                    Text(
-                      _recipe?.name ?? '加载中...',
-                      style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-                        fontWeight: AppTypography.medium,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    Space.h16,
-                    
-                    // 食谱信息 - 🔧 使用更紧凑的布局
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildCompactInfoItem(
-                          icon: Icons.access_time,
-                          label: '${_recipe?.totalTime ?? 0}分钟',
-                          isDark: isDark,
-                        ),
-                        _buildCompactInfoItem(
-                          icon: Icons.signal_cellular_alt,
-                          label: _recipe?.difficulty ?? '未知',
-                          isDark: isDark,
-                        ),
-                        _buildCompactInfoItem(
-                          icon: Icons.people,
-                          label: '${_recipe?.servings ?? 1}人份',
-                          isDark: isDark,
-                        ),
-                      ],
-                    ),
-                    
-                    Space.h16,
-                    
-                    // 描述 - 🔧 限制行数以控制高度
-                    Text(
-                      _recipe?.description ?? '暂无描述',
-                      style: AppTypography.bodySmallStyle(isDark: isDark),
-                      textAlign: TextAlign.center,
-                      maxLines: 3, // 增加到3行以适应内容
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    Space.h16, // 底部留白
-                  ],
+  /// 🎨 单个步骤页面 - 极简设计
+  Widget _buildStepPage(RecipeStep step, int stepNumber) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          const Spacer(flex: 1),
+          
+          // 🎨 步骤过程标题（可选）
+          if (true) // 在垂直滚动设计中总是显示过程标题
+            Container(
+              margin: const EdgeInsets.only(bottom: 32),
+              child: Text(
+                '${_recipe!.name}过程',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
-          ],
+          
+          // 🎨 步骤图形展示区域
+          Container(
+            height: 280,
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 48),
+            child: Stack(
+              children: [
+                // 极简图形背景
+                Center(
+                  child: Container(
+                    width: 240,
+                    height: 240,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F8F8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: _buildStepVisual(step, stepNumber),
+                  ),
+                ),
+                
+                // 步骤编号
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: Colors.black87,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        stepNumber.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // 🎨 步骤标题
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              step.title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+          // 🎨 步骤描述
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: Text(
+              step.description,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                height: 1.6,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+          // 🎨 时间和技巧标签
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 时间标签
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${step.duration}分钟',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              if (step.tips?.isNotEmpty == true) ...[
+                const SizedBox(width: 12),
+                // 技巧标签
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4E6),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.lightbulb_outline,
+                        size: 16,
+                        color: Color(0xFFFF9800),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '技巧',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.orange[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          
+          const Spacer(flex: 2),
+          
+          // 🎨 贴士详情（如果有）
+          if (step.tips?.isNotEmpty == true)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 32),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F8F8),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.lightbulb_outline,
+                        size: 18,
+                        color: Color(0xFFFF9800),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '小贴士',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.orange[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    step.tips!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[700],
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🎨 步骤可视化展示（极简图形）
+  Widget _buildStepVisual(RecipeStep step, int stepNumber) {
+    // 如果有图片，显示图片（支持点击打开画廊）
+    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
+      // 收集所有步骤的图片路径
+      final allStepImages = _recipe!.steps
+          .where((s) => s.imagePath != null && s.imagePath!.isNotEmpty)
+          .map((s) => s.imagePath!)
+          .toList();
+      
+      return GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          // 打开图片画廊
+          ImageGalleryScreen.show(
+            context,
+            imagePaths: allStepImages,
+            initialIndex: allStepImages.indexOf(step.imagePath!),
+            heroTag: 'step_image_${stepNumber}',
+          );
+        },
+        child: Hero(
+          tag: 'step_image_${stepNumber}',
+          child: ClipOval(
+            child: step.imagePath!.startsWith('http')
+                ? Image.network(
+                    step.imagePath!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return _buildDefaultVisual(step.title);
+                    },
+                  )
+                : kIsWeb
+                    ? Image.asset(
+                        step.imagePath!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildDefaultVisual(step.title);
+                        },
+                      )
+                    : Image.asset(
+                        step.imagePath!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _buildDefaultVisual(step.title);
+                        },
+                      ),
+          ),
+        ),
+      );
+    }
+    
+    // 否则显示默认图形
+    return _buildDefaultVisual(step.title);
+  }
+  
+  /// 🎨 默认的极简图形展示
+  Widget _buildDefaultVisual(String title) {
+    IconData iconData = Icons.restaurant;
+    
+    // 根据标题关键词选择图标
+    if (title.contains('准备') || title.contains('食材')) {
+      iconData = Icons.kitchen;
+    } else if (title.contains('切') || title.contains('处理')) {
+      iconData = Icons.content_cut;
+    } else if (title.contains('煮') || title.contains('炖') || title.contains('烧')) {
+      iconData = Icons.local_fire_department;
+    } else if (title.contains('炒') || title.contains('煎')) {
+      iconData = Icons.whatshot;
+    } else if (title.contains('蒸')) {
+      iconData = Icons.water_drop;
+    } else if (title.contains('调味') || title.contains('完成')) {
+      iconData = Icons.done_all;
+    }
+    
+    return Icon(
+      iconData,
+      size: 80,
+      color: Colors.grey[400],
+    );
+  }
+  
+  /// 🎨 底部进度指示器
+  Widget _buildProgressIndicator() {
+    return Container(
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 页面指示点
+          ...List.generate(_recipe!.steps.length, (index) {
+            final isActive = true; // 在垂直滚动设计中所有步骤都是激活状态
+            return Container(
+              width: isActive ? 24 : 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: isActive ? Colors.black87 : Colors.grey[300],
+                borderRadius: BorderRadius.circular(4),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+  
+  /// 📷 构建封面图片 - 300px高度，支持Base64图片和emoji
+  Widget _buildCoverImage() {
+    // 🔧 新增：如果是预设菜谱且有emoji图标，显示emoji
+    if (_recipe!.isPreset && _recipe!.emojiIcon != null && _recipe!.emojiIcon!.isNotEmpty) {
+      return Container(
+        height: _coverImageHeight,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primaryGradient.colors[0].withOpacity(0.1),
+              AppColors.primaryGradient.colors[1].withOpacity(0.05),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            _recipe!.emojiIcon!,
+            style: const TextStyle(fontSize: 120),
+          ),
+        ),
+      );
+    }
+    
+    // 优先使用Base64数据，对于旧数据保留imagePath兼容性
+    final imageBase64 = _recipe!.imageBase64;
+    final imagePath = _recipe!.imagePath;
+    
+    // 如果有Base64数据，优先使用
+    if (imageBase64 != null && imageBase64.isNotEmpty) {
+      return Base64ImageWidget(
+        base64Data: imageBase64,
+        width: double.infinity,
+        height: _coverImageHeight,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.zero,
+        errorWidget: _buildDefaultCoverImage(),
+      );
+    }
+    
+    // 兼容旧数据：如果有imagePath，使用传统方式显示
+    if (imagePath != null && imagePath.isNotEmpty) {
+      return imagePath.startsWith('http')
+          ? Image.network(
+              imagePath,
+              height: _coverImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultCoverImage();
+              },
+            )
+          : Image.asset(
+              imagePath,
+              height: _coverImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultCoverImage();
+              },
+            );
+    }
+    
+    return _buildDefaultCoverImage();
+  }
+  
+  /// 🎨 默认封面图片
+  Widget _buildDefaultCoverImage() {
+    return Container(
+      height: _coverImageHeight,
+      width: double.infinity,
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.restaurant_menu,
+          size: 80,
+          color: Colors.grey[400],
         ),
       ),
     );
   }
   
-  // 🔧 新增紧凑信息项方法，节省空间
-  Widget _buildCompactInfoItem({
-    required IconData icon,
-    required String label,
-    required bool isDark,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+  /// 🎨 构建菜谱头部信息
+  Widget _buildRecipeHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 16, // 更小的图标
-          color: AppColors.getTextSecondaryColor(isDark),
+        // 菜谱名称 - 大标题
+        Text(
+          _recipe!.name,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
         ),
         
-        Space.w4,
+        const SizedBox(height: 8),
         
-        Text(
-          label,
-          style: AppTypography.captionStyle(isDark: isDark).copyWith(
-            fontWeight: AppTypography.medium,
+        // 分隔线
+        Container(
+          height: 1,
+          width: 60,
+          color: Colors.grey[300],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // 菜谱描述
+        if (_recipe!.description.isNotEmpty)
+          Text(
+            _recipe!.description,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              height: 1.5,
+            ),
           ),
+      ],
+    );
+  }
+  
+  /// 🎨 构建菜谱元数据（时间、难度、份量）
+  Widget _buildRecipeMetadata() {
+    return Row(
+      children: [
+        // 制作时间
+        _buildMetadataItem(
+          icon: Icons.access_time,
+          label: '${_recipe!.totalTime}分钟',
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 难度
+        _buildMetadataItem(
+          icon: Icons.signal_cellular_alt,
+          label: _recipe!.difficulty,
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 份量
+        _buildMetadataItem(
+          icon: Icons.people_outline,
+          label: '${_recipe!.servings}人份',
         ),
       ],
     );
   }
-
-  Widget _buildInfoItem({
+  
+  /// 🎨 单个元数据项
+  Widget _buildMetadataItem({
     required IconData icon,
     required String label,
-    required String value,
-    required bool isDark,
   }) {
-    return Column(
+    return Row(
       children: [
         Icon(
           icon,
           size: 20,
-          color: AppColors.getTextSecondaryColor(isDark),
+          color: Colors.grey[600],
         ),
-        
-        Space.h4,
-        
+        const SizedBox(width: 6),
         Text(
           label,
-          style: AppTypography.captionStyle(isDark: isDark),
-        ),
-        
-        Space.h2,
-        
-        Text(
-          value,
-          style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
-            fontWeight: AppTypography.medium,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
           ),
         ),
       ],
     );
   }
   
-  Widget _buildStepsList(bool isDark) {
-    return ListView.builder(
-      itemCount: _recipe?.steps.length ?? 0,
-      itemBuilder: (context, index) {
-        final step = _recipe!.steps[index];
-        final isActive = index == _currentStepIndex;
-        
-        return Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.md),
-          child: _buildStepCard(step, index + 1, isActive, isDark),
-        );
-      },
-    );
-  }
-  
-  /// 🔧 新增：右侧可滚动步骤列表
-  Widget _buildScrollableSteps(bool isDark) {
-    if (_recipe == null || _recipe!.steps.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.receipt_long,
-              size: 48,
-              color: AppColors.getTextSecondaryColor(isDark),
-            ),
-            Space.h12,
-            Text(
-              '暂无制作步骤',
-              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-    
-    return BreathingWidget(
-      child: MinimalCard(
-        padding: EdgeInsets.all(AppSpacing.md),
-        child: ListView.builder(
-          physics: const BouncingScrollPhysics(),
-          itemCount: _recipe!.steps.length,
-          itemBuilder: (context, index) {
-            final step = _recipe!.steps[index];
-            final isActive = index == _currentStepIndex;
-            
-            return Padding(
-              padding: EdgeInsets.only(bottom: AppSpacing.md),
-              child: _buildCompactStepCard(step, index + 1, isActive, isDark),
-            );
-          },
-        ),
-      ),
-    );
-  }
-  
-  /// 🔧 新增：紧凑的步骤卡片（用于右侧滚动区域）
-  Widget _buildCompactStepCard(RecipeStep step, int stepNumber, bool isActive, bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() {
-          _currentStepIndex = stepNumber - 1;
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isActive 
-            ? AppColors.primary.withOpacity(0.1)
-            : AppColors.getBackgroundSecondaryColor(isDark),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-          border: isActive 
-            ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 1)
-            : null,
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 步骤编号
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  gradient: isActive ? AppColors.primaryGradient : null,
-                  color: isActive ? null : AppColors.getTextSecondaryColor(isDark),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Center(
-                  child: Text(
-                    stepNumber.toString(),
-                    style: AppTypography.captionStyle(isDark: false).copyWith(
-                      color: Colors.white,
-                      fontWeight: AppTypography.medium,
-                    ),
-                  ),
-                ),
-              ),
-              
-              Space.w12,
-              
-              // 步骤内容
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 步骤标题
-                    if (step.title.isNotEmpty) ...[
-                      Text(
-                        step.title,
-                        style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                          fontWeight: AppTypography.medium,
-                          color: isActive 
-                            ? AppColors.primary 
-                            : AppColors.getTextPrimaryColor(isDark),
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Space.h4,
-                    ],
-                    
-                    // 步骤描述
-                    Text(
-                      step.description,
-                      style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
-                        color: AppColors.getTextSecondaryColor(isDark),
-                        height: 1.4,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    
-                    Space.h8,
-                    
-                    // 步骤信息行
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.timer,
-                          size: 14,
-                          color: AppColors.getTextSecondaryColor(isDark),
-                        ),
-                        Space.w4,
-                        Text(
-                          '${step.duration}分钟',
-                          style: AppTypography.captionStyle(isDark: isDark).copyWith(
-                            color: AppColors.getTextSecondaryColor(isDark),
-                          ),
-                        ),
-                        
-                        if (step.tips?.isNotEmpty == true) ...[
-                          Space.w16,
-                          Icon(
-                            Icons.lightbulb_outline,
-                            size: 14,
-                            color: Color(0xFFFFE66D),
-                          ),
-                          Space.w4,
-                          Text(
-                            '有小贴士',
-                            style: AppTypography.captionStyle(isDark: isDark).copyWith(
-                              color: Color(0xFFFFE66D),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
+  /// 🎨 构建所有步骤列表 - 垂直展示
+  Widget _buildAllSteps() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 步骤标题
+        const Text(
+          '制作步骤',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStepCard(RecipeStep step, int stepNumber, bool isActive, bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        setState(() {
-          _currentStepIndex = stepNumber - 1;
-        });
-      },
-      child: MinimalCard(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 步骤标题行
-            Row(
-              children: [
-                // 步骤编号
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: isActive 
-                        ? AppColors.primary 
-                        : AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                  ),
-                  child: Center(
-                    child: Text(
-                      stepNumber.toString(),
-                      style: AppTypography.bodySmallStyle(isDark: false).copyWith(
-                        color: isActive ? Colors.white : AppColors.getTextSecondaryColor(isDark),
-                        fontWeight: AppTypography.medium,
-                      ),
-                    ),
-                  ),
-                ),
-                
-                Space.w12,
-                
-                // 步骤标题
-                Expanded(
-                  child: Text(
-                    step.title,
-                    style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-                      fontWeight: isActive ? AppTypography.medium : AppTypography.light,
-                    ),
-                  ),
-                ),
-                
-                // 时长
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.getTimeBasedAccent().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                  ),
-                  child: Text(
-                    '${step.duration}分钟',
-                    style: AppTypography.captionStyle(isDark: isDark),
-                  ),
-                ),
-                
-                // 编辑模式下的操作按钮
-                if (_isEditing) ...[
-                  Space.w8,
-                  _buildStepAction(Icons.camera_alt, () => _addStepImage(stepNumber - 1), isDark),
-                  Space.w4,
-                  _buildStepAction(Icons.edit, () => _editStep(stepNumber - 1), isDark),
-                ],
-              ],
-            ),
-            
-            Space.h12,
-            
-            // 步骤描述
-            Text(
-              step.description,
-              style: AppTypography.bodyMediumStyle(isDark: isDark),
-            ),
-            
-            if (step.tips?.isNotEmpty == true) ...[
-              Space.h8,
-              
-              // 小贴士
-              Container(
-                padding: EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: AppColors.getTimeBasedAccent().withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      size: 16,
-                      color: AppColors.getTimeBasedAccent(),
-                    ),
-                    
-                    Space.w8,
-                    
-                    Expanded(
-                      child: Text(
-                        step.tips ?? '',
-                        style: AppTypography.captionStyle(isDark: isDark).copyWith(
-                          color: AppColors.getTimeBasedAccent(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            
-            // 步骤图片
-            if (step.imagePath != null) ...[
-              Space.h12,
-              _buildStepImage(step.imagePath!, isDark),
-            ],
-          ],
-        ),
-      ),
+        
+        const SizedBox(height: 20),
+        
+        // 步骤列表
+        ...List.generate(_recipe!.steps.length, (index) {
+          final step = _recipe!.steps[index];
+          final stepNumber = index + 1;
+          
+          return Container(
+            margin: const EdgeInsets.only(bottom: 32),
+            child: _buildStepItem(step, stepNumber),
+          );
+        }),
+      ],
     );
   }
   
-  Widget _buildStepAction(IconData icon, VoidCallback onTap, bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        onTap();
-      },
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-        ),
-        child: Icon(
-          icon,
-          size: 16,
-          color: AppColors.getTextSecondaryColor(isDark),
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildStepImage(String imagePath, bool isDark) {
-    return Container(
-      height: 120,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-        image: DecorationImage(
-          image: FileImage(File(imagePath)),
-          fit: BoxFit.cover,
-          onError: (exception, stackTrace) {
-            // 图片加载失败时的处理
-          },
-        ),
-      ),
-      child: imagePath.isEmpty 
-        ? Center(
-            child: Icon(
-              Icons.image_outlined,
-              size: 48,
-              color: AppColors.getTextSecondaryColor(isDark),
-            ),
-          )
-        : null,
-    );
-  }
-  
-  Widget _buildBottomActions(bool isDark) {
-    return Row(
+  /// 🎨 单个步骤项 - 垂直布局设计
+  Widget _buildStepItem(RecipeStep step, int stepNumber) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 开始烹饪按钮
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              _startCooking();
-            },
-            child: Container(
-              height: 56,
+        // 步骤标题行
+        Row(
+          children: [
+            // 步骤编号
+            Container(
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: const Color(0xFF5B6FED),
+                shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(
-                  '开始烹饪',
-                  style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                  '$stepNumber',
+                  style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: AppTypography.medium,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-          ),
-        ),
-        
-        Space.w16,
-        
-        // 收藏按钮
-        Consumer(
-          builder: (context, ref, child) {
-            final favoriteStatus = ref.watch(recipeFavoriteStatusProvider(widget.recipeId));
             
-            return favoriteStatus.when(
-              data: (isFavorite) => GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _toggleFavorite();
-                },
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: isFavorite 
-                        ? AppColors.primary.withOpacity(0.1)
-                        : AppColors.getBackgroundColor(isDark),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                    border: isFavorite 
-                        ? Border.all(color: AppColors.primary.withOpacity(0.3), width: 2)
-                        : null,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.getShadowColor(isDark),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_outline,
-                    color: isFavorite 
-                        ? AppColors.primary
-                        : AppColors.getTextSecondaryColor(isDark),
-                    size: 24,
-                  ),
+            const SizedBox(width: 12),
+            
+            // 步骤标题
+            Expanded(
+              child: Text(
+                step.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
                 ),
               ),
-              loading: () => Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: AppColors.getBackgroundColor(isDark),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                ),
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              ),
-              error: (error, stackTrace) => GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _toggleFavorite();
-                },
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppColors.getBackgroundColor(isDark),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.getShadowColor(isDark),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.favorite_outline,
-                    color: AppColors.getTextSecondaryColor(isDark),
-                    size: 24,
-                  ),
-                ),
-              ),
-            );
-          },
+            ),
+          ],
         ),
+        
+        const SizedBox(height: 16),
+        
+        // 步骤图片 - 200px高度（支持Base64和imagePath）
+        if ((step.imageBase64 != null && step.imageBase64!.isNotEmpty) || 
+            (step.imagePath != null && step.imagePath!.isNotEmpty))
+          _buildStepImage(step, stepNumber),
+        
+        // 步骤描述
+        if (step.description.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            step.description,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.grey[700],
+              height: 1.6,
+            ),
+          ),
+        ],
       ],
     );
   }
   
-  // ==================== 交互方法 ====================
-  
-  void _addStepImage(int stepIndex) {
-    HapticFeedback.lightImpact();
+  /// 📷 构建步骤图片 - 支持Base64图片和点击查看大图
+  Widget _buildStepImage(RecipeStep step, int stepNumber) {
+    // 收集所有步骤的图片数据（优先Base64，然后路径）
+    final allStepImages = _recipe!.steps
+        .where((s) => (s.imageBase64 != null && s.imageBase64!.isNotEmpty) || 
+                     (s.imagePath != null && s.imagePath!.isNotEmpty))
+        .map((s) => s.imageBase64 ?? s.imagePath!)
+        .toList();
     
-    // TODO: 集成图片选择器
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('图片上传功能待完善'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-  
-  void _editStep(int stepIndex) {
-    HapticFeedback.lightImpact();
+    final currentImage = step.imageBase64 ?? step.imagePath!;
     
-    if (_recipe == null) return;
-    
-    final step = _recipe!.steps[stepIndex];
-    
-    // TODO: 实现步骤编辑对话框
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('步骤编辑功能待完善'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-  
-  void _startCooking() {
-    // 🔧 修复：导航到烹饪模式并传递recipeId
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => CookingModeScreen(recipeId: widget.recipeId),
-      ),
-    );
-  }
-  
-  void _toggleFavorite() async {
-    final currentUser = ref.read(currentUserProvider);
-    if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('请先登录'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    try {
-      final favoriteActions = ref.read(favoriteActionsProvider);
-      final isCurrentlyFavorite = await favoriteActions.isFavorite(widget.recipeId);
-      
-      bool success;
-      if (isCurrentlyFavorite) {
-        success = await favoriteActions.removeFavorite(widget.recipeId);
-      } else {
-        success = await favoriteActions.addFavorite(widget.recipeId);
-      }
-      
-      if (success) {
+    return GestureDetector(
+      onTap: () {
         HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isCurrentlyFavorite ? '已取消收藏' : '已添加到收藏'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: isCurrentlyFavorite ? Colors.grey : Colors.green,
+        // 打开图片画廊（如果支持Base64数据）
+        if (allStepImages.isNotEmpty) {
+          // TODO: 更新ImageGalleryScreen以支持Base64数据
+          // 目前先显示提示
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('图片放大功能开发中...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      child: Hero(
+        tag: 'step_image_v2_${stepNumber}',
+        child: Container(
+          height: _stepImageHeight,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.grey[200],
           ),
-        );
-        
-        // 刷新收藏状态
-        ref.invalidate(recipeFavoriteStatusProvider(widget.recipeId));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('操作失败，请重试'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: _buildStepImageContent(step),
           ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ 收藏操作失败: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('操作失败：$e'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red,
         ),
+      ),
+    );
+  }
+  
+  /// 📷 构建步骤图片内容（支持Base64和传统路径）
+  Widget _buildStepImageContent(RecipeStep step) {
+    // 优先使用Base64数据
+    if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
+      return Base64ImageWidget(
+        base64Data: step.imageBase64,
+        width: double.infinity,
+        height: _stepImageHeight,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.zero, // 已经在父容器中应用了圆角
+        errorWidget: _buildDefaultStepImage(),
       );
     }
-  }
-}
-
-// ==================== 数据模型 ====================
-
-class RecipeData {
-  final String id;
-  final String name;
-  final String description;
-  final AppIcon3DType iconType;
-  final int totalTime;
-  final String difficulty;
-  final int servings;
-  final List<RecipeStep> steps;
-  
-  RecipeData({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.iconType,
-    required this.totalTime,
-    required this.difficulty,
-    required this.servings,
-    required this.steps,
-  });
-}
-
-// 旧的RecipeStep类已删除，使用域模型中的Recipe和RecipeStep
-
-// TODO: 重新实现EditStepDialog使用新的RecipeStep模型
-/*
-/// 编辑步骤对话框
-class EditStepDialog extends StatefulWidget {
-  final RecipeStep step;
-  final int stepNumber;
-  final Function(RecipeStep) onSave;
-  
-  const EditStepDialog({
-    super.key,
-    required this.step,
-    required this.stepNumber,
-    required this.onSave,
-  });
-
-  @override
-  State<EditStepDialog> createState() => _EditStepDialogState();
-}
-
-class _EditStepDialogState extends State<EditStepDialog> {
-  late TextEditingController _titleController;
-  late TextEditingController _descriptionController;
-  late TextEditingController _tipsController;
-  late int _duration;
-  
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.step.title);
-    _descriptionController = TextEditingController(text: widget.step.description);
-    _tipsController = TextEditingController(text: widget.step.tips);
-    _duration = widget.step.duration;
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _tipsController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Dialog(
-      backgroundColor: Colors.transparent,
+    // 兼容旧数据：使用imagePath
+    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
+      return step.imagePath!.startsWith('http')
+          ? Image.network(
+              step.imagePath!,
+              height: _stepImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepImage();
+              },
+            )
+          : Image.asset(
+              step.imagePath!,
+              height: _stepImageHeight,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepImage();
+              },
+            );
+    }
+    
+    return _buildDefaultStepImage();
+  }
+  
+  /// 🎨 默认步骤图片
+  Widget _buildDefaultStepImage() {
+    return Container(
+      height: _stepImageHeight,
+      width: double.infinity,
+      color: Colors.grey[200],
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 60,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+  
+  /// 🎨 烹饪模式浮动按钮
+  Widget _buildCookingModeButton() {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        _navigateToCookingMode();
+      },
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
-          color: AppColors.getBackgroundColor(isDark),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF5B6FED), Color(0xFF8B9BF3)],
+          ),
+          shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppColors.getShadowColor(isDark),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: const Color(0xFF5B6FED).withOpacity(0.4),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 标题栏
-            Container(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusCircle),
-                    ),
-                    child: Center(
-                      child: Text(
-                        widget.stepNumber.toString(),
-                        style: AppTypography.bodySmallStyle(isDark: false).copyWith(
-                          color: Colors.white,
-                          fontWeight: AppTypography.medium,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  Space.w12,
-                  
-                  Expanded(
-                    child: Text(
-                      '编辑步骤',
-                      style: AppTypography.titleMediumStyle(isDark: isDark),
-                    ),
-                  ),
-                  
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: AppColors.getTextSecondaryColor(isDark),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            // 内容区域
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 步骤标题
-                  Text(
-                    '步骤标题',
-                    style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                      fontWeight: AppTypography.medium,
-                    ),
-                  ),
-                  
-                  Space.h8,
-                  
-                  _buildTextField(
-                    controller: _titleController,
-                    hintText: '输入步骤标题',
-                    isDark: isDark,
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 步骤描述
-                  Text(
-                    '步骤描述',
-                    style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                      fontWeight: AppTypography.medium,
-                    ),
-                  ),
-                  
-                  Space.h8,
-                  
-                  _buildTextField(
-                    controller: _descriptionController,
-                    hintText: '详细描述操作步骤',
-                    isDark: isDark,
-                    maxLines: 3,
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 时长设置
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '预计时长',
-                              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                                fontWeight: AppTypography.medium,
-                              ),
-                            ),
-                            
-                            Space.h8,
-                            
-                            _buildTimeSelector(isDark),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  Space.h16,
-                  
-                  // 小贴士
-                  Text(
-                    '小贴士（可选）',
-                    style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                      fontWeight: AppTypography.medium,
-                    ),
-                  ),
-                  
-                  Space.h8,
-                  
-                  _buildTextField(
-                    controller: _tipsController,
-                    hintText: '添加一些有用的小贴士',
-                    isDark: isDark,
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            
-            Space.h24,
-            
-            // 底部按钮
-            Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '取消',
-                            style: AppTypography.bodyMediumStyle(isDark: isDark),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  Space.w12,
-                  
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      onTap: _saveStep,
-                      child: Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '保存',
-                            style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
-                              color: Colors.white,
-                              fontWeight: AppTypography.medium,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        child: const Icon(
+          Icons.play_arrow,
+          color: Colors.white,
+          size: 32,
         ),
       ),
     );
   }
   
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-    required bool isDark,
-    int maxLines = 1,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.getBackgroundSecondaryColor(isDark),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        style: AppTypography.bodyMediumStyle(isDark: isDark),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-            color: AppColors.getTextSecondaryColor(isDark),
-          ),
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.all(AppSpacing.md),
-        ),
-      ),
-    );
+  /// 导航到烹饪模式
+  void _navigateToCookingMode() {
+    context.push('/cooking-mode?recipeId=${widget.recipeId}');
   }
   
-  Widget _buildTimeSelector(bool isDark) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.getBackgroundSecondaryColor(isDark),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-      ),
-      child: Row(
-        children: [
-          Space.w16,
-          
-          GestureDetector(
-            onTap: () {
-              if (_duration > 1) {
-                setState(() {
-                  _duration--;
-                });
-              }
-            },
-            child: Container(
-              width: 32,
-              height: 32,
+  /// ✏️ 导航到编辑菜谱页面
+  void _navigateToEditRecipe() {
+    context.push('/create-recipe?editId=${widget.recipeId}');
+  }
+
+  /// 🌟 构建收藏按钮
+  Widget _buildFavoriteButton() {
+    return Consumer(
+      builder: (context, ref, _) {
+        final favoriteActions = ref.watch(favoriteActionsProvider);
+        
+        return FutureBuilder<bool>(
+          future: favoriteActions.isFavorite(widget.recipeId),
+          builder: (context, snapshot) {
+            final isFavorite = snapshot.data ?? false;
+            
+            return Container(
+              margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+                color: Colors.white.withOpacity(0.9),
+                shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.remove,
-                size: 16,
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-            ),
-          ),
-          
-          Expanded(
-            child: Center(
-              child: Text(
-                '$_duration 分钟',
-                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                  fontWeight: AppTypography.medium,
+              child: IconButton(
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
+                  final success = await favoriteActions.toggleFavorite(widget.recipeId);
+                  
+                  if (success) {
+                    // 显示成功提示
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            isFavorite ? '已取消收藏' : '已添加到收藏',
+                          ),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                    // 刷新UI
+                    setState(() {});
+                  } else {
+                    // 显示错误提示
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('操作失败，请稍后重试'),
+                          duration: Duration(seconds: 1),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    key: ValueKey(isFavorite),
+                    color: isFavorite ? Colors.red : Colors.black87,
+                    size: 20,
+                  ),
                 ),
+                tooltip: isFavorite ? '取消收藏' : '添加收藏',
               ),
-            ),
-          ),
-          
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _duration++;
-              });
-            },
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-              ),
-              child: Icon(
-                Icons.add,
-                size: 16,
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-            ),
-          ),
-          
-          Space.w16,
-        ],
-      ),
+            );
+          },
+        );
+      },
     );
-  }
-  
-  void _saveStep() {
-    final updatedStep = widget.step.copyWith(
-      title: _titleController.text,
-      description: _descriptionController.text,
-      duration: _duration,
-      tips: _tipsController.text,
-    );
-    
-    // widget.onSave(updatedStep);
-    Navigator.of(context).pop();
   }
 }
-*/

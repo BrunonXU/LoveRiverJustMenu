@@ -5,10 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/home/presentation/pages/main_screen.dart';
 import '../../features/timeline/presentation/pages/timeline_screen.dart';
-import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen_v2.dart';
-import '../../features/cooking_mode/presentation/pages/cooking_mode_screen_v2.dart';
-import '../../features/recipe/presentation/pages/recipe_detail_screen_v2.dart';
-import '../../features/recipe/presentation/pages/create_recipe_screen_v2.dart';
+import '../../features/ai_recommendation/presentation/pages/ai_recommendation_screen.dart';
+import '../../features/cooking_mode/presentation/pages/cooking_mode_screen.dart';
+import '../../features/recipe/presentation/pages/recipe_detail_screen.dart';
+import '../../features/recipe/presentation/pages/create_recipe_screen.dart';
 import '../../features/search/presentation/pages/search_screen.dart';
 import '../../features/couple/presentation/pages/couple_binding_screen.dart';
 import '../../features/couple/presentation/pages/couple_profile_screen.dart';
@@ -20,8 +20,8 @@ import '../../features/timeline/domain/models/memory.dart';
 import '../../features/challenge/domain/models/challenge.dart';
 import '../../features/profile/presentation/pages/personal_center_screen.dart';
 import '../../features/profile/presentation/pages/my_recipes_screen.dart';
-import '../../features/achievement/presentation/pages/achievement_screen_optimized.dart';
-import '../../features/food_map/presentation/pages/food_map_screen_optimized.dart';
+import '../../features/achievement/presentation/pages/achievement_screen.dart';
+import '../../features/food_map/presentation/pages/food_map_screen.dart';
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
 import '../../features/intimacy/presentation/pages/intimacy_screen.dart';
@@ -205,9 +205,9 @@ class AppRouter {
       GoRoute(
         path: aiRecommendation,
         name: 'ai-recommendation',
-        builder: (context, state) => const AiRecommendationScreenV2(),
+        builder: (context, state) => const AiRecommendationScreen(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const AiRecommendationScreenV2(),
+          child: const AiRecommendationScreen(),
           state: state,
           transitionType: PageTransitionType.liquid,
         ),
@@ -219,12 +219,12 @@ class AppRouter {
         name: 'cooking-mode',
         builder: (context, state) {
           final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
-          return CookingModeScreenV2(recipeId: recipeId);
+          return CookingModeScreen(recipeId: recipeId);
         },
         pageBuilder: (context, state) {
           final recipeId = state.uri.queryParameters['recipeId'] ?? 'recipe_1';
           return _buildPageTransition(
-            child: CookingModeScreenV2(recipeId: recipeId),
+            child: CookingModeScreen(recipeId: recipeId),
             state: state,
             transitionType: PageTransitionType.slideRight,
           );
@@ -237,12 +237,12 @@ class AppRouter {
         name: 'recipe-detail',
         builder: (context, state) {
           final recipeId = state.pathParameters['id']!;
-          return RecipeDetailScreenV2(recipeId: recipeId);
+          return RecipeDetailScreen(recipeId: recipeId);
         },
         pageBuilder: (context, state) {
           final recipeId = state.pathParameters['id']!;
           return _buildPageTransition(
-            child: RecipeDetailScreenV2(recipeId: recipeId),
+            child: RecipeDetailScreen(recipeId: recipeId),
             state: state,
             transitionType: PageTransitionType.slideUp,
           );
@@ -255,12 +255,12 @@ class AppRouter {
         name: 'create-recipe',
         builder: (context, state) {
           final editId = state.uri.queryParameters['editId'];
-          return CreateRecipeScreenV2(editId: editId);
+          return CreateRecipeScreen(editId: editId);
         },
         pageBuilder: (context, state) {
           final editId = state.uri.queryParameters['editId'];
           return _buildPageTransition(
-            child: CreateRecipeScreenV2(editId: editId),
+            child: CreateRecipeScreen(editId: editId),
             state: state,
             transitionType: PageTransitionType.slideUp,
           );
@@ -331,9 +331,9 @@ class AppRouter {
       GoRoute(
         path: achievements,
         name: 'achievements',
-        builder: (context, state) => const AchievementScreenOptimized(),
+        builder: (context, state) => const AchievementScreen(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const AchievementScreenOptimized(),
+          child: const AchievementScreen(),
           state: state,
           transitionType: PageTransitionType.fade, // 🔧 简化过渡动画
         ),
@@ -343,9 +343,9 @@ class AppRouter {
       GoRoute(
         path: foodMap,
         name: 'food-map',
-        builder: (context, state) => const FoodMapScreenOptimized(),
+        builder: (context, state) => const FoodMapScreen(),
         pageBuilder: (context, state) => _buildPageTransition(
-          child: const FoodMapScreenOptimized(),
+          child: const FoodMapScreen(),
           state: state,
           transitionType: PageTransitionType.fade, // 🔧 简化过渡动画  
         ),

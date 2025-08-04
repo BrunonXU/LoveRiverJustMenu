@@ -1,1021 +1,157 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:convert';
+import 'package:go_router/go_router.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
-import '../../../../shared/widgets/breathing_widget.dart';
-import '../../domain/models/recipe.dart';
-import '../../../recipe/presentation/providers/recipe_providers.dart';
+import '../../../../shared/pages/image_gallery_screen.dart';
+import '../../../../shared/widgets/base64_image_widget.dart';
+import '../../../recipe/domain/models/recipe.dart';
+import '../../../recipe/data/repositories/recipe_repository.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
-import '../../../../core/utils/emoji_allocator.dart';
 
-/// 烹饪模式界面
-/// 横屏全屏模式，48px超大字体，环形进度条，大触摸区域设计
+/// 🎨 极简烹饪模式 - 大图指导设计
+/// 上半屏显示步骤大图，下半屏显示文字说明
 class CookingModeScreen extends ConsumerStatefulWidget {
-  final String? recipeId;
+  final String recipeId;
   
-  const CookingModeScreen({super.key, this.recipeId});
+  const CookingModeScreen({
+    super.key, 
+    required this.recipeId,
+  });
 
   @override
   ConsumerState<CookingModeScreen> createState() => _CookingModeScreenState();
 }
 
-class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
+class _CookingModeScreenState extends ConsumerState<CookingModeScreen> 
     with TickerProviderStateMixin {
-  late AnimationController _progressController;
-  late AnimationController _breathingController;
-  late Animation<double> _progressAnimation;
-  
-  int _currentStep = 0;
+  Recipe? _recipe;
+  int _currentStepIndex = 0;
+  Timer? _stepTimer;
+  int _currentStepTime = 0;
   bool _isPlaying = false;
-  bool _isPaused = false;
-  int _totalTime = 0;
-  int _currentTime = 0;
-  
-  // 🔧 修复：动态菜谱步骤，根据recipeId加载
-  List<CookingStep> _steps = [];
-  Recipe? _currentRecipe;
-  bool _isLoading = true;
-  String? _errorMessage;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
   
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
-    _setLandscapeMode();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+    _fadeController.forward();
     _loadRecipeData();
   }
   
   @override
   void dispose() {
-    _progressController.dispose();
-    _breathingController.dispose();
-    _restorePortraitMode();
+    _stepTimer?.cancel();
+    _fadeController.dispose();
     super.dispose();
   }
   
-  void _initializeAnimations() {
-    _progressController = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    );
-    
-    _progressAnimation = CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeOutCubic,
-    );
-    
-    _breathingController = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )..repeat(reverse: true);
-  }
-  
-  void _setLandscapeMode() {
-    if (!kIsWeb) {
-      // 只在移动平台设置横屏和全屏
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    }
-    // Web平台不强制横屏，让用户自行选择
-  }
-  
-  void _restorePortraitMode() {
-    if (!kIsWeb) {
-      // 只在移动平台恢复竖屏
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-      ]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    }
-  }
-  
-  void _calculateTotalTime() {
-    _totalTime = _steps.fold(0, (sum, step) => sum + step.duration);
-  }
-  
-  /// 🔧 加载真实菜谱数据
-  Future<void> _loadRecipeData() async {
-    if (widget.recipeId == null) {
-      setState(() {
-        _errorMessage = '菜谱ID为空';
-        _isLoading = false;
-      });
-      return;
-    }
-    
+  void _loadRecipeData() async {
     try {
-      // 从云端仓库加载菜谱
+      debugPrint('🔍 烹饪模式开始加载菜谱数据，ID: ${widget.recipeId}');
+      
+      // 🔧 修复：使用正确的云端Repository
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      final recipe = await repository.getRecipe(widget.recipeId!);
+      debugPrint('✅ 烹饪模式获取云端Repository成功');
       
-      if (recipe == null) {
+      // 🔧 修复：使用正确的异步方法
+      final recipe = await repository.getRecipe(widget.recipeId);
+      
+      if (recipe != null) {
+        debugPrint('✅ 烹饪模式成功加载菜谱: ${recipe.name}');
         setState(() {
-          _errorMessage = '未找到菜谱：${widget.recipeId}';
-          _isLoading = false;
+          _recipe = recipe;
+          if (_recipe!.steps.isNotEmpty) {
+            _currentStepTime = _recipe!.steps[0].duration * 60; // 转换为秒
+          }
         });
-        return;
+      } else {
+        debugPrint('❌ 烹饪模式菜谱不存在: ${widget.recipeId}');
+        setState(() {
+          _recipe = null;
+        });
       }
-      
-      // 转换 RecipeStep 为 CookingStep
-      debugPrint('🔄 开始转换步骤数据...');
-      final cookingSteps = <CookingStep>[];
-      
-      for (int index = 0; index < recipe.steps.length; index++) {
-        final step = recipe.steps[index];
-        
-        debugPrint('🔄 转换步骤$index: "${step.title}"');
-        debugPrint('  - duration: ${step.duration}分钟');
-        debugPrint('  - description: ${step.description}');
-        debugPrint('  - tips: ${step.tips}');
-        debugPrint('  - emojiIcon: ${step.emojiIcon}');
-        
-        // 🎨 智能emoji分配：如果步骤没有emoji，自动分配一个
-        String stepEmoji = step.emojiIcon ?? '';
-        if (stepEmoji.isEmpty) {
-          stepEmoji = EmojiAllocator.allocateStepEmoji(
-            step.title,
-            step.description,
-            index,
-          );
-          debugPrint('🎨 为步骤自动分配emoji: ${step.title} -> $stepEmoji');
-        }
-        
-        try {
-          final cookingStep = CookingStep(
-            title: step.title,
-            description: step.description,
-            duration: step.duration * 60, // 转换为秒
-            icon: _getStepIcon(index),
-            imagePath: _getStepImagePath(step),
-            emojiIcon: stepEmoji,
-            tips: step.tips != null && step.tips!.isNotEmpty 
-                ? [step.tips!] 
-                : [],
-          );
-          cookingSteps.add(cookingStep);
-          debugPrint('✅ 步骤转换成功');
-        } catch (e) {
-          debugPrint('❌ 步骤转换失败: $e');
-        }
-      }
-      
-      debugPrint('🔄 步骤转换完成，共${cookingSteps.length}个步骤');
-      
-      setState(() {
-        _currentRecipe = recipe;
-        _steps = cookingSteps;
-        _isLoading = false;
-        
-        // 🔍 调试信息：检查步骤数量
-        debugPrint('🔍 烹饪模式加载完成: 菜谱"${recipe.name}"');
-        debugPrint('🔍 原始步骤数量: ${recipe.steps.length}');
-        debugPrint('🔍 转换后步骤数量: ${cookingSteps.length}');
-        debugPrint('🔍 _steps变量长度: ${_steps.length}');
-        
-        if (_steps.isEmpty) {
-          debugPrint('❌ 错误：步骤数组为空！检查数据转换');
-          for (int i = 0; i < recipe.steps.length; i++) {
-            final step = recipe.steps[i];
-            debugPrint('  原始步骤$i: title="${step.title}", duration=${step.duration}');
-          }
-        } else {
-          for (int i = 0; i < _steps.length; i++) {
-            debugPrint('🔍 步骤$i: "${_steps[i].title}" emoji="${_steps[i].emojiIcon}"');
-          }
-        }
-        
-        _calculateTotalTime();
-      });
-      
     } catch (e) {
-      debugPrint('❌ 加载菜谱数据失败: $e');
+      debugPrint('❌ 烹饪模式加载菜谱数据失败: $e');
       setState(() {
-        _errorMessage = '加载菜谱失败：$e';
-        _isLoading = false;
+        _recipe = null;
       });
     }
   }
   
-  /// 🎯 根据步骤索引获取合适的图标
-  String _getStepIcon(int index) {
-    const icons = ['🥄', '🔪', '🔥', '💧', '🍳', '🥢', '✨', '🍽️'];
-    return icons[index % icons.length];
-  }
-  
-  /// 🖼️ 获取步骤图片路径
-  String? _getStepImagePath(RecipeStep step) {
-    // 优先使用 base64 图片
-    if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
-      return 'data:image/jpeg;base64,${step.imageBase64}';
+  void _togglePlayPause() {
+    setState(() {
+      _isPlaying = !_isPlaying;
+    });
+    
+    if (_isPlaying) {
+      _startTimer();
+    } else {
+      _pauseTimer();
     }
     
-    // 其次使用图片路径
-    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
-      return step.imagePath;
-    }
-    
-    return null;
+    HapticFeedback.lightImpact();
   }
   
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    // 🔍 强制调试输出界面状态
-    debugPrint('🔍 烹饪模式界面状态检查:');
-    debugPrint('  _isLoading: $_isLoading');
-    debugPrint('  _errorMessage: $_errorMessage');
-    debugPrint('  _steps.isEmpty: ${_steps.isEmpty}');
-    debugPrint('  _steps.length: ${_steps.length}');
-    debugPrint('  _currentRecipe == null: ${_currentRecipe == null}');
-    debugPrint('  _currentRecipe?.name: ${_currentRecipe?.name}');
-    
-    return Scaffold(
-      backgroundColor: AppColors.getBackgroundColor(isDark),
-      body: SafeArea(
-        child: _isLoading
-            ? _buildLoadingScreen(isDark)
-            : _errorMessage != null
-                ? _buildErrorScreen(isDark)
-                : _steps.isEmpty
-                    ? _buildEmptyScreen(isDark)
-                    : _currentRecipe == null 
-                        ? _buildEmptyScreen(isDark)
-                        : Padding(
-                        padding: AppSpacing.pagePadding,
-                        child: Row(
-                          children: [
-                            // 左侧步骤信息区
-                            Expanded(
-                              flex: 2,
-                              child: _buildStepInfo(isDark),
-                            ),
-                            
-                            Space.w48,
-                            
-                            // 右侧控制区
-                            Expanded(
-                              flex: 1,
-                              child: _buildControlArea(isDark),
-                            ),
-                          ],
-                        ),
-                      ),
-      ),
-    );
-  }
-  
-  /// 🔄 构建加载屏幕
-  Widget _buildLoadingScreen(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: AppColors.primary,
-            strokeWidth: 3,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '正在加载菜谱...',
-            style: AppTypography.titleMediumStyle(isDark: isDark),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  /// ❌ 构建错误屏幕
-  Widget _buildErrorScreen(bool isDark) {
-    return Center(
-      child: Padding(
-        padding: AppSpacing.pagePadding,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              '加载失败',
-              style: AppTypography.titleLargeStyle(isDark: isDark),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage ?? '未知错误',
-              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isLoading = true;
-                  _errorMessage = null;
-                });
-                _loadRecipeData();
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Text(
-                  '重试',
-                  style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () => Navigator.of(context).pop(),
-              child: Text(
-                '返回',
-                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                  color: AppColors.getTextSecondaryColor(isDark),
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  /// 📭 构建空内容屏幕
-  Widget _buildEmptyScreen(bool isDark) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.restaurant_menu,
-            size: 64,
-            color: AppColors.getTextSecondaryColor(isDark),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            '这个菜谱还没有烹饪步骤',
-            style: AppTypography.titleMediumStyle(isDark: isDark),
-          ),
-          const SizedBox(height: 32),
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                '返回',
-                style: AppTypography.bodyMediumStyle(isDark: isDark),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildStepInfo(bool isDark) {
-    final currentStepData = _currentStep < _steps.length 
-        ? _steps[_currentStep] 
-        : _steps.last;
-    
-    // 🔍 调试信息：输出当前步骤的emoji状态
-    debugPrint('🔍 当前步骤emoji调试: ${currentStepData.title}');
-    debugPrint('🔍 步骤emoji值: "${currentStepData.emojiIcon}"');
-    debugPrint('🔍 是否为空: ${currentStepData.emojiIcon == null || currentStepData.emojiIcon!.isEmpty}');
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 步骤标题
-        Row(
-          children: [
-            Text(
-              currentStepData.icon,
-              style: const TextStyle(fontSize: 60),
-            ),
-            
-            Space.w16,
-            
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '第${_currentStep + 1}步',
-                    style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith(
-                      color: AppColors.getTextSecondaryColor(isDark),
-                    ),
-                  ),
-                  
-                  Space.h8,
-                  
-                  Text(
-                    currentStepData.title,
-                    style: AppTypography.customStyle(
-                      fontSize: 48, // 48px超大字体
-                      fontWeight: AppTypography.light,
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        
-        Space.h32,
-        
-        // 🔧 横向布局：步骤描述（左）+ 烹饪小贴士（右）
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 左侧：步骤描述
-            Expanded(
-              flex: 3,
-              child: Text(
-                currentStepData.description,
-                style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
-                  height: 1.8,
-                  fontWeight: AppTypography.light,
-                ),
-              ),
-            ),
-            
-            // 右侧：烹饪小贴士
-            if (currentStepData.tips.isNotEmpty) ...[
-              Space.w24,
-              Expanded(
-                flex: 2,
-                child: _buildStepTips(currentStepData.tips, isDark),
-              ),
-            ],
-          ],
-        ),
-        
-        Space.h32,
-        
-        // 🖼️ 步骤图片展示区（占用剩余空间）
-        Expanded(
-          child: Column(
-            children: [
-              // 🎨 始终显示emoji区域（智能分配确保每个步骤都有emoji）
-              Expanded(
-                child: Builder(
-                  builder: (context) {
-                    // 🔧 临时强制测试：直接显示一个固定emoji
-                    String emoji = currentStepData.emojiIcon;
-                    
-                    // 如果步骤没有emoji，智能分配一个
-                    if (emoji == null || emoji.isEmpty) {
-                      emoji = EmojiAllocator.allocateStepEmoji(
-                        currentStepData.title,
-                        currentStepData.description,
-                        _currentStep,
-                      );
-                      debugPrint('🎨 实时分配emoji: "${currentStepData.title}" -> "$emoji"');
-                    }
-                    
-                    // 最终回退
-                    if (emoji.isEmpty) {
-                      emoji = '👨‍🍳';
-                    }
-                    
-                    debugPrint('🎨 最终显示emoji: "$emoji"');
-                    return _buildStepEmoji(emoji, isDark);
-                  },
-                ),
-              ),
-              Space.h24,
-              
-              // 底部固定的步骤进度
-              _buildStepProgress(isDark),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-  
-  /// 🎨 构建步骤emoji图标展示区
-  Widget _buildStepEmoji(String emoji, bool isDark) {
-    debugPrint('🎨 _buildStepEmoji调用: emoji="$emoji", 长度=${emoji.length}');
-    return BreathingWidget(
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: AppColors.getBackgroundColor(isDark),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            emoji,
-            style: const TextStyle(
-              fontSize: 120, // 大emoji图标
-              height: 1.0,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 🖼️ 构建步骤图片展示区 - 横屏优化布局，自适应高度
-  Widget _buildStepImage(String imagePath, bool isDark) {
-    return BreathingWidget(
-      child: Container(
-        width: double.infinity,
-        // 移除固定高度，让容器自适应Expanded空间
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-          child: Stack(
-            children: [
-              // 主图片
-              Container(
-                width: double.infinity,
-                height: double.infinity,
-                child: _buildImageWidget(imagePath),
-              ),
-              
-              // 渐变遮罩（增强文字可读性）
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 60,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.6),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-              // 图片标签
-              Positioned(
-                bottom: 12,
-                left: 16,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
-                  ),
-                  child: Text(
-                    '步骤参考图',
-                    style: AppTypography.captionStyle(isDark: false).copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 🔧 智能图片组件 - 支持多种图片源
-  Widget _buildImageWidget(String imagePath) {
-    // Base64 图片
-    if (imagePath.startsWith('data:image/')) {
-      try {
-        final base64String = imagePath.split(',')[1];
-        final bytes = base64Decode(base64String);
-        return Image.memory(
-          bytes,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            debugPrint('❌ Base64图片解析失败: $error');
-            return _buildImageError();
-          },
-        );
-      } catch (e) {
-        debugPrint('❌ Base64图片处理异常: $e');
-        return _buildImageError();
-      }
-    }
-    
-    // 网络图片
-    else if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return Image.network(
-        imagePath,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            color: AppColors.backgroundSecondary,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / 
-                      loadingProgress.expectedTotalBytes!
-                    : null,
-                color: AppColors.primary,
-                strokeWidth: 3,
-              ),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stackTrace) {
-          return _buildImageError();
-        },
-      );
-    }
-    
-    // 本地文件图片
-    else if (imagePath.isNotEmpty) {
-      return Image.asset(
-        imagePath,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildImageError();
-        },
-      );
-    }
-    
-    // 默认占位符
-    else {
-      return _buildImageError();
-    }
-  }
-
-  /// 🖼️ 图片加载错误占位符
-  Widget _buildImageError() {
-    return Container(
-      color: AppColors.backgroundSecondary,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.image_not_supported,
-            size: 48,
-            color: AppColors.textSecondary,
-          ),
-          Space.h8,
-          Text(
-            '图片加载失败',
-            style: AppTypography.bodySmallStyle(isDark: false).copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 💡 构建烹饪小贴士区域
-  Widget _buildStepTips(List<String> tips, bool isDark) {
-    return Container(
-      padding: EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.emotionGradient.colors.first.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMedium),
-        border: Border.all(
-          color: AppColors.emotionGradient.colors.first.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.lightbulb,
-                size: 20,
-                color: AppColors.emotionGradient.colors.first,
-              ),
-              Space.w8,
-              Text(
-                '烹饪小贴士',
-                style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.emotionGradient.colors.first,
-                ),
-              ),
-            ],
-          ),
-          
-          Space.h8,
-          
-          ...tips.map((tip) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '• ',
-                  style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
-                    color: AppColors.emotionGradient.colors.first,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    tip,
-                    style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepProgress(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '烹饪进度',
-          style: AppTypography.bodyLargeStyle(isDark: isDark),
-        ),
-        
-        Space.h16,
-        
-        // 步骤指示器
-        Row(
-          children: _steps.asMap().entries.map((entry) {
-            final index = entry.key;
-            final isCompleted = index < _currentStep;
-            final isCurrent = index == _currentStep;
-            
-            return Expanded(
-              child: Container(
-                height: 8,
-                margin: EdgeInsets.only(right: index < _steps.length - 1 ? 8 : 0),
-                decoration: BoxDecoration(
-                  color: isCompleted || isCurrent
-                      ? AppColors.getTextPrimaryColor(isDark)
-                      : AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildControlArea(bool isDark) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // 环形进度条
-        _buildCircularProgress(isDark),
-        
-        Space.h48,
-        
-        // 控制按钮
-        _buildControlButtons(isDark),
-        
-        Space.h32,
-        
-        // 退出按钮
-        _buildExitButton(isDark),
-      ],
-    );
-  }
-  
-  Widget _buildCircularProgress(bool isDark) {
-    final progress = _currentStep / _steps.length;
-    
-    return BreathingWidget(
-      child: SizedBox(
-        width: 200,
-        height: 200,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // 背景圆环
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
-                  width: 8,
-                ),
-              ),
-            ),
-            
-            // 进度圆环
-            AnimatedBuilder(
-              animation: _progressAnimation,
-              builder: (context, child) {
-                return CustomPaint(
-                  size: const Size(200, 200),
-                  painter: CircularProgressPainter(
-                    progress: progress * _progressAnimation.value,
-                    color: AppColors.getTextPrimaryColor(isDark),
-                    strokeWidth: 8,
-                  ),
-                );
-              },
-            ),
-            
-            // 中心文字
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '${(_currentStep + 1)}/${_steps.length}',
-                  style: AppTypography.customStyle(
-                    fontSize: 36,
-                    fontWeight: AppTypography.light,
-                    isDark: isDark,
-                  ),
-                ),
-                
-                Space.h8,
-                
-                Text(
-                  '${_formatTime(_currentTime)}',
-                  style: AppTypography.bodyLargeStyle(isDark: isDark).copyWith(
-                    color: AppColors.getTextSecondaryColor(isDark),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildControlButtons(bool isDark) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        // 上一步按钮
-        _buildControlButton(
-          icon: Icons.skip_previous,
-          onTap: _currentStep > 0 ? _previousStep : null,
-          isDark: isDark,
-        ),
-        
-        // 播放/暂停按钮
-        _buildControlButton(
-          icon: _isPlaying ? Icons.pause : Icons.play_arrow,
-          onTap: _togglePlayPause,
-          isDark: isDark,
-          isLarge: true,
-        ),
-        
-        // 下一步按钮
-        _buildControlButton(
-          icon: Icons.skip_next,
-          onTap: _currentStep < _steps.length - 1 ? _nextStep : null,
-          isDark: isDark,
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildControlButton({
-    required IconData icon,
-    required VoidCallback? onTap,
-    required bool isDark,
-    bool isLarge = false,
-  }) {
-    final size = isLarge ? 80.0 : 60.0;
-    final iconSize = isLarge ? 40.0 : 30.0;
-    
-    return GestureDetector(
-      onTap: () {
-        if (onTap != null) {
-          HapticFeedback.mediumImpact();
-          onTap();
+  void _startTimer() {
+    _stepTimer?.cancel();
+    _stepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_currentStepTime > 0) {
+          _currentStepTime--;
+        } else {
+          // 自动进入下一步
+          if (_currentStepIndex < _recipe!.steps.length - 1) {
+            _nextStep();
+          } else {
+            _isPlaying = false;
+            timer.cancel();
+          }
         }
-      },
-      child: BreathingWidget(
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: onTap != null 
-                ? AppColors.getTextPrimaryColor(isDark)
-                : AppColors.getTextSecondaryColor(isDark).withOpacity(0.3),
-            shape: BoxShape.circle,
-            boxShadow: onTap != null ? [
-              BoxShadow(
-                color: AppColors.getShadowColor(isDark),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ] : null,
-          ),
-          child: Icon(
-            icon,
-            size: iconSize,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
+      });
+    });
   }
   
-  Widget _buildExitButton(bool isDark) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.of(context).pop();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.getTextSecondaryColor(isDark).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLarge),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.close,
-              size: 20,
-              color: AppColors.getTextSecondaryColor(isDark),
-            ),
-            
-            Space.w8,
-            
-            Text(
-              '退出烹饪',
-              style: AppTypography.bodyMediumStyle(isDark: isDark).copyWith(
-                color: AppColors.getTextSecondaryColor(isDark),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _pauseTimer() {
+    _stepTimer?.cancel();
+  }
+  
+  void _previousStep() {
+    if (_currentStepIndex > 0) {
+      setState(() {
+        _currentStepIndex--;
+        _currentStepTime = _recipe!.steps[_currentStepIndex].duration * 60;
+        _isPlaying = false;
+      });
+      _pauseTimer();
+      HapticFeedback.mediumImpact();
+    }
+  }
+  
+  void _nextStep() {
+    if (_currentStepIndex < _recipe!.steps.length - 1) {
+      setState(() {
+        _currentStepIndex++;
+        _currentStepTime = _recipe!.steps[_currentStepIndex].duration * 60;
+        _isPlaying = false;
+      });
+      _pauseTimer();
+      HapticFeedback.mediumImpact();
+    }
   }
   
   String _formatTime(int seconds) {
@@ -1024,99 +160,612 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
   
-  void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-      _progressController.forward(from: 0);
-    }
-  }
-  
-  void _nextStep() {
-    if (_currentStep < _steps.length - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _progressController.forward(from: 0);
-    }
-  }
-  
-  void _togglePlayPause() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-    });
-    // TODO: 实现计时器逻辑
-  }
-  
-  /// 🔄 重新加载菜谱数据
-  Future<void> _reloadRecipeData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    await _loadRecipeData();
-  }
-}
-
-/// 烹饪步骤数据模型
-class CookingStep {
-  final String title;
-  final String description;
-  final int duration; // 秒
-  final String icon;
-  final String? imagePath; // 🖼️ 新增：步骤图片路径
-  final String? emojiIcon; // 🎨 新增：步骤emoji图标
-  final List<String> tips; // 🔧 新增：烹饪小贴士
-  
-  const CookingStep({
-    required this.title,
-    required this.description,
-    required this.duration,
-    required this.icon,
-    this.imagePath,
-    this.emojiIcon,
-    this.tips = const [],
-  });
-}
-
-/// 环形进度条绘制器
-class CircularProgressPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  final double strokeWidth;
-  
-  CircularProgressPainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-  });
-  
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+  Widget build(BuildContext context) {
+    if (_recipe == null) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
+    final currentStep = _recipe!.steps[_currentStepIndex];
     
-    const startAngle = -math.pi / 2;
-    final sweepAngle = 2 * math.pi * progress;
-    
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      paint,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F8F8),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 🎨 极简顶部导航
+            _buildMinimalHeader(),
+            
+            // 🎨 上半部分 - 大图展示区
+            Expanded(
+              flex: 5,
+              child: _buildImageSection(currentStep),
+            ),
+            
+            // 🎨 下半部分 - 说明文字区
+            Expanded(
+              flex: 4,
+              child: _buildInstructionSection(currentStep),
+            ),
+          ],
+        ),
+      ),
     );
   }
   
-  @override
-  bool shouldRepaint(CircularProgressPainter oldDelegate) {
-    return progress != oldDelegate.progress;
+  /// 🎨 极简顶部导航
+  Widget _buildMinimalHeader() {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // 返回按钮
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              context.pop();
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.arrow_back,
+                size: 20,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+          
+          // 标题
+          Expanded(
+            child: Center(
+              child: Text(
+                _recipe!.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          
+          // 占位
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
+  }
+  
+  /// 🎨 上半部分 - 图片和控制区域
+  Widget _buildImageSection(RecipeStep step) {
+    return Container(
+      color: const Color(0xFFE8E8E8),
+      child: Stack(
+        children: [
+          // 步骤图片或占位图
+          Center(
+            child: _buildStepImage(step),
+          ),
+          
+          // 步骤标题（顶部）
+          Positioned(
+            top: 24,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  step.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // 播放控制按钮（底部）
+          Positioned(
+            bottom: 32,
+            left: 0,
+            right: 0,
+            child: _buildPlaybackControls(),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🎨 步骤图片展示
+  Widget _buildStepImage(RecipeStep step) {
+    // 📷 优先检查Base64图片数据，然后检查路径数据
+    if ((step.imageBase64 != null && step.imageBase64!.isNotEmpty) ||
+        (step.imagePath != null && step.imagePath!.isNotEmpty)) {
+      // 收集所有步骤的图片数据（优先Base64，然后路径）
+      final allStepImages = _recipe!.steps
+          .where((s) => (s.imageBase64 != null && s.imageBase64!.isNotEmpty) ||
+                       (s.imagePath != null && s.imagePath!.isNotEmpty))
+          .map((s) => s.imageBase64 ?? s.imagePath!)
+          .toList();
+      
+      final currentImage = step.imageBase64 ?? step.imagePath!;
+      
+      return GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          // 显示提示（图片画廊需要更新以支持Base64）
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('图片放大功能开发中...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          padding: const EdgeInsets.all(48),
+          child: Hero(
+            tag: 'cooking_step_image_${_currentStepIndex}',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: _buildStepImageContent(step),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return _buildDefaultStepVisual(step.title);
+  }
+  
+  /// 📷 构建步骤图片内容（支持Base64和传统路径）
+  Widget _buildStepImageContent(RecipeStep step) {
+    // 优先使用Base64数据
+    if (step.imageBase64 != null && step.imageBase64!.isNotEmpty) {
+      return Base64ImageWidget(
+        base64Data: step.imageBase64,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        borderRadius: BorderRadius.zero, // 已经在父容器中应用了圆角
+        errorWidget: _buildDefaultStepVisual(step.title),
+      );
+    }
+    
+    // 兼容旧数据：使用imagePath
+    if (step.imagePath != null && step.imagePath!.isNotEmpty) {
+      return step.imagePath!.startsWith('http')
+          ? Image.network(
+              step.imagePath!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepVisual(step.title);
+              },
+            )
+          : Image.asset(
+              step.imagePath!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildDefaultStepVisual(step.title);
+              },
+            );
+    }
+    
+    return _buildDefaultStepVisual(step.title);
+  }
+  
+  /// 🎨 默认步骤图形
+  Widget _buildDefaultStepVisual(String title) {
+    return Container(
+      width: 280,
+      height: 280,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: Icon(
+          _getIconForStep(title),
+          size: 100,
+          color: Colors.grey[400],
+        ),
+      ),
+    );
+  }
+  
+  IconData _getIconForStep(String title) {
+    if (title.contains('准备') || title.contains('食材')) {
+      return Icons.kitchen;
+    } else if (title.contains('切') || title.contains('处理')) {
+      return Icons.content_cut;
+    } else if (title.contains('煮') || title.contains('炖') || title.contains('烧')) {
+      return Icons.local_fire_department;
+    } else if (title.contains('炒') || title.contains('煎')) {
+      return Icons.whatshot;
+    } else if (title.contains('蒸')) {
+      return Icons.water_drop;
+    } else if (title.contains('调味') || title.contains('完成')) {
+      return Icons.done_all;
+    }
+    return Icons.restaurant;
+  }
+  
+  /// 🎨 播放控制按钮
+  Widget _buildPlaybackControls() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // 上一步按钮
+        GestureDetector(
+          onTap: _currentStepIndex > 0 ? _previousStep : null,
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _currentStepIndex > 0 
+                  ? Colors.white.withOpacity(0.9)
+                  : Colors.white.withOpacity(0.5),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.skip_previous,
+              size: 24,
+              color: _currentStepIndex > 0 
+                  ? Colors.black87
+                  : Colors.grey[400],
+            ),
+          ),
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 播放/暂停按钮
+        GestureDetector(
+          onTap: _togglePlayPause,
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              _isPlaying ? Icons.pause : Icons.play_arrow,
+              size: 32,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        
+        const SizedBox(width: 24),
+        
+        // 下一步按钮
+        GestureDetector(
+          onTap: _currentStepIndex < _recipe!.steps.length - 1 
+              ? _nextStep 
+              : null,
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: _currentStepIndex < _recipe!.steps.length - 1
+                  ? Colors.white.withOpacity(0.9)
+                  : Colors.white.withOpacity(0.5),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.skip_next,
+              size: 24,
+              color: _currentStepIndex < _recipe!.steps.length - 1
+                  ? Colors.black87
+                  : Colors.grey[400],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// 🎨 下半部分 - 说明文字区域
+  Widget _buildInstructionSection(RecipeStep step) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 操作说明标题
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '操作说明',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              // 计时器
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _isPlaying 
+                      ? const Color(0xFFFFE0B2)
+                      : const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.timer,
+                      size: 16,
+                      color: _isPlaying 
+                          ? Colors.orange[700]
+                          : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatTime(_currentStepTime),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: _isPlaying 
+                            ? Colors.orange[700]
+                            : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // 步骤描述
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    step.description,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[800],
+                      height: 1.8,
+                    ),
+                  ),
+                  
+                  // 专业贴士（如果有）
+                  if (step.tips?.isNotEmpty == true) ...[
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline,
+                          size: 20,
+                          color: Color(0xFFFF9800),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '专业贴士',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // 贴士内容（带项目符号）
+                    ...step.tips!.split('，').map((tip) => 
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              margin: const EdgeInsets.only(top: 8, right: 12),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFFF9800),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                tip.trim(),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey[700],
+                                  height: 1.6,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).toList(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // 底部提示
+          Center(
+            child: Text(
+              '烹饪模式 - 大图指导',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[500],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 🔧 创建fallback菜谱数据，避免空白页面
+  Recipe _createFallbackRecipe(String recipeId) {
+    print('🛠️ 烹饪模式创建fallback菜谱，ID: $recipeId');
+    
+    // 根据ID选择不同的示例菜谱
+    final fallbackData = _getFallbackDataById(recipeId);
+    
+    return Recipe(
+      id: recipeId,
+      name: fallbackData['name'],
+      description: fallbackData['description'],
+      iconType: 'AppIcon3DType.${fallbackData['iconType']}',
+      totalTime: fallbackData['totalTime'],
+      difficulty: '简单',
+      servings: 2,
+      steps: (fallbackData['steps'] as List<Map<String, dynamic>>).map((stepData) => 
+        RecipeStep(
+          title: stepData['title'],
+          description: stepData['description'],
+          duration: stepData['duration'],
+          imagePath: stepData['imagePath'],
+          tips: stepData['tips'],
+        )
+      ).toList(),
+      imagePath: fallbackData['imagePath'],
+      createdBy: 'system',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      isPublic: true,
+      rating: 4.5,
+      cookCount: 100,
+    );
+  }
+  
+  /// 根据ID获取fallback数据
+  Map<String, dynamic> _getFallbackDataById(String recipeId) {
+    final fallbackRecipes = {
+      'recipe_1': {
+        'name': '银耳莲子羹',
+        'description': '滋润养颜的经典甜品，口感清香甜美',
+        'iconType': 'bowl',
+        'totalTime': 45,
+        'imagePath': null,
+        'steps': [
+          {
+            'title': '准备食材',
+            'description': '银耳1朵，莲子50g，冰糖适量，枸杞10粒',
+            'duration': 10,
+            'imagePath': null,
+            'tips': '银耳要提前泡发，莲子去心',
+          },
+          {
+            'title': '处理银耳',
+            'description': '将泡发的银耳撕成小朵，去掉黄色根部',
+            'duration': 5,
+            'imagePath': null,
+            'tips': '银耳撕得越小，煮出的胶质越浓稠',
+          },
+          {
+            'title': '开始炖煮',
+            'description': '将银耳、莲子放入锅中，加水大火煮开转小火',
+            'duration': 25,
+            'imagePath': null,
+            'tips': '小火慢炖，不时搅拌防止粘锅',
+          },
+          {
+            'title': '调味完成',
+            'description': '加入冰糖和枸杞，继续煮5分钟即可',
+            'duration': 5,
+            'imagePath': null,
+            'tips': '根据个人口味调整冰糖用量',
+          },
+        ],
+      },
+      'recipe_2': {
+        'name': '蒜蓉西兰花',
+        'description': '简单营养的家常小炒，清爽不油腻',
+        'iconType': 'vegetable',
+        'totalTime': 15,
+        'imagePath': null,
+        'steps': [
+          {
+            'title': '准备食材',
+            'description': '西兰花400g，大蒜4瓣，盐、生抽适量',
+            'duration': 5,
+            'imagePath': null,
+            'tips': '西兰花要选择花球紧实的',
+          },
+          {
+            'title': '焯水处理',
+            'description': '西兰花切小朵，沸水焯烫2分钟捞起',
+            'duration': 3,
+            'imagePath': null,
+            'tips': '焯水时加少许盐和油，保持翠绿',
+          },
+          {
+            'title': '爆炒蒜蓉',
+            'description': '热锅下油，爆炒蒜蓉至金黄色',
+            'duration': 2,
+            'imagePath': null,
+            'tips': '火候要控制好，避免蒜蓉糊掉',
+          },
+          {
+            'title': '炒制完成',
+            'description': '下西兰花大火炒匀，调味即可',
+            'duration': 5,
+            'imagePath': null,
+            'tips': '快速炒制，保持脆嫩口感',
+          },
+        ],
+      },
+    };
+    
+    return fallbackRecipes[recipeId] ?? fallbackRecipes['recipe_1']!;
   }
 }
