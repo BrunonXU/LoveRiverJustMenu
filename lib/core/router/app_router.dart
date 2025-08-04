@@ -19,8 +19,12 @@ import '../../features/timeline/presentation/pages/memory_detail_screen.dart';
 import '../../features/timeline/domain/models/memory.dart';
 import '../../features/challenge/domain/models/challenge.dart';
 import '../../features/profile/presentation/pages/personal_center_screen.dart';
+import '../../features/profile/presentation/pages/personal_space_screen.dart';
 import '../../features/profile/presentation/pages/my_recipes_screen.dart';
+import '../../features/taste_circle/presentation/pages/create_or_join_screen.dart';
+import '../../features/taste_circle/presentation/pages/create_circle_screen.dart';
 import '../../features/achievement/presentation/pages/achievement_screen.dart';
+import '../../shared/widgets/placeholder_screen.dart';
 import '../../features/food_map/presentation/pages/food_map_screen.dart';
 import '../../features/food_map/presentation/pages/province_detail_screen.dart';
 import '../../features/food_map/domain/models/province_cuisine.dart';
@@ -65,6 +69,7 @@ class AppRouter {
   static const String challengeDetail = '/challenge/:id';
   static const String memoryDetail = '/memory/:id';
   static const String personalCenter = '/personal-center';
+  static const String personalSpace = '/personal-space';
   static const String myRecipes = '/personal-center/my-recipes';
   static const String achievements = '/personal-center/achievements';
   static const String foodMap = '/food-map';
@@ -72,6 +77,19 @@ class AppRouter {
   static const String intimacy = '/intimacy';
   static const String profile = '/profile';
   static const String settings = '/settings';
+  
+  // 味道圈相关路由
+  static const String tasteCircles = '/taste-circles';
+  static const String createOrJoinCircle = '/taste-circles/create-or-join';
+  static const String createCircle = '/taste-circles/create';
+  static const String joinCircle = '/taste-circles/join';
+  static const String tasteCircleAchievements = '/taste-circles/achievements';
+  static const String tasteCircleDetail = '/taste-circles/:circleId';
+  
+  // 个人中心子页面路由
+  static const String favorites = '/personal-center/favorites';
+  static const String learningProgress = '/personal-center/learning-progress';
+  static const String analytics = '/personal-center/analytics';
   
   // ==================== 路由配置 ====================
   
@@ -107,12 +125,54 @@ class AppRouter {
           final authPaths = [welcome, login, register];
           
           // 🎯 游客模式支持 - 允许访问主页和其他功能页面
-          final guestAllowedPaths = [home, timeline, aiRecommendation, search];
+          final guestAllowedPaths = [
+            home, 
+            timeline, 
+            aiRecommendation, 
+            search,
+            personalSpace,
+            personalCenter,
+            myRecipes,
+            favorites,
+            achievements,
+            learningProgress,
+            analytics,
+            tasteCircles,
+            createOrJoinCircle,
+            createCircle,
+            joinCircle,
+            tasteCircleAchievements,
+            tasteCircleDetail,
+            settings,
+            foodMap,
+            challenge,
+            intimacy,
+            cookingMode,
+            recipeDetail,
+            createRecipe,
+            coupleBinding,
+            coupleProfile,
+            challengeSend,
+            challengeDetail,
+            memoryDetail,
+            provinceDetail,
+          ];
           
           // 如果用户未登录且不在认证相关页面，检查是否是游客允许的页面
           if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
             // 🎮 游客模式：允许访问主要功能页面
-            if (guestAllowedPaths.any((path) => currentPath.startsWith(path))) {
+            // 检查当前路径是否匹配允许的路径（支持动态路由）
+            bool isPathAllowed = false;
+            for (final allowedPath in guestAllowedPaths) {
+              if (currentPath == allowedPath || 
+                  currentPath.startsWith('${allowedPath}/') ||
+                  _matchesDynamicRoute(currentPath, allowedPath)) {
+                isPathAllowed = true;
+                break;
+              }
+            }
+            
+            if (isPathAllowed) {
               return null; // 允许访问
             }
             return welcome; // 其他页面需要登录
@@ -315,6 +375,18 @@ class AppRouter {
         ),
       ),
 
+      // 个人空间路由（新）
+      GoRoute(
+        path: personalSpace,
+        name: 'personal-space',
+        builder: (context, state) => const PersonalSpaceScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PersonalSpaceScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideRight,
+        ),
+      ),
+
       // 我的菜谱路由
       GoRoute(
         path: myRecipes,
@@ -475,8 +547,204 @@ class AppRouter {
           transitionType: PageTransitionType.slideRight,
         ),
       ),
+      
+      // ==================== 味道圈相关路由 ====================
+      
+      // 我的味道圈
+      GoRoute(
+        path: tasteCircles,
+        name: 'taste-circles',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '我的味道圈',
+          subtitle: '味道圈功能正在开发中...',
+          icon: Icons.group,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '我的味道圈',
+            subtitle: '味道圈功能正在开发中...',
+            icon: Icons.group,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideRight,
+        ),
+      ),
+      
+      // 创建或加入味道圈
+      GoRoute(
+        path: createOrJoinCircle,
+        name: 'create-or-join-circle',
+        builder: (context, state) => const CreateOrJoinScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const CreateOrJoinScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 创建味道圈
+      GoRoute(
+        path: createCircle,
+        name: 'create-circle',
+        builder: (context, state) => const CreateCircleScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const CreateCircleScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideRight,
+        ),
+      ),
+      
+      // 加入味道圈
+      GoRoute(
+        path: joinCircle,
+        name: 'join-circle',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '输入邀请码',
+          subtitle: '加入味道圈功能正在开发中...',
+          icon: Icons.vpn_key,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '输入邀请码',
+            subtitle: '加入味道圈功能正在开发中...',
+            icon: Icons.vpn_key,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 味道圈详情
+      GoRoute(
+        path: tasteCircleDetail,
+        name: 'taste-circle-detail',
+        builder: (context, state) {
+          final circleId = state.pathParameters['circleId']!;
+          return PlaceholderScreen(
+            title: '味道圈详情',
+            subtitle: '圈子「$circleId」的详情页面正在开发中...',
+            icon: Icons.group,
+          );
+        },
+        pageBuilder: (context, state) {
+          final circleId = state.pathParameters['circleId']!;
+          return _buildPageTransition(
+            child: PlaceholderScreen(
+              title: '味道圈详情',
+              subtitle: '圈子「$circleId」的详情页面正在开发中...',
+              icon: Icons.group,
+            ),
+            state: state,
+            transitionType: PageTransitionType.slideUp,
+          );
+        },
+      ),
+      
+      // 味道圈成就
+      GoRoute(
+        path: tasteCircleAchievements,
+        name: 'taste-circle-achievements',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '圈子成就',
+          subtitle: '味道圈成就系统正在开发中...',
+          icon: Icons.emoji_events,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '圈子成就',
+            subtitle: '味道圈成就系统正在开发中...',
+            icon: Icons.emoji_events,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 我的收藏
+      GoRoute(
+        path: favorites,
+        name: 'favorites',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '我的收藏',
+          subtitle: '收藏功能正在开发中...',
+          icon: Icons.favorite_border,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '我的收藏',
+            subtitle: '收藏功能正在开发中...',
+            icon: Icons.favorite_border,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 学习历程
+      GoRoute(
+        path: learningProgress,
+        name: 'learning-progress',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '学习历程',
+          subtitle: '学习历程功能正在开发中...',
+          icon: Icons.trending_up,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '学习历程',
+            subtitle: '学习历程功能正在开发中...',
+            icon: Icons.trending_up,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
+      
+      // 数据分析
+      GoRoute(
+        path: analytics,
+        name: 'analytics',
+        builder: (context, state) => const PlaceholderScreen(
+          title: '数据分析',
+          subtitle: '数据分析功能正在开发中...',
+          icon: Icons.analytics,
+        ),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const PlaceholderScreen(
+            title: '数据分析',
+            subtitle: '数据分析功能正在开发中...',
+            icon: Icons.analytics,
+          ),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
+        ),
+      ),
     ],
     );
+  }
+  
+  /// 匹配动态路由
+  static bool _matchesDynamicRoute(String currentPath, String routePattern) {
+    // 处理动态路由，如 /taste-circles/:circleId
+    if (routePattern.contains(':')) {
+      final patternParts = routePattern.split('/');
+      final currentParts = currentPath.split('/');
+      
+      if (patternParts.length != currentParts.length) {
+        return false;
+      }
+      
+      for (int i = 0; i < patternParts.length; i++) {
+        if (patternParts[i].startsWith(':')) {
+          // 动态参数，跳过检查
+          continue;
+        } else if (patternParts[i] != currentParts[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
   
   // ==================== 页面过渡动画 ====================

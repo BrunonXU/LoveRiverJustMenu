@@ -19,20 +19,9 @@ class SideDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Material(
+    return RepaintBoundary(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.5, // 50%宽度
-        height: MediaQuery.of(context).size.height, // 明确指定高度避免溢出
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(2, 0),
-            ),
-          ],
-        ),
+        width: MediaQuery.of(context).size.width * 0.7, // 70%宽度，确保内容完整显示
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,17 +52,10 @@ class SideDrawer extends ConsumerWidget {
       child: BreathingWidget(
         child: GestureDetector(
           onTap: () {
+            print('👤 用户头像被点击');
             HapticFeedback.lightImpact();
-            
-            // 关闭侧边栏
-            Navigator.of(context).pop();
-            
-            // 延迟导航，确保pop完成后再进行路由跳转
-            Future.microtask(() {
-              if (context.mounted) {
-                context.go('/personal-center'); // 使用go替代push，避免路由栈问题
-              }
-            });
+            print('🎯 准备导航到个人空间: ${AppRouter.personalSpace}');
+            _navigateTo(context, AppRouter.personalSpace);
           },
           child: Row(
             children: [
@@ -172,17 +154,21 @@ class SideDrawer extends ConsumerWidget {
         onTap: () => _navigateTo(context, AppRouter.foodMap),
       ),
       DrawerItem(
-        icon: Icons.favorite,
-        title: '情侣空间',
-        subtitle: '档案与亲密度',
+        icon: Icons.group,
+        title: '味道圈',
+        subtitle: '组队烹饪',
         children: [
           DrawerSubItem(
-            title: '情侣档案',
-            onTap: () => _navigateTo(context, AppRouter.coupleProfile),
+            title: '我的味道圈',
+            onTap: () => _navigateTo(context, AppRouter.tasteCircles),
           ),
           DrawerSubItem(
-            title: '亲密度成就',
-            onTap: () => _navigateTo(context, AppRouter.intimacy),
+            title: '创建新圈子',
+            onTap: () => _navigateTo(context, AppRouter.createCircle),
+          ),
+          DrawerSubItem(
+            title: '圈子成就',
+            onTap: () => _navigateTo(context, AppRouter.tasteCircleAchievements),
           ),
         ],
       ),
@@ -196,13 +182,13 @@ class SideDrawer extends ConsumerWidget {
         icon: Icons.restaurant_menu,
         title: '我的菜谱',
         subtitle: '创建·预设·管理',
-        onTap: () => _navigateTo(context, '/personal-center/my-recipes'),
+        onTap: () => _navigateTo(context, AppRouter.myRecipes),
       ),
       DrawerItem(
         icon: Icons.favorite_border,
         title: '我的收藏',
         subtitle: '收藏的美食菜谱',
-        onTap: () => _navigateTo(context, '/personal-center/favorites'),
+        onTap: () => _navigateTo(context, AppRouter.favorites),
       ),
       DrawerItem(
         icon: Icons.emoji_events,
@@ -211,15 +197,15 @@ class SideDrawer extends ConsumerWidget {
         children: [
           DrawerSubItem(
             title: '成就系统',
-            onTap: () => _navigateTo(context, '/personal-center/achievements'),
+            onTap: () => _navigateTo(context, AppRouter.achievements),
           ),
           DrawerSubItem(
             title: '学习历程',
-            onTap: () => _navigateTo(context, '/personal-center/learning-progress'),
+            onTap: () => _navigateTo(context, AppRouter.learningProgress),
           ),
           DrawerSubItem(
             title: '数据分析',
-            onTap: () => _navigateTo(context, '/personal-center/analytics'),
+            onTap: () => _navigateTo(context, AppRouter.analytics),
           ),
         ],
       ),
@@ -227,19 +213,24 @@ class SideDrawer extends ConsumerWidget {
         icon: Icons.settings,
         title: '设置',
         subtitle: '个性化偏好',
-        onTap: () => _navigateTo(context, '/settings'),
+        onTap: () => _navigateTo(context, AppRouter.settings),
       ),
     ];
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       itemCount: functionItems.length,
-      physics: const BouncingScrollPhysics(), // 添加弹性滚动
-      shrinkWrap: false, // 确保ListView占满Expanded空间
+      physics: const BouncingScrollPhysics(),
+      shrinkWrap: false,
+      // 性能优化：避免不必要的重建
+      cacheExtent: 100,
       itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4), // 项目间距
-          child: _buildDrawerItem(context, functionItems[index]),
+        return RepaintBoundary(
+          key: ValueKey('drawer_item_$index'),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: _buildDrawerItem(context, functionItems[index]),
+          ),
         );
       },
     );
@@ -249,79 +240,77 @@ class SideDrawer extends ConsumerWidget {
   Widget _buildDrawerItem(BuildContext context, DrawerItem item) {
     return Column(
       children: [
-        // 主项目
-        BreathingWidget(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {
-                HapticFeedback.lightImpact();
-                if (item.children != null && item.children!.isNotEmpty) {
-                  // 如果有子项目，展开/收起逻辑可以后续添加
-                  // 目前直接执行主项目的操作
-                  if (item.onTap != null) item.onTap!();
-                } else {
-                  if (item.onTap != null) item.onTap!();
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // 图标
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        size: 20,
-                        color: Colors.grey[700],
-                      ),
+        // 主项目 - 移除BreathingWidget提升性能
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              HapticFeedback.lightImpact();
+              if (item.children != null && item.children!.isNotEmpty) {
+                // 如果有子项目，展开/收起逻辑可以后续添加
+                // 目前直接执行主项目的操作
+                if (item.onTap != null) item.onTap!();
+              } else {
+                if (item.onTap != null) item.onTap!();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // 图标
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    const SizedBox(width: 12),
-                    // 文字
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.title,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.black,
-                            ),
-                            overflow: TextOverflow.ellipsis, // 防止文字溢出
+                    child: Icon(
+                      item.icon,
+                      size: 20,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 文字
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black,
                           ),
-                          if (item.subtitle != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              item.subtitle!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w300,
-                              ),
-                              overflow: TextOverflow.ellipsis, // 防止文字溢出
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (item.subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            item.subtitle!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w300,
                             ),
-                          ],
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                    // 箭头（如果有子项目）
-                    if (item.children != null && item.children!.isNotEmpty)
-                      Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: Colors.grey[400],
-                      ),
-                  ],
-                ),
+                  ),
+                  // 箭头（如果有子项目）
+                  if (item.children != null && item.children!.isNotEmpty)
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: Colors.grey[400],
+                    ),
+                ],
               ),
             ),
           ),
@@ -329,7 +318,9 @@ class SideDrawer extends ConsumerWidget {
         
         // 子项目（如果有）
         if (item.children != null && item.children!.isNotEmpty)
-          ...item.children!.map((subItem) => _buildSubItem(context, subItem)),
+          ...item.children!.map((subItem) => RepaintBoundary(
+            child: _buildSubItem(context, subItem),
+          )),
       ],
     );
   }
@@ -377,15 +368,28 @@ class SideDrawer extends ConsumerWidget {
 
   /// 导航到指定页面
   void _navigateTo(BuildContext context, String route) {
-    // 关闭侧边栏
-    Navigator.of(context).pop();
+    print('🚀 _navigateTo 被调用，路由: $route');
+    print('🔍 onClose 是否为空: ${onClose == null}');
     
-    // 延迟导航，确保pop完成后再进行路由跳转
-    Future.microtask(() {
-      if (context.mounted) {
-        context.go(route); // 使用go替代push，避免路由栈问题
+    // 先执行导航，再关闭侧边栏
+    try {
+      print('📍 尝试导航到: $route');
+      context.go(route);
+      print('✅ 导航成功');
+      
+      // 导航成功后关闭侧边栏
+      if (onClose != null) {
+        print('🚪 调用 onClose');
+        onClose!();
       }
-    });
+    } catch (e) {
+      print('❌ 导航失败: $route, 错误: $e');
+      // 即使导航失败也要关闭侧边栏
+      if (onClose != null) {
+        print('🚪 导航失败，仍调用 onClose');
+        onClose!();
+      }
+    }
   }
 }
 

@@ -147,28 +147,28 @@ class _MainScreenState extends ConsumerState<MainScreen>
       vsync: this,
     );
     
-    // 侧边栏滑动动画：从 -230px 到 -50px (只露出50px作为peek)
+    // 侧边栏滑动动画：从 -300px 到 0px (完全滑出，覆盖模式)
     _drawerSlideAnimation = Tween<double>(
-      begin: -230.0,
-      end: -50.0,
+      begin: -300.0,
+      end: 0.0,
     ).animate(CurvedAnimation(
       parent: _drawerController,
       curve: const Cubic(0.25, 0.46, 0.45, 0.94), // 用户指定的贝塞尔曲线
     ));
     
-    // 主内容缩放动画：缩放到0.9
+    // 主内容不做任何变换，只虚化
     _mainContentScaleAnimation = Tween<double>(
       begin: 1.0,
-      end: 0.9,
+      end: 1.0, // 不缩放
     ).animate(CurvedAnimation(
       parent: _drawerController,
       curve: const Cubic(0.25, 0.46, 0.45, 0.94),
     ));
     
-    // 主内容平移动画：向右推移130px（适度推移，不会太多）
+    // 主内容不平移
     _mainContentTranslateAnimation = Tween<double>(
       begin: 0.0,  
-      end: 130.0,
+      end: 0.0, // 不平移
     ).animate(CurvedAnimation(
       parent: _drawerController,
       curve: const Cubic(0.25, 0.46, 0.45, 0.94),
@@ -264,94 +264,65 @@ class _MainScreenState extends ConsumerState<MainScreen>
         builder: (context, child) {
           return Stack(
             children: [
-              // 背景遮罩层（打开时显示）
+              // 主内容区域（不变换，只是背景）
+              ChristmasSnowEffect(
+                enableClickEffect: true,
+                snowflakeCount: 8,
+                clickEffectColor: const Color(0xFF00BFFF),
+                child: SafeArea(
+                  child: _isLoading 
+                      ? _buildLoadingState() 
+                      : _buildSimplifiedMainContent(isDark),
+                ),
+              ),
+              
+              // 背景遮罩层（只覆盖主内容区域，不覆盖侧边栏）
+              // 🚀 优化版背景遮罩 - 移除BackdropFilter提升性能
               if (_isDrawerOpen)
-                GestureDetector(
-                  onTap: _closeDrawer,
-                  child: Container(
-                    color: Colors.black.withOpacity(0.3 * _drawerController.value),
+                Positioned(
+                  left: 300, // 从侧边栏右边开始
+                  top: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: RepaintBoundary(
+                    child: GestureDetector(
+                      onTap: _closeDrawer,
+                      child: AnimatedBuilder(
+                        animation: _drawerController,
+                        builder: (context, child) {
+                          return Container(
+                            color: Colors.black.withOpacity(0.4 * _drawerController.value),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
               
-              // 自定义侧边栏（peek模式）
+              // 🚀 极简高性能侧边栏
               Positioned(
                 left: _drawerSlideAnimation.value,
                 top: 0,
                 bottom: 0,
-                width: 250, // 侧边栏总宽度调整
-                child: Container(
-                  decoration: BoxDecoration(
+                width: 300, // 侧边栏总宽度
+                child: RepaintBoundary(
+                  child: Material(
+                    elevation: 16,
                     color: Colors.white,
                     borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(24),
                       bottomRight: Radius.circular(24),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 32,
-                        offset: const Offset(8, 0),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
-                          border: const Border(
-                            right: BorderSide(
-                              color: Color(0x0F000000),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        child: const SideDrawer(),
-                      ),
-                    ),
+                    child: SideDrawer(onClose: _closeDrawer),
                   ),
                 ),
               ),
               
-              // 主内容区域（带变换动画）
-              Transform.translate(
-                offset: Offset(_mainContentTranslateAnimation.value, 0),
-                child: Transform.scale(
-                  scale: _mainContentScaleAnimation.value,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(
-                        _isDrawerOpen ? 24 : 12, // 动态圆角
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: ChristmasSnowEffect(
-                      enableClickEffect: true,
-                      snowflakeCount: 8,
-                      clickEffectColor: const Color(0xFF00BFFF),
-                      child: SafeArea(
-                        child: _isLoading 
-                            ? _buildLoadingState() 
-                            : _buildSimplifiedMainContent(isDark),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
-              // 语音助手按钮（跟随主内容移动）
+              // 语音助手按钮（固定位置）
               Positioned(
-                right: 16 + (16 * (1 - _mainContentScaleAnimation.value)), // 动态调整位置
-                bottom: 16 + (16 * (1 - _mainContentScaleAnimation.value)),
-                child: Transform.scale(
-                  scale: _mainContentScaleAnimation.value,
-                  child: _buildVoiceButton(),
-                ),
+                right: 16,
+                bottom: 16,
+                child: _buildVoiceButton(),
               ),
             ],
           );
