@@ -21,6 +21,7 @@ class CustomTextField extends StatefulWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final String? Function(String?)? validator;
+  final bool enabled;
 
   const CustomTextField({
     super.key,
@@ -35,6 +36,7 @@ class CustomTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.validator,
+    this.enabled = true,
   });
 
   @override
@@ -74,17 +76,19 @@ class _CustomTextFieldState extends State<CustomTextField> {
           child: Container(
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: widget.enabled ? Colors.white : const Color(0xFFF9F9F9),
               border: Border.all(
                 color: widget.errorText != null
                     ? const Color(0xFFF56565)
-                    : _isFocused
-                        ? const Color(0xFF5B6FED)
-                        : const Color(0xFFF7F7F7),
+                    : !widget.enabled
+                        ? const Color(0xFFE0E0E0)
+                        : _isFocused
+                            ? const Color(0xFF5B6FED)
+                            : const Color(0xFFF7F7F7),
                 width: 2,
               ),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: _isFocused
+              boxShadow: _isFocused && widget.enabled
                   ? [
                       BoxShadow(
                         color: const Color(0xFF5B6FED).withOpacity(0.1),
@@ -110,9 +114,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
                     inputFormatters: widget.inputFormatters,
                     obscureText: widget.obscureText,
                     onSubmitted: widget.onSubmitted,
-                    style: const TextStyle(
+                    enabled: widget.enabled,
+                    style: TextStyle(
                       fontSize: 16,
-                      color: Colors.black,
+                      color: widget.enabled ? Colors.black : Colors.grey[600],
                     ),
                     decoration: InputDecoration(
                       hintText: widget.hintText,

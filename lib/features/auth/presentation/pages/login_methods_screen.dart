@@ -41,6 +41,10 @@ class _LoginMethodsScreenState extends ConsumerState<LoginMethodsScreen>
   bool _obscurePassword = true;
   bool _isProcessing = false;
   String? _errorMessage;
+  
+  // 管理员登录相关状态
+  bool _adminIsProcessing = false;
+  String? _adminErrorMessage;
 
   @override
   void initState() {
@@ -92,6 +96,8 @@ class _LoginMethodsScreenState extends ConsumerState<LoginMethodsScreen>
               ),
             ),
           ),
+          // 管理员模式入口
+          _buildAdminEntry(),
         ],
       ),
     );
@@ -331,16 +337,23 @@ class _LoginMethodsScreenState extends ConsumerState<LoginMethodsScreen>
                   Icons.lock_outline,
                   color: Color(0xFF999999),
                 ),
-                suffixIcon: GestureDetector(
+                suffixIcon: InkWell(
                   onTap: () {
                     HapticFeedback.lightImpact();
                     setState(() {
                       _obscurePassword = !_obscurePassword;
                     });
                   },
-                  child: Icon(
-                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    color: const Color(0xFF999999),
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: const Color(0xFF999999),
+                      size: 20,
+                    ),
                   ),
                 ),
                 onSubmitted: (_) => _handleEmailLogin(),
@@ -636,5 +649,256 @@ class _LoginMethodsScreenState extends ConsumerState<LoginMethodsScreen>
         );
       }
     });
+  }
+
+  // ==================== 管理员模式相关方法 ====================
+
+  /// 构建管理员模式入口
+  Widget _buildAdminEntry() {
+    return Positioned(
+      bottom: 32,
+      right: 32,
+      child: GestureDetector(
+        onTap: () => _showAdminLoginDialog(),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.admin_panel_settings,
+            color: Color(0xFF666666),
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示管理员登录对话框
+  void _showAdminLoginDialog() {
+    // 预填入管理员账号密码
+    final adminEmailController = TextEditingController(text: '2352016835@qq.com');
+    final adminPasswordController = TextEditingController(text: '24212691147Xza');
+    bool adminObscurePassword = true;
+    
+    // 重置状态
+    _adminIsProcessing = false;
+    _adminErrorMessage = null;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 管理员标题
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.admin_panel_settings,
+                      color: Color(0xFF5B6FED),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      '管理员登录',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 32),
+                
+                if (_adminErrorMessage != null) _buildAdminErrorMessage(_adminErrorMessage!),
+                
+                // 管理员邮箱输入
+                CustomTextField(
+                  controller: adminEmailController,
+                  hintText: '管理员邮箱',
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: const Icon(
+                    Icons.email_outlined,
+                    color: Color(0xFF999999),
+                  ),
+                  enabled: false, // 禁用编辑，固定管理员邮箱
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // 管理员密码输入
+                CustomTextField(
+                  controller: adminPasswordController,
+                  hintText: '管理员密码',
+                  obscureText: adminObscurePassword,
+                  prefixIcon: const Icon(
+                    Icons.lock_outline,
+                    color: Color(0xFF999999),
+                  ),
+                  suffixIcon: InkWell(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      setDialogState(() {
+                        adminObscurePassword = !adminObscurePassword;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      alignment: Alignment.center,
+                      child: Icon(
+                        adminObscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: const Color(0xFF999999),
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  enabled: false, // 禁用编辑，固定管理员密码
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // 管理员登录按钮
+                GradientButton(
+                  text: _adminIsProcessing ? '登录中...' : '管理员登录',
+                  onPressed: () => _handleAdminLogin(
+                    adminEmailController.text,
+                    adminPasswordController.text,
+                    setDialogState,
+                  ),
+                  isLoading: _adminIsProcessing,
+                  isEnabled: !_adminIsProcessing,
+                ),
+                
+                const SizedBox(height: 16),
+                
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    '取消',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF999999),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建管理员错误消息
+  Widget _buildAdminErrorMessage(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.red.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: Colors.red,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.red,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 处理管理员登录
+  Future<void> _handleAdminLogin(
+    String email,
+    String password,
+    StateSetter setDialogState,
+  ) async {
+    setDialogState(() {
+      _adminIsProcessing = true;
+      _adminErrorMessage = null;
+    });
+    
+    try {
+      final authActions = ref.read(authActionsProvider.notifier);
+      final success = await authActions.signInWithEmailPassword(email, password);
+      
+      if (success && mounted) {
+        Navigator.of(context).pop(); // 关闭对话框
+        context.go('/home'); // 跳转到主页
+        
+        // 显示管理员登录成功提示
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🔐 管理员登录成功'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
+      } else if (mounted) {
+        final error = authActions.lastError;
+        setDialogState(() {
+          _adminErrorMessage = error?.message ?? '管理员登录失败，请重试';
+        });
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        setDialogState(() {
+          _adminErrorMessage = '管理员登录过程中发生错误，请重试';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setDialogState(() {
+          _adminIsProcessing = false;
+        });
+      }
+    }
   }
 }
