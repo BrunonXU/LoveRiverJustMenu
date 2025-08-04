@@ -9,6 +9,7 @@ import '../../core/themes/spacing.dart';
 import '../../core/router/app_router.dart';
 import '../../core/auth/providers/auth_providers.dart';
 import 'breathing_widget.dart';
+import '../../core/animations/breathing_manager.dart';
 
 /// 🎨 侧边栏组件 - 占50%宽度，从左滑出
 /// 包含所有原主页功能的统一入口
@@ -21,7 +22,7 @@ class SideDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return RepaintBoundary(
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.7, // 70%宽度，确保内容完整显示
+        width: 300, // 固定300px宽度，与外层Positioned一致
         child: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,7 +50,7 @@ class SideDrawer extends ConsumerWidget {
     
     return Container(
       padding: const EdgeInsets.all(24),
-      child: BreathingWidget(
+      child: OptimizedBreathingWidget(
         child: GestureDetector(
           onTap: () {
             print('👤 用户头像被点击');
@@ -374,7 +375,7 @@ class SideDrawer extends ConsumerWidget {
     // 先执行导航，再关闭侧边栏
     try {
       print('📍 尝试导航到: $route');
-      context.go(route);
+      context.push(route); // 使用push替代go，保持导航栈
       print('✅ 导航成功');
       
       // 导航成功后关闭侧边栏

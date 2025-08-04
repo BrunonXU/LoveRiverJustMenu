@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:ui';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 
@@ -9,13 +8,12 @@ import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/performance_monitor.dart';
-import '../../../../shared/widgets/breathing_widget.dart';
+import '../../../../core/animations/breathing_manager.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../shared/widgets/voice_interaction_widget.dart';
 import '../../../../shared/widgets/side_drawer.dart';
 import '../../../../core/router/app_router.dart';
-import '../../../../core/animations/physics_engine.dart';
 import '../../../../core/animations/christmas_snow_effect.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
@@ -35,9 +33,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   // ==================== 动画控制器 ====================
   
-  late AnimationController _breathingController;
+  // 移除独立的呼吸动画控制器，使用全局共享的管理器
   late AnimationController _cardController;
-  late Animation<double> _breathingAnimation;
   late Animation<double> _cardAnimation;
   
   // 侧边栏动画控制器
@@ -106,7 +103,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   @override
   void dispose() {
-    _breathingController.dispose();
+    // 移除_breathingController.dispose()，由全局管理器统一管理
     _cardController.dispose();
     _drawerController.dispose();
     super.dispose();
@@ -114,23 +111,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   // ==================== 初始化方法 ====================
   
-  /// 初始化动画
+  /// 初始化动画 - 优化版：使用全局呼吸管理器
   void _initializeAnimations() {
-    // 呼吸动画控制器 - 4s循环
-    _breathingController = AnimationController(
-      duration: const Duration(seconds: 4),
-      vsync: this,
-    )..repeat(reverse: true);
+    // 初始化全局呼吸动画管理器（只初始化一次）
+    if (!BreathingManager.instance.isInitialized) {
+      BreathingManager.instance.initialize(this);
+    }
     
-    _breathingAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.02, // 严格按照设计规范
-    ).animate(CurvedAnimation(
-      parent: _breathingController,
-      curve: Curves.easeInOut,
-    ));
-    
-    // 卡片动画控制器
+    // 卡片动画控制器 - 保留用于切换动画
     _cardController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -146,6 +134,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
+    
+    // 显式设置初始状态为关闭
+    _drawerController.reset(); // 确保初始值为0
     
     // 侧边栏滑动动画：从 -300px 到 0px (完全滑出，覆盖模式)
     _drawerSlideAnimation = Tween<double>(
@@ -264,15 +255,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
         builder: (context, child) {
           return Stack(
             children: [
-              // 主内容区域（不变换，只是背景）
-              ChristmasSnowEffect(
-                enableClickEffect: true,
-                snowflakeCount: 8,
-                clickEffectColor: const Color(0xFF00BFFF),
-                child: SafeArea(
-                  child: _isLoading 
-                      ? _buildLoadingState() 
-                      : _buildSimplifiedMainContent(isDark),
+              // 主内容区域（不变换，只是背景）- 隔离动画提升性能
+              RepaintBoundary(
+                child: ChristmasSnowEffect(
+                  enableClickEffect: true,
+                  snowflakeCount: 8,
+                  clickEffectColor: const Color(0xFF00BFFF),
+                  child: SafeArea(
+                    child: _isLoading 
+                        ? _buildLoadingState() 
+                        : _buildSimplifiedMainContent(isDark),
+                  ),
                 ),
               ),
               
@@ -299,30 +292,35 @@ class _MainScreenState extends ConsumerState<MainScreen>
                   ),
                 ),
               
-              // 🚀 极简高性能侧边栏
-              Positioned(
-                left: _drawerSlideAnimation.value,
-                top: 0,
-                bottom: 0,
-                width: 300, // 侧边栏总宽度
-                child: RepaintBoundary(
-                  child: Material(
-                    elevation: 16,
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
+              // 🚀 极简高性能侧边栏 - 使用Transform避免布局重排
+              RepaintBoundary(
+                child: Positioned(
+                  left: 0, // 固定位置，由Transform控制
+                  top: 0,
+                  bottom: 0,
+                  width: 300, // 侧边栏固定宽度300px
+                  child: Transform.translate(
+                    offset: Offset(_drawerSlideAnimation.value, 0), // 使用Transform替代left属性
+                    child: Material(
+                      elevation: 16,
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
+                      child: SideDrawer(onClose: _closeDrawer),
                     ),
-                    child: SideDrawer(onClose: _closeDrawer),
                   ),
                 ),
               ),
               
-              // 语音助手按钮（固定位置）
-              Positioned(
-                right: 16,
-                bottom: 16,
-                child: _buildVoiceButton(),
+              // 语音助手按钮（固定位置）- 隔离动画区域
+              RepaintBoundary(
+                child: Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: _buildVoiceButton(),
+                ),
               ),
             ],
           );
@@ -331,10 +329,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
   
-  /// 构建加载状态
+  /// 构建加载状态 - 优化版
   Widget _buildLoadingState() {
     return Center(
-      child: BreathingWidget(
+      child: OptimizedBreathingWidget(
         child: Container(
           width: 80,
           height: 80,
@@ -397,8 +395,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Flexible(
             child: Row(
               children: [
-              // 汉堡菜单按钮
-              BreathingWidget(
+              // 汉堡菜单按钮 - 优化版
+              OptimizedBreathingWidget(
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
@@ -490,9 +488,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
 
-  /// 构建搜索按钮
+  /// 构建搜索按钮 - 优化版
   Widget _buildSearchButton(bool isDark) {
-    return BreathingWidget(
+    return OptimizedBreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -562,10 +560,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
         children: [
           // 菜谱卡片 - 增大尺寸
           Center(
-            child: BreathingWidget(
-              duration: const Duration(seconds: 4), // 4秒周期
-              scaleRange: 0.04, // 增加缩放范围，让呼吸更明显
-              opacityRange: 0.15, // 适度的透明度变化
+            child: OptimizedBreathingWidget(
+              scaleMultiplier: 2.0, // 更明显的缩放效果
+              opacityMultiplier: 0.75, // 适度的透明度变化
               child: GestureDetector(
                 onTap: () => _navigateToRecipeDetail(recipe['id']),
                 child: Container(
@@ -752,7 +749,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
           
           // 挑战按钮 ⭐ 新功能入口
-          BreathingWidget(
+          OptimizedBreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -808,7 +805,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 情侣按钮
-          BreathingWidget(
+          OptimizedBreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -840,7 +837,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 亲密度按钮 ⭐ 新功能
-          BreathingWidget(
+          OptimizedBreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -895,7 +892,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 搜索按钮
-          BreathingWidget(
+          OptimizedBreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -927,7 +924,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 我的按钮 - 个人中心入口
-          BreathingWidget(
+          OptimizedBreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -1007,7 +1004,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget _buildRecipeCard(bool isDark) {
     final recipe = _getCurrentRecipe();
     
-    return BreathingWidget(
+    return OptimizedBreathingWidget(
       child: GestureDetector(
         onTap: () {
           final recipe = _getCurrentRecipe();
@@ -1165,7 +1162,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     required bool isDark,
     bool isSpecial = false,
   }) {
-    return BreathingWidget(
+    return OptimizedBreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -1223,7 +1220,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget _buildCreateRecipeButton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return BreathingWidget(
+    return OptimizedBreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.mediumImpact();
