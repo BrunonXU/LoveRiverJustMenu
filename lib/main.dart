@@ -15,6 +15,7 @@ import 'core/auth/providers/auth_providers.dart';
 import 'core/firestore/providers/firestore_providers.dart';
 import 'core/services/providers/new_user_providers.dart';
 import 'core/animations/breathing_manager.dart';
+import 'core/animations/performance_mode.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +59,9 @@ void main() async {
   if (kDebugMode) {
     PerformanceMonitor.init();
   }
+  
+  // 🚀 初始化性能模式管理器
+  PerformanceModeManager.instance.autoDetectPerformanceMode();
   
   // 创建ProviderContainer并预先初始化Repository
   final container = ProviderContainer();

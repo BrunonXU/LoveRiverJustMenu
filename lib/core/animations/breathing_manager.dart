@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'performance_mode.dart';
 
-/// 全局呼吸动画管理器
-/// 解决性能问题：所有BreathingWidget共享同一个AnimationController
-/// 避免创建过多的AnimationController导致帧率下降
+/// 🚀 高性能全局呼吸动画管理器
+/// 目标：达到120FPS (8.33ms/帧) 企业级性能标准
+/// 策略：共享AnimationController + 智能帧预算管理
 class BreathingManager {
   static BreathingManager? _instance;
   static BreathingManager get instance => _instance ??= BreathingManager._();
@@ -17,13 +18,25 @@ class BreathingManager {
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
   
-  /// 初始化管理器
+  // 🎯 性能监控
+  int _frameCount = 0;
+  DateTime _lastFrameTime = DateTime.now();
+  double _currentFps = 0.0;
+  
+  /// 初始化管理器 - 高性能版
   void initialize(TickerProvider vsync) {
     if (_controller != null) return;
     
+    // 检查性能模式
+    if (!PerformanceModeManager.instance.shouldShowBreathingAnimation) {
+      debugPrint('🚀 性能模式：禁用呼吸动画提升性能');
+      return;
+    }
+    
     _vsync = vsync;
+    final duration = (4000 * PerformanceModeManager.instance.animationDurationMultiplier).round();
     _controller = AnimationController(
-      duration: const Duration(seconds: 4), // 遵循设计规范
+      duration: Duration(milliseconds: duration),
       vsync: vsync,
     );
     
@@ -48,7 +61,10 @@ class BreathingManager {
     // 开始动画
     _controller!.repeat(reverse: true);
     
-    debugPrint('🫁 BreathingManager 初始化成功 - 共享动画控制器');
+    // 性能监控回调
+    _controller!.addListener(_monitorPerformance);
+    
+    debugPrint('🫁 BreathingManager 初始化成功 - 目标120FPS');
   }
   
   /// 获取缩放动画
@@ -80,6 +96,25 @@ class BreathingManager {
   
   /// 检查是否已初始化
   bool get isInitialized => _controller != null;
+  
+  /// 性能监控
+  void _monitorPerformance() {
+    _frameCount++;
+    final now = DateTime.now();
+    final deltaTime = now.difference(_lastFrameTime).inMilliseconds;
+    
+    if (_frameCount % 60 == 0) { // 每60帧检查一次
+      _currentFps = 1000.0 / (deltaTime / 60);
+      if (_currentFps < 50) {
+        debugPrint('⚠️ 呼吸动画FPS过低: ${_currentFps.toStringAsFixed(1)}');
+      }
+    }
+    
+    _lastFrameTime = now;
+  }
+  
+  /// 获取当前FPS
+  double get currentFps => _currentFps;
 }
 
 /// 高性能呼吸动画组件
@@ -100,8 +135,8 @@ class OptimizedBreathingWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final manager = BreathingManager.instance;
     
-    // 如果管理器未初始化，直接返回子组件
-    if (!manager.isInitialized) {
+    // 性能检查：如果禁用动画或管理器未初始化，直接返回子组件
+    if (!PerformanceModeManager.instance.shouldShowBreathingAnimation || !manager.isInitialized) {
       return child;
     }
     

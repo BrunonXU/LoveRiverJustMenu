@@ -9,6 +9,7 @@ import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/performance_monitor.dart';
 import '../../../../core/animations/breathing_manager.dart';
+import '../../../../core/animations/performance_mode.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../shared/widgets/voice_interaction_widget.dart';
@@ -255,18 +256,24 @@ class _MainScreenState extends ConsumerState<MainScreen>
         builder: (context, child) {
           return Stack(
             children: [
-              // 主内容区域（不变换，只是背景）- 隔离动画提升性能
+              // 主内容区域 - 激进性能优化：根据模式决定是否显示特效
               RepaintBoundary(
-                child: ChristmasSnowEffect(
-                  enableClickEffect: true,
-                  snowflakeCount: 8,
-                  clickEffectColor: const Color(0xFF00BFFF),
-                  child: SafeArea(
-                    child: _isLoading 
-                        ? _buildLoadingState() 
-                        : _buildSimplifiedMainContent(isDark),
-                  ),
-                ),
+                child: PerformanceModeManager.instance.shouldShowComplexAnimations
+                  ? ChristmasSnowEffect(
+                      enableClickEffect: true,
+                      snowflakeCount: 4, // 减少雪花数量
+                      clickEffectColor: const Color(0xFF00BFFF),
+                      child: SafeArea(
+                        child: _isLoading 
+                            ? _buildLoadingState() 
+                            : _buildSimplifiedMainContent(isDark),
+                      ),
+                    )
+                  : SafeArea(
+                      child: _isLoading 
+                          ? _buildLoadingState() 
+                          : _buildSimplifiedMainContent(isDark),
+                    ),
               ),
               
               // 背景遮罩层（只覆盖主内容区域，不覆盖侧边栏）
