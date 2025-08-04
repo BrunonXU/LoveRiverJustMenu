@@ -8,10 +8,7 @@ import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
 import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/performance_monitor.dart';
-import '../../../../core/animations/breathing_manager.dart';
-import '../../../../core/animations/performance_mode.dart';
-import '../../../../core/performance/frame_budget_manager.dart';
-import '../../../../core/animations/lightweight_animations.dart';
+import '../../../../shared/widgets/breathing_widget.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../shared/widgets/voice_interaction_widget.dart';
@@ -36,16 +33,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   // ==================== 动画控制器 ====================
   
-  // 移除独立的呼吸动画控制器，使用全局共享的管理器
+  late AnimationController _breathingController;
   late AnimationController _cardController;
+  late Animation<double> _breathingAnimation;
   late Animation<double> _cardAnimation;
-  
-  // 侧边栏动画控制器
-  late AnimationController _drawerController;
-  late Animation<double> _drawerSlideAnimation;
-  late Animation<double> _mainContentScaleAnimation;
-  late Animation<double> _mainContentTranslateAnimation;
-  bool _isDrawerOpen = false;
   
   // ==================== 状态变量 ====================
   
@@ -64,36 +55,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
     _loadInitialData();
   }
   
-  /// 打开侧边栏
-  void _openDrawer() {
-    if (!_isDrawerOpen) {
-      setState(() {
-        _isDrawerOpen = true;
-      });
-      _drawerController.forward();
-      HapticFeedback.lightImpact();
-    }
-  }
-  
-  /// 关闭侧边栏
-  void _closeDrawer() {
-    if (_isDrawerOpen) {
-      setState(() {
-        _isDrawerOpen = false;
-      });
-      _drawerController.reverse();
-      HapticFeedback.lightImpact();
-    }
-  }
-  
-  /// 切换侧边栏状态
-  void _toggleDrawer() {
-    if (_isDrawerOpen) {
-      _closeDrawer();
-    } else {
-      _openDrawer();
-    }
-  }
   
   // ==================== 生命周期 ====================
   
@@ -106,25 +67,30 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   @override
   void dispose() {
-    // 移除_breathingController.dispose()，由全局管理器统一管理
+    _breathingController.dispose();
     _cardController.dispose();
-    _drawerController.dispose();
     super.dispose();
   }
   
   // ==================== 初始化方法 ====================
   
-  /// 初始化动画 - 超轻量级版本
+  /// 初始化动画
   void _initializeAnimations() {
-    // 初始化超轻量级动画系统
-    LightweightAnimationController.instance.initialize(this);
+    // 呼吸动画控制器 - 4s循环
+    _breathingController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    )..repeat(reverse: true);
     
-    // 初始化全局呼吸动画管理器（只初始化一次）
-    if (!BreathingManager.instance.isInitialized) {
-      BreathingManager.instance.initialize(this);
-    }
+    _breathingAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.02, // 严格按照设计规范
+    ).animate(CurvedAnimation(
+      parent: _breathingController,
+      curve: Curves.easeInOut,
+    ));
     
-    // 卡片动画控制器 - 保留用于切换动画
+    // 卡片动画控制器
     _cardController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -134,42 +100,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
       parent: _cardController,
       curve: Curves.easeOutCubic,
     );
-    
-    // 侧边栏动画控制器 - 800ms，cubic-bezier(0.25, 0.46, 0.45, 0.94)
-    _drawerController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    
-    // 显式设置初始状态为关闭
-    _drawerController.reset(); // 确保初始值为0
-    
-    // 侧边栏滑动动画：从 -300px 到 0px (完全滑出，覆盖模式)
-    _drawerSlideAnimation = Tween<double>(
-      begin: -300.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _drawerController,
-      curve: const Cubic(0.25, 0.46, 0.45, 0.94), // 用户指定的贝塞尔曲线
-    ));
-    
-    // 主内容不做任何变换，只虚化
-    _mainContentScaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.0, // 不缩放
-    ).animate(CurvedAnimation(
-      parent: _drawerController,
-      curve: const Cubic(0.25, 0.46, 0.45, 0.94),
-    ));
-    
-    // 主内容不平移
-    _mainContentTranslateAnimation = Tween<double>(
-      begin: 0.0,  
-      end: 0.0, // 不平移
-    ).animate(CurvedAnimation(
-      parent: _drawerController,
-      curve: const Cubic(0.25, 0.46, 0.45, 0.94),
-    ));
     
     // 启动动画
     _cardController.forward();
@@ -255,107 +185,39 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
+    
     return Scaffold(
-        body: AnimatedBuilder(
-          animation: _drawerController,
-          builder: (context, child) {
-            return Stack(
-            children: [
-              // 主内容区域 - 简化版本，移除可能导致问题的RepaintBoundary
-              SafeArea(
-                child: _isLoading 
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildLoadingState(),
-                          const SizedBox(height: 20),
-                          Text(
-                            '正在加载中...',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      )
-                    : _buildSimplifiedMainContent(isDark),
-              ),
-              
-              // 背景遮罩层（只覆盖主内容区域，不覆盖侧边栏）
-              // 🚀 优化版背景遮罩 - 移除BackdropFilter提升性能
-              if (_isDrawerOpen)
-                Positioned(
-                  left: 300, // 从侧边栏右边开始
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: RepaintBoundary(
-                    child: GestureDetector(
-                      onTap: _closeDrawer,
-                      child: AnimatedBuilder(
-                        animation: _drawerController,
-                        builder: (context, child) {
-                          return Container(
-                            color: Colors.black.withOpacity(0.4 * _drawerController.value),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              
-              // 🚀 极简高性能侧边栏 - 使用Transform避免布局重排
-              RepaintBoundary(
-                child: Positioned(
-                  left: 0, // 固定位置，由Transform控制
-                  top: 0,
-                  bottom: 0,
-                  width: 300, // 侧边栏固定宽度300px
-                  child: Transform.translate(
-                    offset: Offset(_drawerSlideAnimation.value, 0), // 使用Transform替代left属性
-                    child: Material(
-                      elevation: 16,
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(24),
-                        bottomRight: Radius.circular(24),
-                      ),
-                      child: SideDrawer(onClose: _closeDrawer),
-                    ),
-                  ),
-                ),
-              ),
-              
-              // 语音助手按钮（固定位置）- 隔离动画区域
-              RepaintBoundary(
-                child: Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: _buildVoiceButton(),
-                ),
-              ),
-            ],
-          );
-        },
+      // 添加侧边栏
+      drawer: const SideDrawer(),
+      
+      body: ChristmasSnowEffect(
+        enableClickEffect: true,
+        snowflakeCount: 8, // 稍微增加雪花数量
+        clickEffectColor: const Color(0xFF00BFFF), // 海蓝色点击特效
+        child: SafeArea(
+          child: _isLoading 
+              ? _buildLoadingState() 
+              : _buildSimplifiedMainContent(isDark),
+        ),
       ),
+      
+      // 只保留语音助手按钮
+      floatingActionButton: _buildVoiceButton(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
   
-  /// 构建加载状态 - 优化版
+  /// 构建加载状态
   Widget _buildLoadingState() {
     return Center(
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.restaurant,
-          color: Colors.white,
-          size: 40,
+      child: BreathingWidget(
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: AppColors.primaryGradient,
+            shape: BoxShape.circle,
+          ),
         ),
       ),
     );
@@ -412,11 +274,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
             child: Row(
               children: [
               // 汉堡菜单按钮 - 优化版
-              OptimizedBreathingWidget(
+              BreathingWidget(
                 child: GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    _toggleDrawer();
+                    Scaffold.of(context).openDrawer();
                   },
                   child: Container(
                     width: 40,
@@ -506,7 +368,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   /// 构建搜索按钮 - 优化版
   Widget _buildSearchButton(bool isDark) {
-    return OptimizedBreathingWidget(
+    return BreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -576,9 +438,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         children: [
           // 菜谱卡片 - 增大尺寸
           Center(
-            child: OptimizedBreathingWidget(
-              scaleMultiplier: 2.0, // 更明显的缩放效果
-              opacityMultiplier: 0.75, // 适度的透明度变化
+            child: BreathingWidget(
               child: GestureDetector(
                 onTap: () => _navigateToRecipeDetail(recipe['id']),
                 child: Container(
@@ -765,7 +625,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
           
           // 挑战按钮 ⭐ 新功能入口
-          OptimizedBreathingWidget(
+          BreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -821,7 +681,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 情侣按钮
-          OptimizedBreathingWidget(
+          BreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -853,7 +713,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 亲密度按钮 ⭐ 新功能
-          OptimizedBreathingWidget(
+          BreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -908,7 +768,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 搜索按钮
-          OptimizedBreathingWidget(
+          BreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -940,7 +800,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           Space.w8,
           
           // 我的按钮 - 个人中心入口
-          OptimizedBreathingWidget(
+          BreathingWidget(
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.lightImpact();
@@ -1020,7 +880,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget _buildRecipeCard(bool isDark) {
     final recipe = _getCurrentRecipe();
     
-    return OptimizedBreathingWidget(
+    return BreathingWidget(
       child: GestureDetector(
         onTap: () {
           final recipe = _getCurrentRecipe();
@@ -1178,7 +1038,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
     required bool isDark,
     bool isSpecial = false,
   }) {
-    return OptimizedBreathingWidget(
+    return BreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -1236,7 +1096,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget _buildCreateRecipeButton() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return OptimizedBreathingWidget(
+    return BreathingWidget(
       child: GestureDetector(
         onTap: () {
           HapticFeedback.mediumImpact();
