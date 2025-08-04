@@ -1,19 +1,20 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 /// 📊 性能模式管理器
 /// 根据设备性能动态调整动画密度，确保流畅体验
+// 性能模式枚举
+enum PerformanceMode {
+  highPerformance,  // 120FPS - 旗舰设备
+  balanced,         // 60FPS - 主流设备
+  powerSaver,       // 30FPS - 低端设备
+}
+
 class PerformanceModeManager {
   static PerformanceModeManager? _instance;
   static PerformanceModeManager get instance => _instance ??= PerformanceModeManager._();
   
   PerformanceModeManager._();
-  
-  // 性能模式枚举
-  enum PerformanceMode {
-    highPerformance,  // 120FPS - 旗舰设备
-    balanced,         // 60FPS - 主流设备
-    powerSaver,       // 30FPS - 低端设备
-  }
   
   PerformanceMode _currentMode = PerformanceMode.balanced;
   bool _animationsEnabled = true;
@@ -112,11 +113,11 @@ class PerformanceAwareWidget extends StatelessWidget {
     final mode = PerformanceModeManager.instance.currentMode;
     
     switch (mode) {
-      case PerformanceModeManager.PerformanceMode.highPerformance:
+      case PerformanceMode.highPerformance:
         return highPerformanceChild ?? child;
-      case PerformanceModeManager.PerformanceMode.balanced:
+      case PerformanceMode.balanced:
         return balancedChild ?? child;
-      case PerformanceModeManager.PerformanceMode.powerSaver:
+      case PerformanceMode.powerSaver:
         return powerSaverChild ?? child;
     }
   }

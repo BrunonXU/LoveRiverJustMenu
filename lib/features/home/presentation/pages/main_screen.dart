@@ -10,6 +10,8 @@ import '../../../../core/themes/spacing.dart';
 import '../../../../core/utils/performance_monitor.dart';
 import '../../../../core/animations/breathing_manager.dart';
 import '../../../../core/animations/performance_mode.dart';
+import '../../../../core/performance/frame_budget_manager.dart';
+import '../../../../core/animations/lightweight_animations.dart';
 import '../../../../shared/widgets/minimal_card.dart';
 import '../../../../shared/widgets/app_icon_3d.dart';
 import '../../../../shared/widgets/voice_interaction_widget.dart';
@@ -112,8 +114,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   // ==================== 初始化方法 ====================
   
-  /// 初始化动画 - 优化版：使用全局呼吸管理器
+  /// 初始化动画 - 超轻量级版本
   void _initializeAnimations() {
+    // 初始化超轻量级动画系统
+    LightweightAnimationController.instance.initialize(this);
+    
     // 初始化全局呼吸动画管理器（只初始化一次）
     if (!BreathingManager.instance.isInitialized) {
       BreathingManager.instance.initialize(this);
@@ -250,11 +255,13 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      body: AnimatedBuilder(
-        animation: _drawerController,
-        builder: (context, child) {
-          return Stack(
+    return FrameBudgetMonitor(
+      debugLabel: 'MainScreen',
+      child: Scaffold(
+        body: AnimatedBuilder(
+          animation: _drawerController,
+          builder: (context, child) {
+            return Stack(
             children: [
               // 主内容区域 - 激进性能优化：根据模式决定是否显示特效
               RepaintBoundary(
@@ -332,6 +339,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ],
           );
         },
+      ),
       ),
     );
   }

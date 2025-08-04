@@ -16,6 +16,7 @@ import 'core/firestore/providers/firestore_providers.dart';
 import 'core/services/providers/new_user_providers.dart';
 import 'core/animations/breathing_manager.dart';
 import 'core/animations/performance_mode.dart';
+import 'core/performance/frame_budget_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -62,6 +63,9 @@ void main() async {
   
   // 🚀 初始化性能模式管理器
   PerformanceModeManager.instance.autoDetectPerformanceMode();
+  
+  // 🎯 初始化帧预算管理器
+  FrameBudgetManager.instance.setTargetFps(120);
   
   // 创建ProviderContainer并预先初始化Repository
   final container = ProviderContainer();
