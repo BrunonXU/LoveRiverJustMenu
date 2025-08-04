@@ -13,7 +13,9 @@ import 'breathing_widget.dart';
 /// 🎨 侧边栏组件 - 占50%宽度，从左滑出
 /// 包含所有原主页功能的统一入口
 class SideDrawer extends ConsumerWidget {
-  const SideDrawer({super.key});
+  final VoidCallback? onClose;
+  
+  const SideDrawer({super.key, this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -62,8 +64,16 @@ class SideDrawer extends ConsumerWidget {
         child: GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
-            Navigator.of(context).pop(); // 关闭侧边栏
-            context.push('/personal-center'); // 跳转到个人中心页面
+            
+            // 关闭侧边栏
+            Navigator.of(context).pop();
+            
+            // 延迟导航，确保pop完成后再进行路由跳转
+            Future.microtask(() {
+              if (context.mounted) {
+                context.go('/personal-center'); // 使用go替代push，避免路由栈问题
+              }
+            });
           },
           child: Row(
             children: [
@@ -367,8 +377,15 @@ class SideDrawer extends ConsumerWidget {
 
   /// 导航到指定页面
   void _navigateTo(BuildContext context, String route) {
-    Navigator.of(context).pop(); // 关闭侧边栏
-    context.push(route);
+    // 关闭侧边栏
+    Navigator.of(context).pop();
+    
+    // 延迟导航，确保pop完成后再进行路由跳转
+    Future.microtask(() {
+      if (context.mounted) {
+        context.go(route); // 使用go替代push，避免路由栈问题
+      }
+    });
   }
 }
 
