@@ -64,8 +64,10 @@ void main() async {
   // 🚀 初始化性能模式管理器
   PerformanceModeManager.instance.autoDetectPerformanceMode();
   
-  // 🎯 初始化帧预算管理器
-  FrameBudgetManager.instance.setTargetFps(120);
+  // 🎯 初始化帧预算管理器 - 仅在调试模式下启用
+  if (kDebugMode) {
+    FrameBudgetManager.instance.setTargetFps(120);
+  }
   
   // 创建ProviderContainer并预先初始化Repository
   final container = ProviderContainer();

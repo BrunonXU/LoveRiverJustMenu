@@ -177,6 +177,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   /// 加载初始数据
   void _loadInitialData() async {
+    debugPrint('🚀 _loadInitialData 开始执行');
     final stopwatch = PerformanceMonitor.startOperation('LoadInitialData');
     
     try {
@@ -255,32 +256,30 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return FrameBudgetMonitor(
-      debugLabel: 'MainScreen',
-      child: Scaffold(
+    return Scaffold(
         body: AnimatedBuilder(
           animation: _drawerController,
           builder: (context, child) {
             return Stack(
             children: [
-              // 主内容区域 - 激进性能优化：根据模式决定是否显示特效
-              RepaintBoundary(
-                child: PerformanceModeManager.instance.shouldShowComplexAnimations
-                  ? ChristmasSnowEffect(
-                      enableClickEffect: true,
-                      snowflakeCount: 4, // 减少雪花数量
-                      clickEffectColor: const Color(0xFF00BFFF),
-                      child: SafeArea(
-                        child: _isLoading 
-                            ? _buildLoadingState() 
-                            : _buildSimplifiedMainContent(isDark),
-                      ),
-                    )
-                  : SafeArea(
-                      child: _isLoading 
-                          ? _buildLoadingState() 
-                          : _buildSimplifiedMainContent(isDark),
-                    ),
+              // 主内容区域 - 简化版本，移除可能导致问题的RepaintBoundary
+              SafeArea(
+                child: _isLoading 
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildLoadingState(),
+                          const SizedBox(height: 20),
+                          Text(
+                            '正在加载中...',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      )
+                    : _buildSimplifiedMainContent(isDark),
               ),
               
               // 背景遮罩层（只覆盖主内容区域，不覆盖侧边栏）
@@ -347,14 +346,17 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 构建加载状态 - 优化版
   Widget _buildLoadingState() {
     return Center(
-      child: OptimizedBreathingWidget(
-        child: Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            gradient: AppColors.primaryGradient,
-            shape: BoxShape.circle,
-          ),
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(
+          Icons.restaurant,
+          color: Colors.white,
+          size: 40,
         ),
       ),
     );

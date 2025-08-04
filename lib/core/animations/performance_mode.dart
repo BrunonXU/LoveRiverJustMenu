@@ -35,7 +35,10 @@ class PerformanceModeManager {
       _currentMode = PerformanceMode.balanced;
     }
     
-    debugPrint('🎯 性能模式已设置: $_currentMode');
+    // 🚨 紧急修复：确保动画在所有模式下都启用
+    _animationsEnabled = true;
+    
+    debugPrint('🎯 性能模式已设置: $_currentMode, 动画启用: $_animationsEnabled');
   }
   
   /// 手动设置性能模式

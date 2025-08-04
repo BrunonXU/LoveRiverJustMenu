@@ -22,16 +22,16 @@ class _UltraLightMainScreenState extends ConsumerState<UltraLightMainScreen>
   @override
   void initState() {
     super.initState();
-    // 初始化超轻量级动画系统
-    LightweightAnimationController.instance.initialize(this);
-    FrameBudgetManager.instance.setTargetFps(120);
+    // 初始化超轻量级动画系统 - 仅在调试模式
+    if (kDebugMode) {
+      LightweightAnimationController.instance.initialize(this);
+      FrameBudgetManager.instance.setTargetFps(120);
+    }
   }
   
   @override
   Widget build(BuildContext context) {
-    return FrameBudgetMonitor(
-      debugLabel: 'UltraLightMainScreen',
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
           child: Column(

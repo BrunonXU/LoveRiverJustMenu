@@ -43,11 +43,13 @@ class FrameBudgetManager {
   
   /// 开始帧预算监控
   void startFrame() {
+    if (!kDebugMode) return; // 生产环境直接跳过
     _frameStartTime = DateTime.now().microsecondsSinceEpoch;
   }
   
   /// 结束帧预算监控
   void endFrame() {
+    if (!kDebugMode) return; // 生产环境直接跳过
     final endTime = DateTime.now().microsecondsSinceEpoch;
     final frameTime = endTime - _frameStartTime;
     
@@ -75,6 +77,7 @@ class FrameBudgetManager {
   
   /// 检查当前帧是否还有预算
   bool hasFrameBudget() {
+    if (!kDebugMode) return true; // 生产环境总是返回true
     final currentTime = DateTime.now().microsecondsSinceEpoch;
     final elapsed = currentTime - _frameStartTime;
     return elapsed < (_currentBudgetMicros * 0.8); // 保留20%缓冲
