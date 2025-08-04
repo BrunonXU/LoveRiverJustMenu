@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'performance_mode.dart';
 
 /// 🚀 高性能全局呼吸动画管理器
@@ -137,6 +138,11 @@ class OptimizedBreathingWidget extends StatelessWidget {
     
     // 性能检查：如果禁用动画或管理器未初始化，直接返回子组件
     if (!PerformanceModeManager.instance.shouldShowBreathingAnimation || !manager.isInitialized) {
+      return child;
+    }
+    
+    // 🚨 生产环境紧急修复：直接返回child避免透明度问题
+    if (!kDebugMode) {
       return child;
     }
     
