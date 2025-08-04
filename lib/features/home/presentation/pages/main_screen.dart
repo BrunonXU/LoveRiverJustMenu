@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:ui';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
 
@@ -39,6 +40,13 @@ class _MainScreenState extends ConsumerState<MainScreen>
   late Animation<double> _breathingAnimation;
   late Animation<double> _cardAnimation;
   
+  // 侧边栏动画控制器
+  late AnimationController _drawerController;
+  late Animation<double> _drawerSlideAnimation;
+  late Animation<double> _mainContentScaleAnimation;
+  late Animation<double> _mainContentTranslateAnimation;
+  bool _isDrawerOpen = false;
+  
   // ==================== 状态变量 ====================
   
   int _currentIndex = 0;
@@ -56,6 +64,37 @@ class _MainScreenState extends ConsumerState<MainScreen>
     _loadInitialData();
   }
   
+  /// 打开侧边栏
+  void _openDrawer() {
+    if (!_isDrawerOpen) {
+      setState(() {
+        _isDrawerOpen = true;
+      });
+      _drawerController.forward();
+      HapticFeedback.lightImpact();
+    }
+  }
+  
+  /// 关闭侧边栏
+  void _closeDrawer() {
+    if (_isDrawerOpen) {
+      setState(() {
+        _isDrawerOpen = false;
+      });
+      _drawerController.reverse();
+      HapticFeedback.lightImpact();
+    }
+  }
+  
+  /// 切换侧边栏状态
+  void _toggleDrawer() {
+    if (_isDrawerOpen) {
+      _closeDrawer();
+    } else {
+      _openDrawer();
+    }
+  }
+  
   // ==================== 生命周期 ====================
   
   @override
@@ -69,6 +108,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void dispose() {
     _breathingController.dispose();
     _cardController.dispose();
+    _drawerController.dispose();
     super.dispose();
   }
   
@@ -100,6 +140,39 @@ class _MainScreenState extends ConsumerState<MainScreen>
       parent: _cardController,
       curve: Curves.easeOutCubic,
     );
+    
+    // 侧边栏动画控制器 - 800ms，cubic-bezier(0.25, 0.46, 0.45, 0.94)
+    _drawerController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    // 侧边栏滑动动画：从 -230px 到 -50px (只露出50px作为peek)
+    _drawerSlideAnimation = Tween<double>(
+      begin: -230.0,
+      end: -50.0,
+    ).animate(CurvedAnimation(
+      parent: _drawerController,
+      curve: const Cubic(0.25, 0.46, 0.45, 0.94), // 用户指定的贝塞尔曲线
+    ));
+    
+    // 主内容缩放动画：缩放到0.9
+    _mainContentScaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.9,
+    ).animate(CurvedAnimation(
+      parent: _drawerController,
+      curve: const Cubic(0.25, 0.46, 0.45, 0.94),
+    ));
+    
+    // 主内容平移动画：向右推移130px（适度推移，不会太多）
+    _mainContentTranslateAnimation = Tween<double>(
+      begin: 0.0,  
+      end: 130.0,
+    ).animate(CurvedAnimation(
+      parent: _drawerController,
+      curve: const Cubic(0.25, 0.46, 0.45, 0.94),
+    ));
     
     // 启动动画
     _cardController.forward();
@@ -184,25 +257,106 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Scaffold(
-      // 添加侧边栏
-      drawer: const SideDrawer(),
-      
-      body: ChristmasSnowEffect(
-        enableClickEffect: true,
-        snowflakeCount: 8, // 稍微增加雪花数量
-        clickEffectColor: const Color(0xFF00BFFF), // 海蓝色点击特效
-        child: SafeArea(
-          child: _isLoading 
-              ? _buildLoadingState() 
-              : _buildSimplifiedMainContent(isDark),
-        ),
+      body: AnimatedBuilder(
+        animation: _drawerController,
+        builder: (context, child) {
+          return Stack(
+            children: [
+              // 背景遮罩层（打开时显示）
+              if (_isDrawerOpen)
+                GestureDetector(
+                  onTap: _closeDrawer,
+                  child: Container(
+                    color: Colors.black.withOpacity(0.3 * _drawerController.value),
+                  ),
+                ),
+              
+              // 自定义侧边栏（peek模式）
+              Positioned(
+                left: _drawerSlideAnimation.value,
+                top: 0,
+                bottom: 0,
+                width: 250, // 侧边栏总宽度调整
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 32,
+                        offset: const Offset(8, 0),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.95),
+                          border: const Border(
+                            right: BorderSide(
+                              color: Color(0x0F000000),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: const SideDrawer(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // 主内容区域（带变换动画）
+              Transform.translate(
+                offset: Offset(_mainContentTranslateAnimation.value, 0),
+                child: Transform.scale(
+                  scale: _mainContentScaleAnimation.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        _isDrawerOpen ? 24 : 12, // 动态圆角
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: ChristmasSnowEffect(
+                      enableClickEffect: true,
+                      snowflakeCount: 8,
+                      clickEffectColor: const Color(0xFF00BFFF),
+                      child: SafeArea(
+                        child: _isLoading 
+                            ? _buildLoadingState() 
+                            : _buildSimplifiedMainContent(isDark),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // 语音助手按钮（跟随主内容移动）
+              Positioned(
+                right: 16 + (16 * (1 - _mainContentScaleAnimation.value)), // 动态调整位置
+                bottom: 16 + (16 * (1 - _mainContentScaleAnimation.value)),
+                child: Transform.scale(
+                  scale: _mainContentScaleAnimation.value,
+                  child: _buildVoiceButton(),
+                ),
+              ),
+            ],
+          );
+        },
       ),
-      
-      // 只保留语音助手按钮
-      floatingActionButton: _buildVoiceButton(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
   
@@ -273,32 +427,32 @@ class _MainScreenState extends ConsumerState<MainScreen>
             child: Row(
               children: [
               // 汉堡菜单按钮
-              Builder(
-                builder: (context) => GestureDetector(
+              BreathingWidget(
+                child: GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    Scaffold.of(context).openDrawer();
+                    _toggleDrawer();
                   },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.getBackgroundSecondaryColor(isDark),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.getBackgroundSecondaryColor(isDark),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.getShadowColor(isDark).withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.menu,
+                      size: 24,
+                      color: AppColors.getTextPrimaryColor(isDark),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.menu,
-                    size: 24,
-                    color: AppColors.getTextPrimaryColor(isDark),
-                  ),
-                ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -438,6 +592,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
           // 菜谱卡片 - 增大尺寸
           Center(
             child: BreathingWidget(
+              duration: const Duration(seconds: 4), // 4秒周期
+              scaleRange: 0.04, // 增加缩放范围，让呼吸更明显
+              opacityRange: 0.15, // 适度的透明度变化
               child: GestureDetector(
                 onTap: () => _navigateToRecipeDetail(recipe['id']),
                 child: Container(
@@ -447,10 +604,19 @@ class _MainScreenState extends ConsumerState<MainScreen>
                     color: AppColors.getBackgroundSecondaryColor(isDark),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
+                      // 主阴影 - 更深更明显
                       BoxShadow(
-                        color: AppColors.getShadowColor(isDark).withOpacity(0.15),
-                        blurRadius: 32,
-                        offset: const Offset(0, 8),
+                        color: AppColors.getShadowColor(isDark).withOpacity(0.25),
+                        blurRadius: 40,
+                        offset: const Offset(0, 12),
+                        spreadRadius: 0,
+                      ),
+                      // 辅助阴影 - 增加层次感
+                      BoxShadow(
+                        color: AppColors.getShadowColor(isDark).withOpacity(0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
@@ -950,7 +1116,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
       children: [
         // 上方按钮 - 上一个菜谱
         Positioned(
-          top: 20,
+          top: 60, // 增加距离，远离卡片
           left: 0,
           right: 0,
           child: Center(
@@ -964,7 +1130,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         
         // 下方按钮 - 下一个菜谱
         Positioned(
-          bottom: 20,
+          bottom: 60, // 增加距离，远离卡片
           left: 0,
           right: 0,
           child: Center(

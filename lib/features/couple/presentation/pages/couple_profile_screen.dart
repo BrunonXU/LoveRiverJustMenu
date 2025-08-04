@@ -242,6 +242,13 @@ class _CoupleProfileScreenState extends ConsumerState<CoupleProfileScreen>
           
           Space.h24,
           
+          // 组队打卡功能（如果已绑定）
+          if (account.isBound)
+            _buildTeamCheckInCard(account, isDark),
+          
+          if (account.isBound)
+            Space.h24,
+          
           // 统计信息
           _buildStatsCard(account, isDark),
           
@@ -834,6 +841,268 @@ class _CoupleProfileScreenState extends ConsumerState<CoupleProfileScreen>
         ],
       ),
     );
+  }
+
+  /// 组队打卡卡片
+  Widget _buildTeamCheckInCard(CoupleAccount account, bool isDark) {
+    final currentUserId = ref.watch(currentUserIdProvider);
+    final today = DateTime.now();
+    final todayString = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    
+    // 模拟打卡数据（实际应该从服务器获取）
+    final myProfile = account.getMyProfile(currentUserId);
+    final partnerProfile = account.getPartnerProfile(currentUserId);
+    final myCheckedIn = myProfile?.lastCheckIn == todayString;
+    final partnerCheckedIn = partnerProfile?.lastCheckIn == todayString;
+    
+    return BreathingWidget(
+      child: MinimalCard(
+        child: Column(
+          children: [
+            // 标题
+            Row(
+              children: [
+                Icon(
+                  Icons.favorite,
+                  size: 24,
+                  color: Colors.red[400],
+                ),
+                Space.w8,
+                Text(
+                  '今日组队打卡',
+                  style: AppTypography.titleMediumStyle(isDark: isDark).copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (myCheckedIn && partnerCheckedIn) ? Colors.green[100] : Colors.orange[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    (myCheckedIn && partnerCheckedIn) ? '已完成' : '进行中',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: (myCheckedIn && partnerCheckedIn) ? Colors.green[800] : Colors.orange[800],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            Space.h16,
+            
+            Text(
+              '和TA一起坚持每日美食打卡，增进感情～',
+              style: AppTypography.bodySmallStyle(isDark: isDark),
+              textAlign: TextAlign.center,
+            ),
+            
+            Space.h20,
+            
+            // 打卡状态
+            Row(
+              children: [
+                // 我的打卡状态
+                Expanded(
+                  child: _buildCheckInStatus(
+                    '我',
+                    myProfile?.nickname ?? '我',
+                    myCheckedIn,
+                    isDark,
+                  ),
+                ),
+                
+                Space.w16,
+                
+                // 连接线
+                Container(
+                  width: 40,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: (myCheckedIn && partnerCheckedIn) 
+                        ? Colors.red[300] 
+                        : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.favorite,
+                      size: 16,
+                      color: (myCheckedIn && partnerCheckedIn) 
+                          ? Colors.red[400] 
+                          : Colors.grey[400],
+                    ),
+                  ),
+                ),
+                
+                Space.w16,
+                
+                // TA的打卡状态
+                Expanded(
+                  child: _buildCheckInStatus(
+                    'TA',
+                    partnerProfile?.nickname ?? 'TA',
+                    partnerCheckedIn,
+                    isDark,
+                  ),
+                ),
+              ],
+            ),
+            
+            Space.h20,
+            
+            // 打卡按钮
+            if (!myCheckedIn)
+              BreathingWidget(
+                child: GestureDetector(
+                  onTap: () => _performCheckIn(),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.red[400]!, Colors.pink[400]!],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        Space.w8,
+                        Text(
+                          '今日打卡',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green[600],
+                      size: 20,
+                    ),
+                    Space.w8,
+                    Text(
+                      '今日已打卡',
+                      style: TextStyle(
+                        color: Colors.green[600],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 构建单个打卡状态
+  Widget _buildCheckInStatus(String label, String name, bool checkedIn, bool isDark) {
+    return Column(
+      children: [
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: checkedIn ? Colors.green[100] : Colors.grey[100],
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: checkedIn ? Colors.green[300]! : Colors.grey[300]!,
+              width: 2,
+            ),
+          ),
+          child: Center(
+            child: Icon(
+              checkedIn ? Icons.check : Icons.person,
+              color: checkedIn ? Colors.green[600] : Colors.grey[600],
+              size: 30,
+            ),
+          ),
+        ),
+        
+        Space.h8,
+        
+        Text(
+          name,
+          style: AppTypography.bodySmallStyle(isDark: isDark).copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        
+        Space.h4,
+        
+        Text(
+          checkedIn ? '已打卡' : '未打卡',
+          style: TextStyle(
+            fontSize: 12,
+            color: checkedIn ? Colors.green[600] : Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+  
+  /// 执行打卡
+  void _performCheckIn() {
+    HapticFeedback.mediumImpact();
+    
+    // 显示打卡成功提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.favorite, color: Colors.white),
+            Space.w8,
+            Text('打卡成功！坚持和TA一起努力～'),
+          ],
+        ),
+        backgroundColor: Colors.red[400],
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+    
+    // TODO: 实际项目中应该调用API更新打卡状态
+    // ref.read(coupleAccountProvider.notifier).checkIn(currentUserId);
+    
+    // 模拟状态更新
+    setState(() {
+      // 这里会触发重建，显示已打卡状态
+    });
   }
 
   // ==================== 辅助方法 ====================

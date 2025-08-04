@@ -253,6 +253,9 @@ class Space {
   static const h48 = SizedBox(height: 48);
   static const h64 = SizedBox(height: 64);
   
+  // 补充缺失的间距组件
+  static const h20 = SizedBox(height: 20);
+  
   /// 水平间距组件
   static const w4 = SizedBox(width: 4);
   static const w8 = SizedBox(width: 8);

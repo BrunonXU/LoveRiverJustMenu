@@ -346,7 +346,7 @@ class SnowPainter extends CustomPainter {
       final x = snowflake.x * size.width;
       final y = snowflake.y * size.height;
       
-      paint.color = Colors.white.withOpacity(snowflake.opacity);
+      paint.color = const Color(0xFF00BFFF).withOpacity(snowflake.opacity); // 海蓝色雪花
       
       canvas.save();
       canvas.translate(x, y);

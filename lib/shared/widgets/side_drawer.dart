@@ -63,7 +63,7 @@ class SideDrawer extends ConsumerWidget {
           onTap: () {
             HapticFeedback.lightImpact();
             Navigator.of(context).pop(); // 关闭侧边栏
-            context.push('/user-profile'); // 跳转到用户详情页面
+            context.push('/personal-center'); // 跳转到个人中心页面
           },
           child: Row(
             children: [

@@ -203,6 +203,9 @@ class CoupleProfile {
   
   /// 烹饪技能等级 (1-5)
   final int cookingLevel;
+  
+  /// 最后打卡时间（格式：YYYY-MM-DD）
+  final String? lastCheckIn;
 
   const CoupleProfile({
     required this.userId,
@@ -214,6 +217,7 @@ class CoupleProfile {
     this.favoriteCuisines = const [],
     this.dietaryPreferences = const [],
     this.cookingLevel = 1,
+    this.lastCheckIn,
   });
 
   /// 年龄
@@ -257,6 +261,7 @@ class CoupleProfile {
     List<String>? favoriteCuisines,
     List<String>? dietaryPreferences,
     int? cookingLevel,
+    String? lastCheckIn,
   }) {
     return CoupleProfile(
       userId: userId ?? this.userId,
@@ -268,6 +273,7 @@ class CoupleProfile {
       favoriteCuisines: favoriteCuisines ?? this.favoriteCuisines,
       dietaryPreferences: dietaryPreferences ?? this.dietaryPreferences,
       cookingLevel: cookingLevel ?? this.cookingLevel,
+      lastCheckIn: lastCheckIn ?? this.lastCheckIn,
     );
   }
 
