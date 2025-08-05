@@ -275,11 +275,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
               children: [
               // 汉堡菜单按钮 - 优化版
               BreathingWidget(
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    Scaffold.of(context).openDrawer();
-                  },
+                child: Builder(
+                  builder: (BuildContext context) => GestureDetector(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Scaffold.of(context).openDrawer();
+                    },
                   child: Container(
                     width: 40,
                     height: 40,
@@ -299,6 +300,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
                       size: 24,
                       color: AppColors.getTextPrimaryColor(isDark),
                     ),
+                  ),
                   ),
                 ),
               ),
