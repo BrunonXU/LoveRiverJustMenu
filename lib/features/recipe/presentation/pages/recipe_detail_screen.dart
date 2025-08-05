@@ -358,22 +358,8 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
               // 🌟 收藏按钮
               _buildFavoriteButton(),
               const SizedBox(width: 8),
-              // ✏️ 编辑按钮
-              Container(
-                margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    _navigateToEditRecipe();
-                  },
-                  icon: const Icon(Icons.edit, color: Colors.black87, size: 20),
-                  tooltip: '编辑菜谱',
-                ),
-              ),
+              // ✏️ 编辑按钮 - 根据权限显示不同提示
+              _buildEditButton(),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
@@ -1241,6 +1227,57 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   /// ✏️ 导航到编辑菜谱页面
   void _navigateToEditRecipe() {
     context.push('/create-recipe?editId=${widget.recipeId}');
+  }
+  
+  /// ✏️ 构建编辑按钮 - 根据权限显示不同提示文字
+  Widget _buildEditButton() {
+    final currentUser = ref.read(currentUserProvider);
+    
+    // 默认情况下显示编辑
+    String tooltipText = '编辑菜谱';
+    IconData iconData = Icons.edit;
+    
+    // 🔐 权限检查：如果有菜谱数据且用户不能编辑
+    if (_recipe != null && currentUser != null) {
+      final bool canEdit = _canEditRecipe(_recipe!, currentUser.uid);
+      
+      if (!canEdit) {
+        // 🔄 不能编辑，显示复制提示
+        tooltipText = '复制并修改';
+        iconData = Icons.content_copy;
+      }
+    }
+    
+    return Container(
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _navigateToEditRecipe();
+        },
+        icon: Icon(iconData, color: Colors.black87, size: 20),
+        tooltip: tooltipText,
+      ),
+    );
+  }
+  
+  /// 🔐 检查用户是否能编辑指定菜谱
+  /// 权限规则：
+  /// 1. 用户可以编辑自己创建的菜谱
+  /// 2. Root用户（2352016835@qq.com）可以编辑所有菜谱
+  bool _canEditRecipe(Recipe recipe, String currentUserId) {
+    // Root用户的特殊权限
+    const String rootUserId = '2352016835@qq.com';
+    if (currentUserId == rootUserId) {
+      return true; // Root可以编辑所有菜谱
+    }
+    
+    // 普通用户只能编辑自己创建的菜谱
+    return recipe.createdBy == currentUserId;
   }
 
   /// 🌟 构建收藏按钮

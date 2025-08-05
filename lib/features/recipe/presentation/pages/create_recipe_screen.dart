@@ -714,11 +714,11 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
             ),
           ),
           
-          // 中央标题 - 根据编辑模式动态显示
+          // 中央标题 - 根据编辑模式和权限动态显示
           Expanded(
             child: Center(
               child: Text(
-                _isEditMode ? '编辑菜谱' : '创建菜谱',
+                _buildPageTitle(),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -728,7 +728,7 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
             ),
           ),
           
-          // 保存按钮
+          // 保存按钮 - 根据模式显示不同文字
           GestureDetector(
             onTap: _saveRecipe,
             child: Container(
@@ -737,9 +737,9 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
                 color: const Color(0xFF5B6FED),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                '保存',
-                style: TextStyle(
+              child: Text(
+                _buildSaveButtonText(),
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
@@ -1355,9 +1355,13 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
     );
   }
   
-  /// 保存菜谱
+  /// 💾 保存菜谱 - 支持编辑模式的权限控制
+  /// 核心逻辑：
+  /// - 如果是创建模式 → 生成新菜谱
+  /// - 如果是编辑模式且用户是创建者 → 真正修改原菜谱
+  /// - 如果是编辑模式但用户不是创建者 → 创建副本（复制模式）
   void _saveRecipe() async {
-    // 验证表单
+    // 🔍 验证表单
     if (_recipeNameController.text.trim().isEmpty) {
       _showErrorDialog('请输入菜谱名称');
       return;
@@ -1368,7 +1372,7 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
       return;
     }
     
-    // 获取当前用户ID
+    // 🪪 获取当前用户ID
     final currentUser = ref.read(currentUserProvider);
     if (currentUser == null) {
       _showErrorDialog('请先登录');
@@ -1380,9 +1384,17 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
     });
     
     try {
-      // 构建菜谱数据
+      // 🔐 权限判断：决定是编辑还是创建副本
+      final bool isRealEdit = _isEditMode && 
+                             _editingRecipe != null && 
+                             _canEditRecipe(_editingRecipe!, currentUser.uid);
+      
+      // 📋 构建菜谱数据
       final recipe = Recipe(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        // 🆔 关键修复：根据权限决定ID
+        id: isRealEdit 
+            ? _editingRecipe!.id  // 编辑模式：保持原ID
+            : DateTime.now().millisecondsSinceEpoch.toString(), // 创建模式：新ID
         name: _recipeNameController.text.trim(),
         description: _recipeDescriptionController.text.trim(),
         iconType: 'AppIcon3DType.recipe',
@@ -1401,24 +1413,37 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
         )).toList(),
         imagePath: _coverImagePath, // 保留兼容性
         imageBase64: _coverImageBase64, // 📷 使用Base64数据
-        createdBy: currentUser.uid, // ✅ 使用真实用户ID
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        isPublic: false,
-        rating: 0.0,
-        cookCount: 0,
+        
+        // 👤 创建者：根据权限决定
+        createdBy: isRealEdit ? _editingRecipe!.createdBy : currentUser.uid,
+        
+        // ⏰ 时间戳：根据权限决定
+        createdAt: isRealEdit ? _editingRecipe!.createdAt : DateTime.now(),
+        updatedAt: DateTime.now(), // 总是更新修改时间
+        
+        // 🔒 其他属性：保持原有或使用默认值
+        isPublic: isRealEdit ? _editingRecipe!.isPublic : false,
+        rating: isRealEdit ? _editingRecipe!.rating : 0.0,
+        cookCount: isRealEdit ? _editingRecipe!.cookCount : 0,
+        isPreset: isRealEdit ? _editingRecipe!.isPreset : false,
+        sourceType: isRealEdit ? _editingRecipe!.sourceType : 'user',
       );
       
-      // 保存到数据库
+      // 💾 保存到数据库
       final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      await repository.saveRecipe(recipe, currentUser.uid); // ✅ 传入用户ID参数
+      await repository.saveRecipe(recipe, currentUser.uid);
       
-      // 显示成功消息并返回
+      // ✅ 显示成功消息并返回
       if (mounted) {
+        final successMessage = isRealEdit 
+            ? '菜谱修改成功！' 
+            : (_isEditMode ? '菜谱副本创建成功！' : '菜谱创建成功！');
+            
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('菜谱保存成功！'),
+          SnackBar(
+            content: Text(successMessage),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
         context.pop();
@@ -1426,7 +1451,7 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
     } catch (e) {
       print('❌ 保存菜谱失败: $e');
       if (mounted) {
-        _showErrorDialog('保存失败，请重试');
+        _showErrorDialog('保存失败，请重试: $e');
       }
     } finally {
       if (mounted) {
@@ -1476,6 +1501,65 @@ class _CreateRecipeScreenState extends ConsumerState<CreateRecipeScreen> {
         ],
       ),
     );
+  }
+  
+  /// 🏷️ 构建页面标题 - 根据编辑模式和权限显示
+  String _buildPageTitle() {
+    if (!_isEditMode) {
+      return '创建菜谱';
+    }
+    
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null || _editingRecipe == null) {
+      return '创建菜谱';
+    }
+    
+    // 🔐 权限检查：是否能编辑该菜谱（考虑Root权限）
+    final bool canEdit = _canEditRecipe(_editingRecipe!, currentUser.uid);
+    
+    if (canEdit) {
+      return '编辑菜谱';
+    } else {
+      // 🔄 显示这是复制模式
+      return '复制菜谱';
+    }
+  }
+  
+  /// 💾 构建保存按钮文字 - 根据权限显示不同操作
+  String _buildSaveButtonText() {
+    if (!_isEditMode) {
+      return '保存';
+    }
+    
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null || _editingRecipe == null) {
+      return '保存';
+    }
+    
+    // 🔐 权限检查：是否能编辑该菜谱（考虑Root权限）
+    final bool canEdit = _canEditRecipe(_editingRecipe!, currentUser.uid);
+    
+    if (canEdit) {
+      return '保存修改';
+    } else {
+      // 🔄 显示这是复制操作
+      return '保存副本';
+    }
+  }
+  
+  /// 🔐 检查用户是否能编辑指定菜谱
+  /// 权限规则：
+  /// 1. 用户可以编辑自己创建的菜谱
+  /// 2. Root用户（2352016835@qq.com）可以编辑所有菜谱
+  bool _canEditRecipe(Recipe recipe, String currentUserId) {
+    // Root用户的特殊权限
+    const String rootUserId = '2352016835@qq.com';
+    if (currentUserId == rootUserId) {
+      return true; // Root可以编辑所有菜谱
+    }
+    
+    // 普通用户只能编辑自己创建的菜谱
+    return recipe.createdBy == currentUserId;
   }
 }
 
