@@ -297,6 +297,10 @@ class _MainScreenState extends ConsumerState<MainScreen>
                   color: AppColors.getTextPrimaryColor(isDark),
                 ),
               ),
+              
+              // 🔐 登录状态指示器
+              const SizedBox(width: 8),
+              _buildLoginStatusIndicator(),
               ],
             ),
           ),
@@ -633,6 +637,34 @@ class _MainScreenState extends ConsumerState<MainScreen>
   String _getCurrentTime() {
     final now = DateTime.now();
     return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+  
+  /// 🔐 构建登录状态指示器
+  /// 未登录时显示红色圆点，已登录时不显示
+  Widget _buildLoginStatusIndicator() {
+    final currentUser = ref.watch(currentUserProvider);
+    
+    // 已登录时不显示任何指示器
+    if (currentUser != null) {
+      return const SizedBox.shrink();
+    }
+    
+    // 未登录时显示红色指示器
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: Colors.red,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withOpacity(0.3),
+            blurRadius: 4,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+    );
   }
   
   /// 获取问候语数据

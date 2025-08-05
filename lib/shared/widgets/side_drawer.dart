@@ -133,7 +133,7 @@ class SideDrawer extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user?.displayName ?? user?.email ?? 'Melody',
+                      user?.displayName ?? user?.email ?? '未登录',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
@@ -143,10 +143,12 @@ class SideDrawer extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '点击查看个人资料',
+                      user != null 
+                          ? '点击查看个人资料'
+                          : '⚠️ 未登录状态',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: user != null ? Colors.grey[600] : Colors.red,
                         fontWeight: FontWeight.w300,
                       ),
                     ),

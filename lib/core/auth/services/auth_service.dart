@@ -550,21 +550,37 @@ class AuthService {
   /// 用于热重启后的状态恢复
   Future<void> _tryRestoreFromLocal() async {
     try {
+      // 🔍 调试：检查本地存储状态
+      debugPrint('🔍 检查本地存储状态...');
+      debugPrint('🔍 Hive box已打开: ${_userBox.isOpen}');
+      debugPrint('🔍 Hive box长度: ${_userBox.length}');
+      
       // 获取本地存储的所有用户
       final localUsers = _userBox.values.toList();
+      debugPrint('🔍 本地用户数量: ${localUsers.length}');
       
       if (localUsers.isNotEmpty) {
+        // 打印所有本地用户信息
+        for (int i = 0; i < localUsers.length; i++) {
+          final user = localUsers[i];
+          debugPrint('🔍 本地用户[$i]: ${user.email} (UID: ${user.uid})');
+        }
+        
         // 找到最近登录的用户（根据updatedAt排序）
         localUsers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         final lastUser = localUsers.first;
         
         debugPrint('🔄 尝试从本地恢复用户状态: ${lastUser.email}');
+        debugPrint('🔄 用户UID: ${lastUser.uid}');
+        debugPrint('🔄 最后更新时间: ${lastUser.updatedAt}');
         
         // 等待一小段时间让Firebase完全初始化
         await Future.delayed(const Duration(milliseconds: 500));
         
         // 再次检查Firebase状态
         final currentFirebaseUser = _firebaseAuth.currentUser;
+        debugPrint('🔍 Firebase当前用户: ${currentFirebaseUser?.email} (UID: ${currentFirebaseUser?.uid})');
+        
         if (currentFirebaseUser != null && currentFirebaseUser.uid == lastUser.uid) {
           // Firebase和本地状态一致，恢复登录
           _currentUser = lastUser;
@@ -573,12 +589,23 @@ class AuthService {
         } else if (currentFirebaseUser != null) {
           // Firebase有用户但与本地不匹配，使用Firebase的
           debugPrint('⚠️ 检测到Firebase用户状态变化，更新本地状态');
+          debugPrint('⚠️ Firebase用户: ${currentFirebaseUser.email}');
+          debugPrint('⚠️ 本地用户: ${lastUser.email}');
           await _onAuthStateChanged(currentFirebaseUser);
         } else {
-          // Firebase确实无用户，清除本地状态
-          debugPrint('⚠️ Firebase确认无登录用户，清除本地状态');
-          _currentUser = null;
-          _userStateController.add(null);
+          // Firebase确实无用户，但本地有用户
+          debugPrint('⚠️ Firebase无用户但本地有用户，可能是Web平台持久性问题');
+          
+          // 🔧 对于Web平台，尝试恢复本地用户状态
+          if (kIsWeb) {
+            debugPrint('🌐 Web平台：尝试恢复本地用户状态');
+            _currentUser = lastUser;
+            _userStateController.add(lastUser);
+          } else {
+            debugPrint('📱 移动平台：清除不一致的本地状态');
+            _currentUser = null;
+            _userStateController.add(null);
+          }
         }
       } else {
         debugPrint('🔍 本地无用户数据，确认未登录状态');
@@ -587,6 +614,7 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('❌ 从本地恢复用户状态失败: $e');
+      debugPrint('❌ 错误堆栈: ${StackTrace.current}');
       _currentUser = null;
       _userStateController.add(null);
     }
