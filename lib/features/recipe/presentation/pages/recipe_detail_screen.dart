@@ -1270,13 +1270,16 @@ class _RecipeDetailScreenState extends ConsumerState<RecipeDetailScreen>
   /// 1. 用户可以编辑自己创建的菜谱
   /// 2. Root用户（2352016835@qq.com）可以编辑所有菜谱
   bool _canEditRecipe(Recipe recipe, String currentUserId) {
-    // Root用户的特殊权限
-    const String rootUserId = '2352016835@qq.com';
-    if (currentUserId == rootUserId) {
+    final currentUser = ref.read(currentUserProvider);
+    if (currentUser == null) return false;
+    
+    // Root用户的特殊权限（根据邮箱判断）
+    const String rootUserEmail = '2352016835@qq.com';
+    if (currentUser.email == rootUserEmail) {
       return true; // Root可以编辑所有菜谱
     }
     
-    // 普通用户只能编辑自己创建的菜谱
+    // 普通用户只能编辑自己创建的菜谱（比较UID）
     return recipe.createdBy == currentUserId;
   }
 

@@ -517,17 +517,72 @@ class AuthService {
   /// 📦 检查当前用户状态
   /// 
   /// 在服务初始化时调用，检查是否有已登录的用户
+  /// 🔧 修复热重启登录状态丢失问题
   Future<void> _checkCurrentUser() async {
     try {
-      final user = _firebaseAuth.currentUser;
+      // 🔄 等待Firebase Auth完全初始化（最多等待3秒）
+      final user = await _firebaseAuth.authStateChanges()
+          .timeout(const Duration(seconds: 3), onTimeout: () => null)
+          .first;
+      
       if (user != null) {
         debugPrint('🔍 发现已登录用户: ${user.email}');
         await _onAuthStateChanged(user);
       } else {
-        debugPrint('🔍 无已登录用户');
+        // 🔄 尝试从本地恢复用户状态
+        debugPrint('🔍 Firebase无登录用户，尝试本地恢复');
+        await _tryRestoreFromLocal();
       }
     } catch (e) {
       debugPrint('❌ 检查当前用户状态异常: $e');
+      // 🔄 发生异常时也尝试本地恢复
+      await _tryRestoreFromLocal();
+    }
+  }
+  
+  /// 🔄 尝试从本地存储恢复用户状态
+  /// 用于热重启后的状态恢复
+  Future<void> _tryRestoreFromLocal() async {
+    try {
+      // 获取本地存储的所有用户
+      final localUsers = _userBox.values.toList();
+      
+      if (localUsers.isNotEmpty) {
+        // 找到最近登录的用户（根据updatedAt排序）
+        localUsers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        final lastUser = localUsers.first;
+        
+        debugPrint('🔄 尝试从本地恢复用户状态: ${lastUser.email}');
+        
+        // 等待一小段时间让Firebase完全初始化
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        // 再次检查Firebase状态
+        final currentFirebaseUser = _firebaseAuth.currentUser;
+        if (currentFirebaseUser != null && currentFirebaseUser.uid == lastUser.uid) {
+          // Firebase和本地状态一致，恢复登录
+          _currentUser = lastUser;
+          _userStateController.add(lastUser);
+          debugPrint('✅ 成功从本地恢复用户状态: ${lastUser.email}');
+        } else if (currentFirebaseUser != null) {
+          // Firebase有用户但与本地不匹配，使用Firebase的
+          debugPrint('⚠️ 检测到Firebase用户状态变化，更新本地状态');
+          await _onAuthStateChanged(currentFirebaseUser);
+        } else {
+          // Firebase确实无用户，清除本地状态
+          debugPrint('⚠️ Firebase确认无登录用户，清除本地状态');
+          _currentUser = null;
+          _userStateController.add(null);
+        }
+      } else {
+        debugPrint('🔍 本地无用户数据，确认未登录状态');
+        _currentUser = null;
+        _userStateController.add(null);
+      }
+    } catch (e) {
+      debugPrint('❌ 从本地恢复用户状态失败: $e');
+      _currentUser = null;
+      _userStateController.add(null);
     }
   }
   
