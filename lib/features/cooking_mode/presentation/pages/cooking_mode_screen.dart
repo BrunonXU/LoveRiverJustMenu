@@ -11,8 +11,8 @@ import '../../../../core/themes/spacing.dart';
 import '../../../../shared/pages/image_gallery_screen.dart';
 import '../../../../shared/widgets/base64_image_widget.dart';
 import '../../../recipe/domain/models/recipe.dart';
-import '../../../recipe/data/repositories/recipe_repository.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
+import '../../../../core/firestore/providers/firestore_providers.dart';
 
 /// 🎨 极简烹饪模式 - 大图指导设计
 /// 上半屏显示步骤大图，下半屏显示文字说明
@@ -65,7 +65,7 @@ class _CookingModeScreenState extends ConsumerState<CookingModeScreen>
       debugPrint('🔍 烹饪模式开始加载菜谱数据，ID: ${widget.recipeId}');
       
       // 🔧 修复：使用正确的云端Repository
-      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
+      final repository = ref.read(recipeRepositoryProvider);
       debugPrint('✅ 烹饪模式获取云端Repository成功');
       
       // 🔧 修复：使用正确的异步方法

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
-import '../themes/colors.dart';
-
 /// 圣诞雪天特效系统
 /// 营造浪漫的雪花飘落效果和点击特效
 class ChristmasSnowEffect extends StatefulWidget {

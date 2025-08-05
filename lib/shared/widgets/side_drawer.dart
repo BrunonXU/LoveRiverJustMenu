@@ -4,8 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/themes/colors.dart';
-import '../../core/themes/typography.dart';
-import '../../core/themes/spacing.dart';
 import '../../core/router/app_router.dart';
 import '../../core/auth/providers/auth_providers.dart';
 import 'breathing_widget.dart';
@@ -20,7 +18,7 @@ class SideDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.8, // 80%宽度
+      width: MediaQuery.of(context).size.width * 0.55, // 55%宽度
       height: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white, // 纯白色背景

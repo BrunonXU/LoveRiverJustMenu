@@ -244,23 +244,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
 
-  /// 构建原主要内容（保留作为备用）
-  Widget _buildMainContent(bool isDark) {
-    return Column(
-      children: [
-        // 时间感知顶部区域
-        _buildTimeAwareHeader(isDark),
-        
-        // 主卡片区域
-        Expanded(
-          child: _buildCardArea(isDark),
-        ),
-        
-        // 按钮操作提示
-        _buildButtonHint(isDark),
-      ],
-    );
-  }
 
   /// 构建简化的顶部区域
   Widget _buildSimplifiedHeader(bool isDark) {
@@ -444,8 +427,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
               child: GestureDetector(
                 onTap: () => _navigateToRecipeDetail(recipe['id']),
                 child: Container(
-                  width: 320, // 增大宽度
-                  height: 240, // 增大高度
+                  width: 320, // 保持宽度
+                  height: 400, // 增加卡片高度，让卡片更长
                   decoration: BoxDecoration(
                     color: AppColors.getBackgroundSecondaryColor(isDark),
                     borderRadius: BorderRadius.circular(24),
@@ -453,7 +436,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
                       // 主阴影 - 更深更明显
                       BoxShadow(
                         color: AppColors.getShadowColor(isDark).withOpacity(0.25),
-                        blurRadius: 40,
+                        blurRadius: 60,
                         offset: const Offset(0, 12),
                         spreadRadius: 0,
                       ),
@@ -473,12 +456,12 @@ class _MainScreenState extends ConsumerState<MainScreen>
                       if (recipe['emojiIcon'] != null)
                         Text(
                           recipe['emojiIcon'],
-                          style: const TextStyle(fontSize: 60), // 增大emoji
+                          style: const TextStyle(fontSize: 120), // 增大emoji
                         )
                       else
                         AppIcon3D(
                           type: recipe['iconType'] ?? AppIcon3DType.heart,
-                          size: 60, // 增大图标
+                          size: 120, // 增大图标
                         ),
                       const SizedBox(height: 20),
                       // 菜谱名称
@@ -496,7 +479,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       // 烹饪时间
                       if (recipe['time'] != null && recipe['time'] > 0)
                         Row(
@@ -511,7 +494,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
                             Text(
                               '${recipe['time']}分钟',
                               style: TextStyle(
-                                fontSize: 16, // 增大字体
+                                fontSize: 14, // 增大字体
                                 color: AppColors.getTextSecondaryColor(isDark),
                               ),
                             ),
@@ -524,9 +507,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
             ),
           ),
           
-          // 上箭头按钮 - 调整位置
+          // 上箭头按钮 - 调整位置适应更高的卡片
           Positioned(
-            top: 10, // 稍微上移
+            top: 20, // 上移更多，适应更高的卡片
             left: 0,
             right: 0,
             child: Center(
@@ -535,7 +518,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
           ),
           // 下箭头按钮 - 往下移动更多空间
           Positioned(
-            bottom: 10, // 往下移动，给卡片留更多空间
+            bottom: 20, // 下移更多，给更高的卡片留空间
             left: 0,
             right: 0,
             child: Center(
@@ -552,15 +535,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 35,
+        height: 35,
         decoration: BoxDecoration(
           color: AppColors.getBackgroundSecondaryColor(isDark).withOpacity(0.8),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
               color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-              blurRadius: 8,
+              blurRadius: 7,
               offset: const Offset(0, 2),
             ),
           ],
@@ -577,9 +560,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
   /// 构建简化操作提示
   Widget _buildSimplifiedHint(bool isDark) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 80),
+      padding: const EdgeInsets.only(bottom: 40),
       child: Text(
-        '左侧滑入查看更多',
+        '点击查看详情',
         style: TextStyle(
           fontSize: 12,
           color: AppColors.getTextSecondaryColor(isDark),
@@ -589,510 +572,11 @@ class _MainScreenState extends ConsumerState<MainScreen>
     );
   }
   
-  /// 构建时间感知头部
-  Widget _buildTimeAwareHeader(bool isDark) {
-    final greetingData = _getGreetingData();
-    
-    return Padding(
-      padding: AppSpacing.pagePadding,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // 左侧问候区域
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      greetingData['icon'],
-                      size: 24,
-                      color: AppColors.getTextPrimaryColor(true),
-                    ),
-                    Space.w8,
-                    Text(
-                      greetingData['text'],
-                      style: AppTypography.greetingStyle(isDark: true),
-                    ),
-                  ],
-                ),
-                Space.h4,
-                Text(
-                  _getSmartSuggestion(),
-                  style: AppTypography.bodySmallStyle(isDark: isDark),
-                ),
-              ],
-            ),
-          ),
-          
-          // 挑战按钮 ⭐ 新功能入口
-          BreathingWidget(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _navigateToChallenge();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.getBackgroundSecondaryColor(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  // 特殊标识 - 新功能
-                  border: Border.all(
-                    color: Color(0xFF5B6FED).withOpacity(0.5),
-                    width: 2,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Icon(
-                        Icons.sports_martial_arts,
-                        color: Color(0xFF5B6FED),
-                        size: 20,
-                      ),
-                    ),
-                    // 新功能标识点
-                    Positioned(
-                      top: 2,
-                      right: 2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Color(0xFFFF6B6B),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          Space.w8,
-          
-          // 情侣按钮
-          BreathingWidget(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _navigateToCoupleProfile();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.getBackgroundSecondaryColor(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.favorite,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-          
-          Space.w8,
-          
-          // 亲密度按钮 ⭐ 新功能
-          BreathingWidget(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _navigateToIntimacy();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.getBackgroundSecondaryColor(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                  // 特殊标识 - 新功能
-                  border: Border.all(
-                    color: Color(0xFFFF6B6B).withOpacity(0.5),
-                    width: 2,
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    Center(
-                      child: const Text(
-                        '💕',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ),
-                    // 新功能小红点
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFF6B6B),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          Space.w8,
-          
-          // 搜索按钮
-          BreathingWidget(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _navigateToSearch();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.getBackgroundSecondaryColor(isDark),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.search,
-                  color: AppColors.getTextSecondaryColor(isDark),
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-          
-          Space.w8,
-          
-          // 我的按钮 - 个人中心入口
-          BreathingWidget(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _navigateToPersonalCenter();
-              },
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Text(
-                    '我',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
-          Space.w16,
-          
-          // 右侧时间区域
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _getCurrentTime(),
-                style: AppTypography.displayLargeStyle(isDark: true),
-              ),
-              Text(
-                '24°C 适合热饮',
-                style: AppTypography.captionStyle(isDark: isDark),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
   
-  /// 构建卡片区域 - 移除手势，使用按钮
-  Widget _buildCardArea(bool isDark) {
-    return Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width,
-        maxHeight: MediaQuery.of(context).size.height - 200,
-      ),
-      child: Stack(
-        children: [
-          // 主卡片
-          Center(
-            child: _buildRecipeCard(isDark),
-          ),
-          
-          // 方向按钮
-          _buildDirectionButtons(isDark),
-        ],
-      ),
-    );
-  }
-  
-  /// 构建菜谱卡片
-  Widget _buildRecipeCard(bool isDark) {
-    final recipe = _getCurrentRecipe();
-    
-    return BreathingWidget(
-      child: GestureDetector(
-        onTap: () {
-          final recipe = _getCurrentRecipe();
-          final recipeId = recipe['id'];
-          
-          // 🔧 修复：如果没有真实菜谱，引导用户导入菜谱
-          if (recipeId == 'empty' || _allRecipes.isEmpty) {
-            _showImportRecipeDialog();
-            return;
-          }
-          
-          // 进入食谱详情
-          _navigateToRecipeDetail(recipeId);
-        },
-        child: MinimalCard(
-          width: MediaQuery.of(context).size.width * 0.51, // 屏幕宽度51% (64%再缩小20%)
-          height: MediaQuery.of(context).size.height * 0.82, // 屏幕高度82% (66%延长25%)
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // 🎨 智能图标显示：预设菜谱用emoji，用户菜谱优先显示上传图片
-              if (recipe['isPreset'] == true && recipe['emojiIcon'] != null && recipe['emojiIcon'].toString().isNotEmpty)
-                // 预设菜谱：显示emoji图标
-                _buildEmojiIcon(recipe, isDark)
-              else if (recipe['isPreset'] != true && _hasUserUploadedImage(recipe))
-                // 用户菜谱且有上传图片：显示用户上传的图片
-                _buildUserRecipeImage(recipe, isDark)
-              else
-                // 其他情况：显示3D图标
-                _buildDefault3DIcon(recipe),
-              
-              Space.h32,
-              
-              // 菜名
-              Text(
-                recipe['name'],
-                style: AppTypography.titleMediumStyle(isDark: isDark),
-                textAlign: TextAlign.center,
-              ),
-              
-              Space.h16,
-              
-              // 时间信息
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 18,
-                    color: AppColors.getTextSecondaryColor(isDark),
-                  ),
-                  Space.w4,
-                  Text(
-                    '${recipe['time']}分钟',
-                    style: AppTypography.timeStyle(isDark: isDark),
-                  ),
-                ],
-              ),
-              
-              Space.h16,
-              
-              // // 点击提示
-              // Text(
-              //   '点击查看详情',
-              //   style: AppTypography.hintStyle(isDark: isDark),
-              // ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
   
   /// 构建方向按钮
-  Widget _buildDirectionButtons(bool isDark) {
-    return Stack(
-      children: [
-        // 上方按钮 - 上一个菜谱
-        Positioned(
-          top: 60, // 增加距离，远离卡片
-          left: 0,
-          right: 0,
-          child: Center(
-            child: _buildDirectionButton(
-              icon: Icons.keyboard_arrow_up,
-              onTap: _previousCard,
-              isDark: isDark,
-            ),
-          ),
-        ),
-        
-        // 下方按钮 - 下一个菜谱
-        Positioned(
-          bottom: 60, // 增加距离，远离卡片
-          left: 0,
-          right: 0,
-          child: Center(
-            child: _buildDirectionButton(
-              icon: Icons.keyboard_arrow_down,
-              onTap: _nextCard,
-              isDark: isDark,
-            ),
-          ),
-        ),
-        
-        // 左方按钮 - 时光机
-        Positioned(
-          left: 30,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: _buildDirectionButton(
-              icon: Icons.timeline,
-              onTap: _navigateToTimeline,
-              isDark: isDark,
-              isSpecial: true, // 使用微妙彩色
-            ),
-          ),
-        ),
-        
-        // 右方按钮 - AI推荐
-        Positioned(
-          right: 30,
-          top: 0,
-          bottom: 0,
-          child: Center(
-            child: _buildDirectionButton(
-              icon: Icons.psychology,
-              onTap: _navigateToAIRecommendation,
-              isDark: isDark,
-              isSpecial: true, // 使用微妙彩色
-            ),
-          ),
-        ),
-        
-        // 右下角按钮 - 美食地图 ⭐ 新功能
-        Positioned(
-          right: 80,
-          bottom: 80,
-          child: _buildDirectionButton(
-            icon: Icons.map,
-            onTap: _navigateToFoodMap,
-            isDark: isDark,
-            isSpecial: true, // 使用微妙彩色
-          ),
-        ),
-      ],
-    );
-  }
-  
-  /// 构建单个方向按钮
-  Widget _buildDirectionButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    required bool isDark,
-    bool isSpecial = false,
-  }) {
-    return BreathingWidget(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          onTap();
-        },
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: isSpecial 
-                ? AppColors.primary.withOpacity(0.1)
-                : AppColors.getBackgroundColor(isDark).withOpacity(0.9),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: isSpecial 
-                  ? AppColors.primary.withOpacity(0.3)
-                  : AppColors.getTextSecondaryColor(isDark).withOpacity(0.2),
-              width: 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.getShadowColor(isDark).withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(
-            icon,
-            size: 20,
-            color: isSpecial 
-                ? AppColors.primary
-                : AppColors.getTextSecondaryColor(isDark),
-          ),
-        ),
-      ),
-    );
-  }
   
   /// 构建按钮提示
-  Widget _buildButtonHint(bool isDark) {
-    return Container(
-      //padding: EdgeInsets.only(bottom: AppSpacing.xl),
-      height: 60,
-      padding: const EdgeInsets.only(top: 16.0), // ✅ 整体下移一些
-      child: Text(
-        '🎯点击挑战按钮开始厨房对决 • 上下切换菜谱 • 左右探索功能',
-        style: AppTypography.hintStyle(isDark: isDark),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
   
   /// 构建新建菜谱按钮
   Widget _buildCreateRecipeButton() {

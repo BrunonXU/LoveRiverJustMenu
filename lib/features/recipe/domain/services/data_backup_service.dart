@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/recipe.dart';
-import '../../data/repositories/recipe_repository.dart';
+import '../../../../core/firestore/repositories/recipe_repository.dart';
 
 /// 🔧 数据备份恢复服务 - JSON格式导入导出
 class DataBackupService {
@@ -21,8 +21,12 @@ class DataBackupService {
     bool shareDirectly = true,
   }) async {
     try {
+      // 获取当前用户ID（需要传递给Repository）
+      // TODO: 需要从认证状态获取用户ID
+      const userId = 'current_user'; // 临时占位符
+      
       // 获取所有菜谱数据
-      final recipes = _repository.getAllRecipes();
+      final recipes = await _repository.getUserRecipes(userId);
       
       if (recipes.isEmpty) {
         _showMessage(context, '暂无菜谱数据可导出');
@@ -135,9 +139,10 @@ class DataBackupService {
       
       // 如果是覆盖模式，先清空数据
       if (!merge) {
-        final allRecipes = _repository.getAllRecipes();
+        const userId = 'current_user'; // 临时占位符
+        final allRecipes = await _repository.getUserRecipes(userId);
         for (final recipe in allRecipes) {
-          await _repository.deleteRecipe(recipe.id);
+          await _repository.deleteRecipe(recipe.id, userId);
         }
       }
       
@@ -145,14 +150,18 @@ class DataBackupService {
       for (final recipeJson in data['recipes']) {
         try {
           final recipe = _jsonToRecipe(recipeJson);
+          const userId = 'current_user'; // 临时占位符
           
           // 合并模式下检查是否已存在
-          if (merge && _repository.getRecipe(recipe.id) != null) {
-            skippedCount++;
-            continue;
+          if (merge) {
+            final existingRecipe = await _repository.getRecipe(recipe.id);
+            if (existingRecipe != null) {
+              skippedCount++;
+              continue;
+            }
           }
           
-          await _repository.saveRecipe(recipe);
+          await _repository.saveRecipe(recipe, userId);
           importedCount++;
         } catch (e) {
           errorCount++;

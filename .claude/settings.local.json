@@ -43,7 +43,8 @@
       "WebFetch(domain:0.0.0.0)",
       "Bash(timeout 15 flutter run -d web-server --web-hostname=0.0.0.0 --web-port=8081)",
       "Bash(timeout 15 flutter run -d web-server --web-hostname=0.0.0.0 --web-port=8082)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\features\\recipe\\presentation\\pages\\new_create_recipe_step_methods.dart\")"
     ],
     "deny": []
   }
