@@ -9,7 +9,6 @@ import '../../core/themes/spacing.dart';
 import '../../core/router/app_router.dart';
 import '../../core/auth/providers/auth_providers.dart';
 import 'breathing_widget.dart';
-import '../../core/animations/breathing_manager.dart';
 
 /// 🎨 侧边栏组件 - 占50%宽度，从左滑出
 /// 包含所有原主页功能的统一入口
@@ -20,26 +19,71 @@ class SideDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return RepaintBoundary(
-      child: Container(
-        width: 300, // 固定300px宽度，与外层Positioned一致
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 用户中心区域
-              _buildUserCenter(context, ref),
-              
-              // 分割线
-              _buildDivider(),
-              
-              // 功能列表区域 - 可滚动
-              Expanded(
-                child: _buildFunctionList(context),
-              ),
-            ],
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.8, // 80%宽度
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white, // 纯白色背景
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(5, 0),
           ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 顶部关闭按钮和标题
+            _buildHeader(context),
+            
+            // 用户中心区域
+            _buildUserCenter(context, ref),
+            
+            // 分割线
+            _buildDivider(),
+            
+            // 功能列表区域 - 可滚动
+            Expanded(
+              child: _buildFunctionList(context),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  /// 构建顶部header
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '爱心食谱',
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 1.2,
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: Icon(
+              Icons.close,
+              size: 24,
+              color: AppColors.textSecondary,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -50,7 +94,7 @@ class SideDrawer extends ConsumerWidget {
     
     return Container(
       padding: const EdgeInsets.all(24),
-      child: OptimizedBreathingWidget(
+      child: BreathingWidget(
         child: GestureDetector(
           onTap: () {
             print('👤 用户头像被点击');
@@ -128,8 +172,8 @@ class SideDrawer extends ConsumerWidget {
   Widget _buildDivider() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      height: 1,
-      color: Colors.grey[200],
+      height: 0.5,
+      color: Colors.grey.withOpacity(0.2),
     );
   }
 
