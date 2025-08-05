@@ -521,9 +521,15 @@ class AuthService {
   Future<void> _checkCurrentUser() async {
     try {
       // 🔄 等待Firebase Auth完全初始化（最多等待3秒）
-      final user = await _firebaseAuth.authStateChanges()
-          .timeout(const Duration(seconds: 3), onTimeout: () => null)
-          .first;
+      User? user;
+      try {
+        user = await _firebaseAuth.authStateChanges()
+            .timeout(const Duration(seconds: 3))
+            .first;
+      } on TimeoutException {
+        debugPrint('⏰ Firebase Auth初始化超时，使用当前状态');
+        user = _firebaseAuth.currentUser;
+      }
       
       if (user != null) {
         debugPrint('🔍 发现已登录用户: ${user.email}');
