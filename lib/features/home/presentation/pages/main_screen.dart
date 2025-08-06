@@ -17,6 +17,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../../core/animations/christmas_snow_effect.dart';
 import '../../../../core/firestore/repositories/recipe_repository.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
+import '../../../../core/services/providers/cached_recipe_providers.dart';
 import '../../../recipe/domain/models/recipe.dart';
 
 /// 主界面 - 时间驱动的卡片流
@@ -62,7 +63,8 @@ class _MainScreenState extends ConsumerState<MainScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _loadInitialData();
+    // 🔧 不在initState中加载数据，改为监听用户状态变化
+    // _loadInitialData();
   }
   
   @override
@@ -105,79 +107,14 @@ class _MainScreenState extends ConsumerState<MainScreen>
     _cardController.forward();
   }
   
-  /// 加载初始数据
-  void _loadInitialData() async {
-    debugPrint('🚀 _loadInitialData 开始执行');
-    final stopwatch = PerformanceMonitor.startOperation('LoadInitialData');
-    
-    try {
-      // 获取当前用户ID
-      final currentUser = ref.read(currentUserProvider);
-      debugPrint('🔍 首页加载数据 - 当前用户: ${currentUser?.uid ?? "null"}');
-      
-      if (currentUser == null) {
-        debugPrint('❌ 用户未登录，使用默认数据');
-        if (mounted) {
-          setState(() {
-            _allRecipes = [];
-            _isLoading = false;
-          });
-        }
-        return;
-      }
-      
-      debugPrint('🔍 开始查询用户菜谱: ${currentUser.uid}');
-      
-      // 🔧 从云端数据库加载所有可用菜谱数据
-      final repository = await ref.read(initializedCloudRecipeRepositoryProvider.future);
-      debugPrint('✅ 获取Repository成功');
-      
-      // 🔧 同时加载用户菜谱和公共预设菜谱
-      final Future<List<Recipe>> userRecipesFuture = repository.getUserRecipes(currentUser.uid);
-      final Future<List<Recipe>> presetRecipesFuture = repository.getPresetRecipes();
-      
-      final results = await Future.wait([userRecipesFuture, presetRecipesFuture]);
-      final userRecipes = results[0];
-      final presetRecipes = results[1];
-      
-      debugPrint('📊 用户菜谱: ${userRecipes.length} 个');
-      debugPrint('📊 预设菜谱: ${presetRecipes.length} 个');
-      
-      // 🔧 合并所有菜谱（用户菜谱 + 预设菜谱）
-      final List<Recipe> allAvailableRecipes = [];
-      
-      // 添加预设菜谱（显示在前面，因为这些是精选菜谱）
-      allAvailableRecipes.addAll(presetRecipes);
-      
-      // 添加用户自己创建的菜谱
-      allAvailableRecipes.addAll(userRecipes);
-      
-      debugPrint('📊 总计可用菜谱: ${allAvailableRecipes.length} 个');
-      
-      // 打印菜谱详情便于调试
-      for (int i = 0; i < allAvailableRecipes.length; i++) {
-        final recipe = allAvailableRecipes[i];
-        final type = recipe.isPreset ? '预设' : '用户';
-        debugPrint('📖 菜谱$i: ${recipe.name} (类型: $type, ID: ${recipe.id})');
-      }
-      
-      if (mounted) {
-        setState(() {
-          _allRecipes = allAvailableRecipes;
-          _isLoading = false;
-        });
-        debugPrint('✅ 首页数据加载完成: ${_allRecipes.length} 个菜谱');
-      }
-    } catch (e) {
-      debugPrint('❌ 加载菜谱数据失败: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-    
-    PerformanceMonitor.endOperation(stopwatch, 'LoadInitialData');
+  /// 🔧 重写数据加载逻辑 - 使用缓存优先策略
+  /// 
+  /// 不再手动加载数据，而是通过监听homeRecipesProvider自动获取
+  /// 提供更好的性能和用户体验
+  void _loadInitialData() {
+    // 现在数据加载由homeRecipesProvider自动处理
+    // 这个方法保留用于兼容性，实际不执行任何操作
+    debugPrint('🚀 _loadInitialData 开始执行（使用缓存优先策略）');
   }
   
   // ==================== 界面构建 ====================
@@ -185,6 +122,9 @@ class _MainScreenState extends ConsumerState<MainScreen>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // 🚀 使用缓存优先的菜谱数据provider
+    final homeRecipesAsync = ref.watch(homeRecipesProvider);
     
     return Scaffold(
       // 添加侧边栏
@@ -195,9 +135,25 @@ class _MainScreenState extends ConsumerState<MainScreen>
         snowflakeCount: 8, // 稍微增加雪花数量
         clickEffectColor: const Color(0xFF00BFFF), // 海蓝色点击特效
         child: SafeArea(
-          child: _isLoading 
-              ? _buildLoadingState() 
-              : _buildSimplifiedMainContent(isDark),
+          child: homeRecipesAsync.when(
+            data: (recipes) {
+              // 🚀 数据加载成功，更新本地状态并显示内容
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _allRecipes != recipes) {
+                  setState(() {
+                    _allRecipes = recipes;
+                    _isLoading = false;
+                  });
+                }
+              });
+              return _buildSimplifiedMainContent(isDark);
+            },
+            loading: () => _buildLoadingState(),
+            error: (error, stackTrace) {
+              debugPrint('❌ 主页数据加载失败: $error');
+              return _buildErrorState(isDark, error.toString());
+            },
+          ),
         ),
       ),
       
@@ -218,6 +174,67 @@ class _MainScreenState extends ConsumerState<MainScreen>
             gradient: AppColors.primaryGradient,
             shape: BoxShape.circle,
           ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建错误状态
+  Widget _buildErrorState(bool isDark, String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: AppColors.getTextSecondaryColor(isDark),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '数据加载失败',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w300,
+                color: AppColors.getTextPrimaryColor(isDark),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '请检查网络连接后重试',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.getTextSecondaryColor(isDark),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            BreathingWidget(
+              child: GestureDetector(
+                onTap: () {
+                  // 手动触发刷新
+                  ref.invalidate(homeRecipesProvider);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Text(
+                    '重新加载',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

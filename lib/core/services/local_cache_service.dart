@@ -97,6 +97,24 @@ class LocalCacheService {
       return [];
     }
   }
+
+  /// 🔄 更新本地菜谱缓存
+  Future<void> _updateLocalRecipes(List<Recipe> recipes) async {
+    try {
+      if (_recipesBox == null) return;
+      
+      for (final recipe in recipes) {
+        await _recipesBox!.put(recipe.id, recipe);
+      }
+      
+      // 更新元数据
+      await _updateMetadata('recipes_last_sync', DateTime.now().toIso8601String());
+      
+      print('✅ 本地菜谱缓存已更新: ${recipes.length} 个');
+    } catch (e) {
+      print('❌ 更新本地菜谱缓存失败: $e');
+    }
+  }
   
   /// 🔄 后台检查云端更新
   void _checkCloudUpdatesInBackground(String userId) async {
@@ -451,6 +469,29 @@ class LocalCacheService {
     }
   }
   
+  /// 🔄 执行登录数据同步
+  Future<void> performLoginDataSync(String userId) async {
+    try {
+      print('🔄 开始登录数据同步: $userId');
+      
+      // 同步用户菜谱
+      await getUserRecipes(userId);
+      
+      // 同步预设菜谱
+      await getPresetRecipes();
+      
+      print('✅ 登录数据同步完成');
+    } catch (e) {
+      print('❌ 登录数据同步失败: $e');
+    }
+  }
+
+  /// 📋 获取所有待更新项目
+  List<String> getAllPendingUpdates() {
+    // 返回空列表，暂时不实现复杂的更新检测
+    return [];
+  }
+
   /// 📈 获取缓存统计信息
   Map<String, int> getCacheStats() {
     return {

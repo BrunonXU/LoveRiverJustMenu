@@ -28,6 +28,10 @@ class AppUser extends HiveObject {
   @HiveField(2)
   final String? displayName;
   
+  /// 🎯 用户名 (可自定义，用于展示)
+  @HiveField(10)
+  final String? username;
+  
   /// 头像 URL
   @HiveField(3)
   final String? photoURL;
@@ -61,6 +65,7 @@ class AppUser extends HiveObject {
   /// [uid] 用户唯一标识符
   /// [email] 邮箱地址
   /// [displayName] 显示名称
+  /// [username] 用户名
   /// [photoURL] 头像 URL
   /// [phoneNumber] 手机号码
   /// [createdAt] 创建时间
@@ -72,6 +77,7 @@ class AppUser extends HiveObject {
     required this.uid,
     required this.email,
     this.displayName,
+    this.username,
     this.photoURL,
     this.phoneNumber,
     required this.createdAt,
@@ -94,11 +100,19 @@ class AppUser extends HiveObject {
     UserStats? stats,
   }) {
     final now = DateTime.now();
+    final email = firebaseUser.email ?? '';
+    
+    // 🎯 为root用户设置默认username
+    String? defaultUsername;
+    if (email == '2352016835@qq.com') {
+      defaultUsername = 'ROOT大人';
+    }
     
     return AppUser(
       uid: firebaseUser.uid,
-      email: firebaseUser.email ?? '',
+      email: email,
       displayName: firebaseUser.displayName,
+      username: defaultUsername,
       photoURL: firebaseUser.photoURL,
       phoneNumber: firebaseUser.phoneNumber,
       createdAt: firebaseUser.metadata?.creationTime ?? now,
@@ -114,10 +128,19 @@ class AppUser extends HiveObject {
   /// [doc] Firestore 文档数据
   /// [uid] 用户唯一标识符
   factory AppUser.fromFirestore(Map<String, dynamic> doc, String uid) {
+    final email = doc['email'] ?? '';
+    
+    // 🎯 为root用户设置默认username（如果Firestore中没有存储username）
+    String? username = doc['username'];
+    if (username == null && email == '2352016835@qq.com') {
+      username = 'ROOT大人';
+    }
+    
     return AppUser(
       uid: uid,
-      email: doc['email'] ?? '',
+      email: email,
       displayName: doc['displayName'],
+      username: username,
       photoURL: doc['photoURL'],
       phoneNumber: doc['phoneNumber'],
       createdAt: DateTime.parse(doc['createdAt'] ?? DateTime.now().toIso8601String()),
@@ -137,6 +160,7 @@ class AppUser extends HiveObject {
     return {
       'email': email,
       'displayName': displayName,
+      'username': username,
       'photoURL': photoURL,
       'phoneNumber': phoneNumber,
       'createdAt': createdAt.toIso8601String(),
@@ -152,6 +176,7 @@ class AppUser extends HiveObject {
   /// 创建一个新的 AppUser 实例，可以选择性更新某些字段
   AppUser copyWith({
     String? displayName,
+    String? username,
     String? photoURL,
     String? phoneNumber,
     DateTime? updatedAt,
@@ -163,6 +188,7 @@ class AppUser extends HiveObject {
       uid: uid,
       email: email,
       displayName: displayName ?? this.displayName,
+      username: username ?? this.username,
       photoURL: photoURL ?? this.photoURL,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       createdAt: createdAt,

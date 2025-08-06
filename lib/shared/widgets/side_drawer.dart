@@ -133,7 +133,7 @@ class SideDrawer extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user?.displayName ?? user?.email ?? '未登录',
+                      user?.username ?? user?.displayName ?? user?.email ?? '未登录',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w400,
@@ -180,24 +180,14 @@ class SideDrawer extends ConsumerWidget {
   /// 构建功能列表
   Widget _buildFunctionList(BuildContext context) {
     final functionItems = [
+      // 🥇 第一位：我的菜谱
       DrawerItem(
-        icon: Icons.timeline,
-        title: '时光机',
-        subtitle: '3D记忆时光',
-        onTap: () => _navigateTo(context, AppRouter.timeline),
+        icon: Icons.restaurant_menu,
+        title: '我的菜谱',
+        subtitle: '创建·预设·管理·收藏',
+        onTap: () => _navigateTo(context, AppRouter.myRecipes),
       ),
-      DrawerItem(
-        icon: Icons.psychology,
-        title: 'AI推荐',
-        subtitle: '智能故事推荐',
-        onTap: () => _navigateTo(context, AppRouter.aiRecommendation),
-      ),
-      DrawerItem(
-        icon: Icons.map,
-        title: '美食地图',
-        subtitle: '探索各地美食',
-        onTap: () => _navigateTo(context, AppRouter.foodMap),
-      ),
+      // 🥈 第二位：味道圈
       DrawerItem(
         icon: Icons.group,
         title: '味道圈',
@@ -217,23 +207,30 @@ class SideDrawer extends ConsumerWidget {
           ),
         ],
       ),
+      // 其他功能按原顺序
+      DrawerItem(
+        icon: Icons.timeline,
+        title: '时光机',
+        subtitle: '3D记忆时光',
+        onTap: () => _navigateTo(context, AppRouter.timeline),
+      ),
+      DrawerItem(
+        icon: Icons.psychology,
+        title: 'AI推荐',
+        subtitle: '智能故事推荐',
+        onTap: () => _navigateTo(context, AppRouter.aiRecommendation),
+      ),
+      DrawerItem(
+        icon: Icons.map,
+        title: '美食地图',
+        subtitle: '探索各地美食',
+        onTap: () => _navigateTo(context, AppRouter.foodMap),
+      ),
       DrawerItem(
         icon: Icons.sports_martial_arts,
         title: '挑战模式',
         subtitle: '节奏烹饪游戏',
         onTap: () => _navigateTo(context, AppRouter.challenge),
-      ),
-      DrawerItem(
-        icon: Icons.restaurant_menu,
-        title: '我的菜谱',
-        subtitle: '创建·预设·管理',
-        onTap: () => _navigateTo(context, AppRouter.myRecipes),
-      ),
-      DrawerItem(
-        icon: Icons.favorite_border,
-        title: '我的收藏',
-        subtitle: '收藏的美食菜谱',
-        onTap: () => _navigateTo(context, AppRouter.favorites),
       ),
       DrawerItem(
         icon: Icons.emoji_events,

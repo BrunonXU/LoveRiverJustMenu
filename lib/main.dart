@@ -11,6 +11,7 @@ import 'core/router/app_router.dart';
 import 'core/utils/performance_monitor.dart';
 import 'features/recipe/domain/models/recipe.dart';
 import 'core/auth/models/app_user.dart';
+import 'core/models/recipe_update_info.dart';
 import 'core/auth/providers/auth_providers.dart';
 import 'core/firestore/providers/firestore_providers.dart';
 import 'core/services/providers/new_user_providers.dart';
@@ -39,12 +40,17 @@ void main() async {
   // 🔧 注册Hive适配器（修复数据库保存bug）
   Hive.registerAdapter(RecipeAdapter());
   Hive.registerAdapter(RecipeStepAdapter());
+  Hive.registerAdapter(UserFavoritesAdapter());
   
   // 🔐 注册认证系统相关的Hive适配器
   Hive.registerAdapter(AppUserAdapter());
   Hive.registerAdapter(UserPreferencesAdapter());
   Hive.registerAdapter(CoupleBindingAdapter());
   Hive.registerAdapter(UserStatsAdapter());
+  
+  // 🔄 注册更新系统相关的Hive适配器
+  Hive.registerAdapter(RecipeUpdateInfoAdapter());
+  Hive.registerAdapter(UpdateImportanceAdapter());
   
   // 设置系统UI样式 - 遵循极简设计
   SystemChrome.setSystemUIOverlayStyle(
@@ -69,7 +75,7 @@ void main() async {
     FrameBudgetManager.instance.setTargetFps(120);
   }
   
-  // 创建ProviderContainer并预先初始化Repository
+  // 创建ProviderContainer
   final container = ProviderContainer();
   
   // 🔧 关键修复：预先初始化Repository，避免LateInitializationError

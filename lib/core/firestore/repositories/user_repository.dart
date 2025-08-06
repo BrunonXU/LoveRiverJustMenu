@@ -257,6 +257,7 @@ class UserRepository {
     return {
       'email': user.email,
       'displayName': user.displayName,
+      'username': user.username,  // 🎯 新增：保存username字段
       'photoURL': user.photoURL,
       'phoneNumber': user.phoneNumber,
       'createdAt': Timestamp.fromDate(user.createdAt),
@@ -271,10 +272,19 @@ class UserRepository {
 
   /// Map转换为用户对象
   AppUser _mapToUser(Map<String, dynamic> data, String uid) {
+    final email = data['email'] as String;
+    
+    // 🎯 为root用户设置默认username（如果Firestore中没有存储username）
+    String? username = data['username'] as String?;
+    if (username == null && email == '2352016835@qq.com') {
+      username = 'ROOT大人';
+    }
+    
     return AppUser(
       uid: uid,
-      email: data['email'] as String,
+      email: email,
       displayName: data['displayName'] as String?,
+      username: username,  // 🎯 新增：读取username字段
       photoURL: data['photoURL'] as String?,
       phoneNumber: data['phoneNumber'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),

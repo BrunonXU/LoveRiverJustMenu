@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../features/recipe/domain/models/recipe.dart';
 import '../local_cache_service.dart';
 import '../../firestore/repositories/recipe_repository.dart';
 
@@ -9,14 +11,9 @@ import '../../firestore/repositories/recipe_repository.dart';
 /// 2. localCacheServiceProvider - 本地缓存服务
 /// 3. hybrideDataServiceProvider - 混合数据服务（未来扩展）
 
-/// ☁️ 云端菜谱仓库提供者
-final cloudRecipeRepositoryProvider = Provider<RecipeRepository>((ref) {
-  throw UnimplementedError('请在 main.dart 中配置 cloudRecipeRepositoryProvider');
-});
-
 /// 📦 本地缓存服务提供者
 final localCacheServiceProvider = FutureProvider<LocalCacheService>((ref) async {
-  final cloudRepository = ref.read(cloudRecipeRepositoryProvider);
+  final cloudRepository = RecipeRepository(); // 🔧 直接创建实例，避免循环依赖
   final cacheService = LocalCacheService(cloudRepository);
   
   // 初始化缓存服务
@@ -125,6 +122,3 @@ final presetRecipesCacheProvider = FutureProvider<List<Recipe>>((ref) async {
   final cacheService = await ref.read(localCacheServiceProvider.future);
   return await cacheService.getPresetRecipes();
 });
-
-// 导入 Recipe 类型
-import '../../../features/recipe/domain/models/recipe.dart';

@@ -34,13 +34,20 @@ class RecipeAdapter extends TypeAdapter<Recipe> {
       isPublic: fields[12] as bool,
       rating: fields[13] as double,
       cookCount: fields[14] as int,
+      sharedWith: (fields[17] as List).cast<String>(),
+      isShared: fields[18] as bool,
+      originalRecipeId: fields[19] as String?,
+      sourceType: fields[20] as String,
+      isPreset: fields[21] as bool,
+      favoriteCount: fields[22] as int,
+      emojiIcon: fields[23] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Recipe obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(24)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -74,7 +81,21 @@ class RecipeAdapter extends TypeAdapter<Recipe> {
       ..writeByte(13)
       ..write(obj.rating)
       ..writeByte(14)
-      ..write(obj.cookCount);
+      ..write(obj.cookCount)
+      ..writeByte(17)
+      ..write(obj.sharedWith)
+      ..writeByte(18)
+      ..write(obj.isShared)
+      ..writeByte(19)
+      ..write(obj.originalRecipeId)
+      ..writeByte(20)
+      ..write(obj.sourceType)
+      ..writeByte(21)
+      ..write(obj.isPreset)
+      ..writeByte(22)
+      ..write(obj.favoriteCount)
+      ..writeByte(23)
+      ..write(obj.emojiIcon);
   }
 
   @override
@@ -106,13 +127,14 @@ class RecipeStepAdapter extends TypeAdapter<RecipeStep> {
       imagePath: fields[4] as String?,
       imageBase64: fields[6] as String?,
       ingredients: (fields[5] as List).cast<String>(),
+      emojiIcon: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, RecipeStep obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.title)
       ..writeByte(1)
@@ -126,7 +148,9 @@ class RecipeStepAdapter extends TypeAdapter<RecipeStep> {
       ..writeByte(6)
       ..write(obj.imageBase64)
       ..writeByte(5)
-      ..write(obj.ingredients);
+      ..write(obj.ingredients)
+      ..writeByte(7)
+      ..write(obj.emojiIcon);
   }
 
   @override
@@ -136,6 +160,46 @@ class RecipeStepAdapter extends TypeAdapter<RecipeStep> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RecipeStepAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class UserFavoritesAdapter extends TypeAdapter<UserFavorites> {
+  @override
+  final int typeId = 2;
+
+  @override
+  UserFavorites read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return UserFavorites(
+      userId: fields[0] as String,
+      favoriteRecipeIds: (fields[1] as List).cast<String>(),
+      updatedAt: fields[2] as DateTime,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, UserFavorites obj) {
+    writer
+      ..writeByte(3)
+      ..writeByte(0)
+      ..write(obj.userId)
+      ..writeByte(1)
+      ..write(obj.favoriteRecipeIds)
+      ..writeByte(2)
+      ..write(obj.updatedAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserFavoritesAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

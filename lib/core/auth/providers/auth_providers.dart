@@ -197,10 +197,11 @@ final userStatsProvider = Provider<UserStats>((ref) {
 /// 🎯 认证操作 Provider
 /// 
 /// 提供认证相关操作的封装方法
-/// 立即可用，无需等待异步初始化 - 彻底解决时机冲突问题
+/// 🔧 修复：使用共享的AuthService实例确保状态同步
 final authActionsProvider = StateNotifierProvider<AuthActionsNotifier, AuthActionState>((ref) {
-  // 直接创建AuthService实例，无任何异步依赖
-  return AuthActionsNotifier(AuthService());
+  // 使用共享的AuthService实例，确保状态流一致
+  final authService = ref.watch(authServiceProvider);
+  return AuthActionsNotifier(authService);
 });
 
 /// 🎬 认证操作状态

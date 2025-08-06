@@ -21,6 +21,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/app_user.dart';
 import '../../exceptions/auth_exceptions.dart';
 import '../../firestore/repositories/user_repository.dart';
+import '../../firestore/repositories/recipe_repository.dart';
+import '../../services/local_cache_service.dart';
+import '../../utils/network_retry.dart';
 
 /// 🛡️ 认证服务类
 /// 
@@ -39,6 +42,9 @@ class AuthService {
   /// Firestore 用户数据仓库
   final UserRepository _userRepository;
   
+  /// 菜谱数据仓库
+  final RecipeRepository _recipeRepository;
+  
   /// 当前用户状态流控制器
   final StreamController<AppUser?> _userStateController = StreamController<AppUser?>.broadcast();
   
@@ -50,10 +56,12 @@ class AuthService {
   /// [firebaseAuth] Firebase Auth 实例（可选，用于测试）
   /// [googleSignIn] Google 登录实例（可选，用于测试）
   /// [userRepository] Firestore 用户数据仓库（可选，用于测试）
+  /// [recipeRepository] 菜谱数据仓库（可选，用于测试）
   AuthService({
     FirebaseAuth? firebaseAuth,
     GoogleSignIn? googleSignIn,
     UserRepository? userRepository,
+    RecipeRepository? recipeRepository,
   }) : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
         _googleSignIn = googleSignIn ?? GoogleSignIn(
           scopes: ['email', 'profile'],  // 🔥 完整云服务：请求完整用户信息权限
@@ -61,7 +69,8 @@ class AuthService {
           // 从 Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration 获取
           clientId: kIsWeb ? '266340306948-mmb2pl94494p4pcaj88chlr500jkl43b.apps.googleusercontent.com' : null,
         ),
-        _userRepository = userRepository ?? UserRepository();
+        _userRepository = userRepository ?? UserRepository(),
+        _recipeRepository = recipeRepository ?? RecipeRepository();
   
   /// 🚀 初始化认证服务
   /// 
@@ -186,7 +195,9 @@ class AuthService {
       // 🔥 尝试从云端获取用户数据
       AppUser appUser;
       try {
-        final cloudUser = await _userRepository.getUser(credential.user!.uid);
+        final cloudUser = await NetworkRetry.importantRetry(
+          () => _userRepository.getUser(credential.user!.uid),
+        );
         if (cloudUser != null) {
           // 使用云端数据，更新Firebase用户信息
           appUser = cloudUser.copyWith(
@@ -194,6 +205,14 @@ class AuthService {
             photoURL: credential.user!.photoURL ?? cloudUser.photoURL,
             updatedAt: DateTime.now(),
           );
+          
+          // 🎯 检查并更新root用户的username
+          if (appUser.email == '2352016835@qq.com' && appUser.username == null) {
+            appUser = appUser.copyWith(username: 'ROOT大人');
+            await _userRepository.saveUser(appUser);
+            debugPrint('🎯 已更新root用户的username为"ROOT大人"');
+          }
+          
           debugPrint('☁️ 已从云端获取用户数据');
         } else {
           // 云端没有数据，创建新用户对象
@@ -208,6 +227,9 @@ class AuthService {
       
       // 保存到本地
       await _saveUserLocally(appUser);
+      
+      // 🔄 执行登录后数据同步（异步，不阻塞返回）
+      _performLoginDataSync(appUser.uid);
       
       debugPrint('✅ 邮箱登录成功: ${appUser.email}');
       return appUser;
@@ -268,7 +290,9 @@ class AuthService {
       // 🔥 尝试从云端获取用户数据
       AppUser appUser;
       try {
-        final cloudUser = await _userRepository.getUser(userCredential.user!.uid);
+        final cloudUser = await NetworkRetry.importantRetry(
+          () => _userRepository.getUser(userCredential.user!.uid),
+        );
         if (cloudUser != null) {
           // 使用云端数据，更新Firebase用户信息
           appUser = cloudUser.copyWith(
@@ -276,6 +300,14 @@ class AuthService {
             photoURL: userCredential.user!.photoURL ?? cloudUser.photoURL,
             updatedAt: DateTime.now(),
           );
+          
+          // 🎯 检查并更新root用户的username
+          if (appUser.email == '2352016835@qq.com' && appUser.username == null) {
+            appUser = appUser.copyWith(username: 'ROOT大人');
+            await _userRepository.saveUser(appUser);
+            debugPrint('🎯 已更新root用户的username为"ROOT大人"');
+          }
+          
           debugPrint('☁️ 已从云端获取用户数据');
         } else {
           // 云端没有数据，创建新用户对象
@@ -290,6 +322,9 @@ class AuthService {
       
       // 保存到本地
       await _saveUserLocally(appUser);
+      
+      // 🔄 执行登录后数据同步（异步，不阻塞返回）
+      _performLoginDataSync(appUser.uid);
       
       debugPrint('✅ Google 登录成功: ${appUser.email}');
       return appUser;
@@ -596,11 +631,16 @@ class AuthService {
           // Firebase确实无用户，但本地有用户
           debugPrint('⚠️ Firebase无用户但本地有用户，可能是Web平台持久性问题');
           
-          // 🔧 对于Web平台，尝试恢复本地用户状态
+          // 🔧 对于Web平台的特殊处理
           if (kIsWeb) {
-            debugPrint('🌐 Web平台：尝试恢复本地用户状态');
+            debugPrint('🌐 Web平台：Firebase可能延迟初始化，强制恢复本地状态');
+            
+            // 强制设置当前用户状态
             _currentUser = lastUser;
             _userStateController.add(lastUser);
+            
+            // 尝试重新认证以同步Firebase状态
+            _attemptReAuthentication(lastUser);
           } else {
             debugPrint('📱 移动平台：清除不一致的本地状态');
             _currentUser = null;
@@ -620,6 +660,30 @@ class AuthService {
     }
   }
   
+  /// 🔄 尝试重新认证以同步Firebase状态
+  /// 用于Web平台热重启后的状态恢复
+  void _attemptReAuthentication(AppUser localUser) async {
+    try {
+      debugPrint('🔄 尝试重新认证用户: ${localUser.email}');
+      
+      // 延迟执行，给Firebase更多时间初始化
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // 检查Firebase是否恢复了用户状态
+      final currentFirebaseUser = _firebaseAuth.currentUser;
+      if (currentFirebaseUser != null && currentFirebaseUser.uid == localUser.uid) {
+        debugPrint('✅ Firebase状态已恢复，用户: ${currentFirebaseUser.email}');
+        // 状态已经一致，不需要额外操作
+      } else {
+        debugPrint('⚠️ Firebase状态仍未恢复，但本地状态已设置');
+        // 保持本地状态，用户可以正常使用应用
+      }
+    } catch (e) {
+      debugPrint('❌ 重新认证失败: $e');
+      // 失败不影响本地状态，用户仍可使用应用
+    }
+  }
+  
   /// 💾 保存用户到本地存储
   /// 
   /// [user] 要保存的用户对象
@@ -627,7 +691,12 @@ class AuthService {
     try {
       await _userBox.put(user.uid, user);
       _currentUser = user;
+      
+      // 🔧 修复：通知状态变化流，确保Riverpod状态同步
+      _userStateController.add(_currentUser);
+      
       debugPrint('💾 用户数据已保存到本地: ${user.email}');
+      debugPrint('📡 状态流已通知用户登录: ${user.email}');
     } catch (e) {
       debugPrint('❌ 保存用户数据到本地失败: $e');
     }
@@ -664,6 +733,53 @@ class AuthService {
         return '操作需要重新登录验证';
       default:
         return '登录失败，请稍后重试 ($errorCode)';
+    }
+  }
+  
+  /// 🔄 执行登录后数据同步
+  /// 
+  /// 在用户登录成功后异步执行数据同步，利用登录动画时间
+  /// [userId] 用户ID
+  void _performLoginDataSync(String userId) async {
+    try {
+      debugPrint('🚀 开始智能登录数据同步: $userId');
+      final syncStartTime = DateTime.now();
+      
+      // 获取缓存服务
+      final cacheService = LocalCacheService(_recipeRepository);
+      await cacheService.initialize();
+      
+      // 🔥 利用登录动画时间，并发执行数据同步
+      final syncFutures = <Future>[
+        cacheService.performLoginDataSync(userId),
+        // 额外的更新检测
+        _performQuickUpdateCheck(cacheService, userId),
+      ];
+      
+      // ⚡ 等待所有同步任务完成
+      await Future.wait(syncFutures, eagerError: false);
+      
+      final syncDuration = DateTime.now().difference(syncStartTime);
+      debugPrint('✅ 智能登录数据同步完成 - 用时: ${syncDuration.inMilliseconds}ms');
+      
+    } catch (e) {
+      debugPrint('❌ 登录后数据同步失败: $e');
+      // 静默失败，不影响用户登录体验
+    }
+  }
+  
+  /// 🔍 快速更新检测
+  Future<void> _performQuickUpdateCheck(LocalCacheService cacheService, String userId) async {
+    try {
+      // 利用已存在的方法进行更新检测
+      // 这里主要是触发后台检查，实际检测由缓存服务内部处理
+      await cacheService.getUserRecipes(userId);
+      await cacheService.getFavoriteRecipes(userId);
+      
+      final updates = cacheService.getAllPendingUpdates().length;
+      debugPrint('🔍 快速更新检测完成: 发现 $updates 个待更新项');
+    } catch (e) {
+      debugPrint('⚠️ 快速更新检测失败: $e');
     }
   }
   
