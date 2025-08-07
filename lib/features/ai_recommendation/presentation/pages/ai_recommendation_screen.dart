@@ -59,7 +59,7 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
     _backgroundController = AnimationController(
       duration: const Duration(seconds: 8),
       vsync: this,
-    )..repeat(reverse: true);
+    );
     
     _cardController = AnimationController(
       duration: const Duration(milliseconds: 600),
@@ -86,7 +86,13 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
       curve: Curves.elasticOut,
     );
     
-    _cardController.forward();
+    // 延迟启动背景动画，避免页面加载时卡顿
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _backgroundController.repeat(reverse: true);
+        _cardController.forward();
+      }
+    });
   }
   
   /// 根据时间加载推荐内容
@@ -136,15 +142,17 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
   
   /// 🎨 时间驱动的动态背景
   Widget _buildTimeDrivenBackground() {
-    return AnimatedBuilder(
-      animation: _backgroundAnimation,
-      builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            gradient: _getTimeBasedGradient(_currentTimeOfDay, _backgroundAnimation.value),
-          ),
-        );
-      },
+    return RepaintBoundary( // 隔离背景动画区域
+      child: AnimatedBuilder(
+        animation: _backgroundAnimation,
+        builder: (context, child) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: _getTimeBasedGradient(_currentTimeOfDay, _backgroundAnimation.value),
+            ),
+          );
+        },
+      ),
     );
   }
   
@@ -273,32 +281,38 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
       return _buildEmptyState();
     }
     
-    return PageView.builder(
-      onPageChanged: (index) {
-        setState(() {
-          _currentCardIndex = index;
-        });
-        _cardController.forward(from: 0);
-        HapticFeedback.lightImpact();
-      },
-      itemCount: _recommendations.length,
-      itemBuilder: (context, index) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: AnimatedBuilder(
-            animation: _cardAnimation,
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, 30 * (1 - _cardAnimation.value)),
-                child: Opacity(
-                  opacity: _cardAnimation.value,
-                  child: _buildContextualCard(_recommendations[index]),
-                ),
-              );
-            },
-          ),
-        );
-      },
+    return RepaintBoundary( // 隔离卡片动画区域
+      child: PageView.builder(
+        onPageChanged: (index) {
+          setState(() {
+            _currentCardIndex = index;
+          });
+          _cardController.forward(from: 0);
+          HapticFeedback.lightImpact();
+        },
+        itemCount: _recommendations.length,
+        itemBuilder: (context, index) {
+          final isCurrentCard = index == _currentCardIndex;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: isCurrentCard
+                ? AnimatedBuilder(
+                    animation: _cardAnimation,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: Offset(0, 30 * (1 - _cardAnimation.value)),
+                        child: Opacity(
+                          opacity: _cardAnimation.value,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildContextualCard(_recommendations[index]),
+                  )
+                : _buildContextualCard(_recommendations[index]),
+          );
+        },
+      ),
     );
   }
   
@@ -306,22 +320,24 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
   Widget _buildContextualCard(StoryRecommendation recommendation) {
     final isDark = _currentTimeOfDay == TimeOfDay.night;
     
-    return GestureDetector(
-      onTap: () => _handleRecommendationTap(recommendation),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 32),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
-              blurRadius: 32,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
+    return RepaintBoundary( // 隔离每个卡片
+      child: GestureDetector(
+        onTap: () => _handleRecommendationTap(recommendation),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 32),
+          clipBehavior: Clip.hardEdge, // 优化渲染
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
           children: [
             // 情境标签头部
             Container(
@@ -508,6 +524,7 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
           ],
         ),
       ),
+    ),
     );
   }
   
@@ -554,14 +571,17 @@ class _AiRecommendationScreenState extends ConsumerState<AiRecommendationScreen>
               ),
               
               // 语音交互
-              AnimatedBuilder(
-                animation: _voiceAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _isVoiceActive ? (1.0 + _voiceAnimation.value * 0.1) : 1.0,
-                    child: _buildVoiceButton(isDark),
-                  );
-                },
+              RepaintBoundary(
+                child: AnimatedBuilder(
+                  animation: _voiceAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _isVoiceActive ? (1.0 + _voiceAnimation.value * 0.1) : 1.0,
+                      child: child,
+                    );
+                  },
+                  child: _buildVoiceButton(isDark),
+                ),
               ),
               
               // 开始烹饪

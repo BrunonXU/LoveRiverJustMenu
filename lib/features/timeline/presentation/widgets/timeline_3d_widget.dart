@@ -30,6 +30,8 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   
   late AnimationController _rotationController;
   late AnimationController _breathingController;
+  late Animation<double> _rotationAnimation;
+  late Animation<double> _breathingAnimation;
 
   @override
   void initState() {
@@ -44,11 +46,24 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       vsync: this,
     );
     
-    // 🔥 修复：启动旋转动画，让时光机自动旋转
-    _rotationController.repeat();
+    // 使用CurvedAnimation优化性能
+    _rotationAnimation = CurvedAnimation(
+      parent: _rotationController,
+      curve: Curves.linear,
+    );
     
-    // 🔥 修复：启动呼吸动画
-    _breathingController.repeat(reverse: true);
+    _breathingAnimation = CurvedAnimation(
+      parent: _breathingController,
+      curve: Curves.easeInOut,
+    );
+    
+    // 延迟启动动画，避免页面加载时卡顿
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _rotationController.repeat();
+        _breathingController.repeat(reverse: true);
+      }
+    });
   }
 
   @override
@@ -68,38 +83,39 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
         children: [
           // 3D时间轴
           Expanded(
-            child: GestureDetector(
-              onScaleUpdate: (details) {
-                setState(() {
-                  if (details.pointerCount == 1) {
-                    _rotationY += details.focalPointDelta.dx * 0.01;
-                  }
-                  _scale = details.scale.clamp(0.5, 2.0);
-                });
-                HapticFeedback.lightImpact();
-              },
-              child: AnimatedBuilder(
-                animation: _rotationController,
-                builder: (context, child) {
-                  // 🔧 修复Web端渲染卡住：使用AnimatedBuilder而不是setState监听
-                  final currentRotationY = _rotationY + (_rotationController.value * 2 * math.pi);
-                  
-                  return Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.001)
-                      ..rotateY(currentRotationY)
-                      ..scale(_scale),
-                    child: child!,
-                  );
+            child: RepaintBoundary( // 隔离动画区域
+              child: GestureDetector(
+                onScaleUpdate: (details) {
+                  setState(() {
+                    if (details.pointerCount == 1) {
+                      _rotationY += details.focalPointDelta.dx * 0.01;
+                    }
+                    _scale = details.scale.clamp(0.5, 2.0);
+                  });
+                  HapticFeedback.lightImpact();
                 },
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: widget.memories.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final memory = entry.value;
-                    return _build3DMemoryCard(memory, index);
-                  }).toList(),
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([_rotationAnimation, _breathingAnimation]),
+                  builder: (context, child) {
+                    final currentRotationY = _rotationY + (_rotationAnimation.value * 2 * math.pi);
+                    
+                    return Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.identity()
+                        ..setEntry(3, 2, 0.001)
+                        ..rotateY(currentRotationY)
+                        ..scale(_scale),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        clipBehavior: Clip.none, // 避免裁剪问题
+                        children: widget.memories.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final memory = entry.value;
+                          return _build3DMemoryCard(memory, index, _breathingAnimation.value);
+                        }).toList(),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -116,7 +132,7 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     );
   }
   
-  Widget _build3DMemoryCard(Memory memory, int index) {
+  Widget _build3DMemoryCard(Memory memory, int index, double breathingValue) {
     final totalMemories = widget.memories.length;
     final angle = (index / totalMemories) * 2 * math.pi;
     final radius = 150.0;
@@ -124,122 +140,120 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     final z = math.cos(angle) * radius;
     final y = index * 50.0 - 100;
     
+    // 计算呼吸动画值
+    final breathingScale = 1.0 + (breathingValue * 0.05);
+    final breathingOpacity = 0.8 + (breathingValue * 0.2);
+    
+    // 固定卡片尺寸，避免LayoutBuilder
+    const cardWidth = 160.0;
+    const cardHeight = 240.0;
+    
     return RepaintBoundary(
       child: Transform(
         transform: Matrix4.identity()
           ..translate(x, y, z)
-          ..rotateY(-angle),
+          ..rotateY(-angle)
+          ..scale(breathingScale),
         alignment: Alignment.center,
         child: GestureDetector(
           onTap: () {
             widget.onMemoryTap?.call(memory);
             HapticFeedback.mediumImpact();
           },
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // 响应式尺寸，适配全屏模式
-              final cardWidth = (constraints.maxWidth * 0.15).clamp(120.0, 200.0);
-              final cardHeight = (constraints.maxHeight * 0.25).clamp(180.0, 280.0);
-              
-              return AnimatedBuilder(
-                animation: _breathingController,
-                builder: (context, child) {
-                  // 🔥 添加呼吸动画效果
-                  final breathingScale = 1.0 + (_breathingController.value * 0.05); // 轻微的缩放效果
-                  final breathingOpacity = 0.8 + (_breathingController.value * 0.2); // 透明度变化
-                  
-                  return Transform.scale(
-                    scale: breathingScale,
-                    child: Opacity(
-                      opacity: breathingOpacity,
-                      child: Container(
-                        width: cardWidth,
-                        height: cardHeight,
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundColor,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: memory.special 
-                                ? AppColors.primary.withOpacity(0.3 * breathingOpacity)
-                                : AppColors.shadow.withOpacity(breathingOpacity),
-                              blurRadius: memory.special ? 16 : 8,
-                              offset: const Offset(0, 4),
-                              spreadRadius: memory.special ? 2 : 0,
-                            ),
-                          ],
-                        ),
-                padding: const EdgeInsets.all(16),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Emoji图标
-                      Text(
+          child: Opacity(
+            opacity: breathingOpacity,
+            child: Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                color: AppColors.backgroundColor,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: memory.special 
+                      ? AppColors.primary.withOpacity(0.3 * breathingOpacity)
+                      : AppColors.shadow.withOpacity(breathingOpacity),
+                    blurRadius: memory.special ? 16 : 8,
+                    offset: const Offset(0, 4),
+                    spreadRadius: memory.special ? 2 : 0,
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Emoji图标
+                  Flexible(
+                    flex: 2,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
                         memory.emoji,
                         style: const TextStyle(fontSize: 48),
                       ),
-                      
-                      const SizedBox(height: 12),
-                      
-                      // 标题
-                      Text(
-                        memory.title,
-                        style: AppTypography.titleMediumStyle(
-                          isDark: false,
-                        ).copyWith(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w300,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // 标题
+                  Flexible(
+                    flex: 2,
+                    child: Text(
+                      memory.title,
+                      style: AppTypography.bodyMediumStyle(
+                        isDark: false,
+                      ).copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w300,
                       ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                       
                       const SizedBox(height: 6),
                       
-                      // 日期
-                      Text(
-                        _formatDate(memory.date),
-                        style: AppTypography.bodySmallStyle(
+                  // 日期
+                  Text(
+                    _formatDate(memory.date),
+                    style: AppTypography.captionStyle(
+                      isDark: false,
+                    ).copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 6),
+                  
+                  // 情绪标签
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.backgroundSecondary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        memory.mood,
+                        style: AppTypography.captionStyle(
                           isDark: false,
                         ).copyWith(
                           color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w300,
+                          fontSize: 10,
                         ),
-                      ),
-                      
-                      const SizedBox(height: 6),
-                      
-                      // 情绪标签
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundSecondary,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          memory.mood,
-                          style: AppTypography.captionStyle(
-                            isDark: false,
-                          ).copyWith(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w300,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                       ),
                     ),
-                  );
-                },
-              );
-            },
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
