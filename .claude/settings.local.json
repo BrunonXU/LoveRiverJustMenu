@@ -46,7 +46,9 @@
       "Bash(timeout:*)",
       "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\features\\recipe\\presentation\\pages\\new_create_recipe_step_methods.dart\")",
       "Bash(del test_recipe_edit_logic.dart)",
-      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\core\\services\\favorites_service.dart\")"
+      "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\core\\services\\favorites_service.dart\")",
+      "Bash(gh repo view:*)",
+      "Bash(git subtree push:*)"
     ],
     "deny": []
   }
