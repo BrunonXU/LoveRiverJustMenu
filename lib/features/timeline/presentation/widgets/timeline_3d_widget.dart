@@ -32,10 +32,20 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   late AnimationController _breathingController;
   late Animation<double> _rotationAnimation;
   late Animation<double> _breathingAnimation;
+  
+  // 两周分组相关状态
+  int _currentPeriodIndex = 0;
+  List<List<Memory>> _memoryPeriods = [];
+  List<String> _periodLabels = [];
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
+    _groupMemoriesByPeriod();
+  }
+  
+  void _initializeAnimations() {
     _rotationController = AnimationController(
       duration: const Duration(seconds: 20),
       vsync: this,
@@ -65,6 +75,95 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       }
     });
   }
+  
+  /// 按两周分组Memory数据
+  void _groupMemoriesByPeriod() {
+    _memoryPeriods.clear();
+    _periodLabels.clear();
+    
+    if (widget.memories.isEmpty) return;
+    
+    // 按日期排序
+    final sortedMemories = List<Memory>.from(widget.memories)
+      ..sort((a, b) => b.date.compareTo(a.date)); // 最新的在前
+    
+    final now = DateTime.now();
+    final Map<String, List<Memory>> periodMap = {};
+    
+    for (final memory in sortedMemories) {
+      final periodStart = _getTwoWeekPeriodStart(memory.date);
+      final periodEnd = periodStart.add(const Duration(days: 13));
+      final periodKey = '${_formatDate(periodStart)} - ${_formatDate(periodEnd)}';
+      
+      periodMap[periodKey] ??= [];
+      periodMap[periodKey]!.add(memory);
+    }
+    
+    // 转换为列表，最新的期间在前
+    final sortedPeriods = periodMap.entries.toList()
+      ..sort((a, b) {
+        // 根据第一个记忆的日期排序
+        final aDate = a.value.first.date;
+        final bDate = b.value.first.date;
+        return bDate.compareTo(aDate);
+      });
+    
+    _periodLabels = sortedPeriods.map((e) => e.key).toList();
+    _memoryPeriods = sortedPeriods.map((e) => e.value).toList();
+    
+    // 默认显示最新的时间段
+    _currentPeriodIndex = 0;
+  }
+  
+  /// 获取两周期间的开始日期（每月1号和15号）
+  DateTime _getTwoWeekPeriodStart(DateTime date) {
+    if (date.day <= 15) {
+      return DateTime(date.year, date.month, 1);
+    } else {
+      return DateTime(date.year, date.month, 15);
+    }
+  }
+  
+  /// 格式化日期显示
+  String _formatDate(DateTime date) {
+    return '${date.month}月${date.day}日';
+  }
+  
+  /// 获取当前时间段的记忆
+  List<Memory> _getCurrentPeriodMemories() {
+    if (_memoryPeriods.isEmpty || _currentPeriodIndex >= _memoryPeriods.length) {
+      return [];
+    }
+    return _memoryPeriods[_currentPeriodIndex];
+  }
+  
+  /// 切换到上一个时间段
+  void _goToPreviousPeriod() {
+    if (_currentPeriodIndex > 0) {
+      setState(() {
+        _currentPeriodIndex--;
+      });
+      HapticFeedback.lightImpact();
+    }
+  }
+  
+  /// 切换到下一个时间段
+  void _goToNextPeriod() {
+    if (_currentPeriodIndex < _memoryPeriods.length - 1) {
+      setState(() {
+        _currentPeriodIndex++;
+      });
+      HapticFeedback.lightImpact();
+    }
+  }
+  
+  /// 获取当前时间段标签
+  String _getCurrentPeriodLabel() {
+    if (_periodLabels.isEmpty || _currentPeriodIndex >= _periodLabels.length) {
+      return '暂无记忆';
+    }
+    return _periodLabels[_currentPeriodIndex];
+  }
 
   @override
   void dispose() {
@@ -81,6 +180,11 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       ),
       child: Column(
         children: [
+          // 时间段指示器
+          _buildPeriodIndicator(),
+          
+          const SizedBox(height: 16),
+          
           // 3D时间轴
           Expanded(
             child: RepaintBoundary( // 隔离动画区域
@@ -102,13 +206,13 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                     return Transform(
                       alignment: Alignment.center,
                       transform: Matrix4.identity()
-                        ..setEntry(3, 2, 0.001)
+                        ..setEntry(3, 2, 0.001) // 恢复原始透视效果
                         ..rotateY(currentRotationY)
                         ..scale(_scale),
                       child: Stack(
                         alignment: Alignment.center,
                         clipBehavior: Clip.none, // 避免裁剪问题
-                        children: widget.memories.asMap().entries.map((entry) {
+                        children: _getCurrentPeriodMemories().asMap().entries.map((entry) {
                           final index = entry.key;
                           final memory = entry.value;
                           return _build3DMemoryCard(memory, index, _breathingAnimation.value);
@@ -123,7 +227,12 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
           
           const SizedBox(height: 24),
           
-          // 控制按钮
+          // 时间段切换控制
+          _buildPeriodControls(),
+          
+          const SizedBox(height: 16),
+          
+          // 3D控制按钮
           _buildMinimalControls(),
           
           const SizedBox(height: 48),
@@ -135,10 +244,10 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   Widget _build3DMemoryCard(Memory memory, int index, double breathingValue) {
     final totalMemories = widget.memories.length;
     final angle = (index / totalMemories) * 2 * math.pi;
-    final radius = 150.0;
+    final radius = 150.0; // 恢复原始半径
     final x = math.sin(angle) * radius;
     final z = math.cos(angle) * radius;
-    final y = index * 50.0 - 100;
+    final y = index * 30.0 - 50; // 恢复适中的Y轴分层
     
     // 计算呼吸动画值
     final breathingScale = 1.0 + (breathingValue * 0.05);
@@ -152,19 +261,20 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       child: Transform(
         transform: Matrix4.identity()
           ..translate(x, y, z)
-          ..rotateY(-angle)
-          ..scale(breathingScale),
+          ..rotateY(-angle),
         alignment: Alignment.center,
         child: GestureDetector(
           onTap: () {
             widget.onMemoryTap?.call(memory);
             HapticFeedback.mediumImpact();
           },
-          child: Opacity(
-            opacity: breathingOpacity,
-            child: Container(
-              width: cardWidth,
-              height: cardHeight,
+          child: Transform.scale(
+            scale: breathingScale,
+            child: Opacity(
+              opacity: breathingOpacity,
+              child: Container(
+                width: cardWidth,
+                height: cardHeight,
               decoration: BoxDecoration(
                 color: AppColors.backgroundColor,
                 borderRadius: BorderRadius.circular(16),
@@ -257,6 +367,131 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
           ),
         ),
       ),
+    ),
+    );
+  }
+  
+  /// 构建时间段指示器
+  Widget _buildPeriodIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        children: [
+          Text(
+            '美食时光机',
+            style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _getCurrentPeriodLabel(),
+            style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (_memoryPeriods.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${_getCurrentPeriodMemories().length} 个美食记忆',
+              style: AppTypography.captionStyle(isDark: false).copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  /// 构建时间段切换控制
+  Widget _buildPeriodControls() {
+    if (_memoryPeriods.length <= 1) return const SizedBox.shrink();
+    
+    return Padding(
+      padding: AppSpacing.pagePadding,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 上一个时间段
+          _buildPeriodButton(
+            icon: Icons.chevron_left,
+            label: '上一期',
+            onTap: _currentPeriodIndex > 0 ? _goToPreviousPeriod : null,
+          ),
+          
+          // 时间段指示器
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundSecondary,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              '${_currentPeriodIndex + 1} / ${_memoryPeriods.length}',
+              style: AppTypography.captionStyle(isDark: false).copyWith(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          
+          // 下一个时间段
+          _buildPeriodButton(
+            icon: Icons.chevron_right,
+            label: '下一期',
+            onTap: _currentPeriodIndex < _memoryPeriods.length - 1 ? _goToNextPeriod : null,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建时间段切换按钮
+  Widget _buildPeriodButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    final isEnabled = onTap != null;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isEnabled 
+              ? AppColors.backgroundSecondary 
+              : AppColors.backgroundSecondary.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: isEnabled ? [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ] : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+              size: 20,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTypography.captionStyle(isDark: false).copyWith(
+                color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+                fontWeight: FontWeight.w300,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
   
@@ -335,9 +570,5 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
         ),
       ),
     );
-  }
-  
-  String _formatDate(DateTime date) {
-    return '${date.year}年${date.month}月${date.day}日';
   }
 }
