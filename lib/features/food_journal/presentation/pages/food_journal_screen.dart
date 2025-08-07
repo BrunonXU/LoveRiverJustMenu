@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
 
 import '../../../../core/themes/colors.dart';
 import '../../../../core/themes/typography.dart';
@@ -112,12 +111,22 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
           Navigator.of(context).pop();
         },
       ),
-      title: Text(
-        '美食日记',
-        style: AppTypography.titleMediumStyle(isDark: false).copyWith(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w300,
-        ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '📖',
+            style: const TextStyle(fontSize: 20),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '美食日记本',
+            style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.w300,
+            ),
+          ),
+        ],
       ),
       centerTitle: true,
       actions: [
@@ -150,20 +159,30 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
       return _buildEmptyJournal();
     }
     
-    return Container(
-      margin: AppSpacing.pagePadding,
-      decoration: _buildPaperDecoration(),
-      child: PageView.builder(
-        controller: _pageController,
-        onPageChanged: (page) {
-          setState(() {
-            _currentPage = page;
-          });
-          HapticFeedback.lightImpact();
-        },
-        itemCount: _journalPages.length,
-        itemBuilder: (context, index) => _buildJournalPage(index),
-      ),
+    return Column(
+      children: [
+        // 主要内容区域
+        Expanded(
+          child: Container(
+            margin: AppSpacing.pagePadding,
+            decoration: _buildPaperDecoration(),
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (page) {
+                setState(() {
+                  _currentPage = page;
+                });
+                HapticFeedback.lightImpact();
+              },
+              itemCount: _journalPages.length,
+              itemBuilder: (context, index) => _buildJournalPage(index),
+            ),
+          ),
+        ),
+        
+        // 底部翻页控制
+        if (_journalPages.length > 1) _buildPageControls(),
+      ],
     );
   }
   
@@ -175,14 +194,14 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
       boxShadow: [
         // 主要阴影
         BoxShadow(
-          color: Colors.black.withOpacity(0.15),
+          color: Colors.black.withValues(alpha: 0.15),
           blurRadius: 20,
           offset: const Offset(0, 8),
           spreadRadius: -2,
         ),
         // 纸质层次感
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
+          color: Colors.black.withValues(alpha: 0.08),
           blurRadius: 40,
           offset: const Offset(0, 16),
           spreadRadius: -8,
@@ -190,7 +209,7 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
       ],
       // 纸质纹理
       border: Border.all(
-        color: Colors.grey.withOpacity(0.1),
+        color: Colors.grey.withValues(alpha: 0.1),
         width: 0.5,
       ),
     );
@@ -239,25 +258,70 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
     }
     
     return BreathingWidget(
-      child: Column(
-        children: [
-          Text(
-            dateRange,
-            style: AppTypography.titleMediumStyle(isDark: false).copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w300,
-              fontSize: 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          children: [
+            // 日记本风格的标题行
+            Row(
+              children: [
+                Text(
+                  '📅',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  dateRange,
+                  style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w400,
+                    fontSize: 18,
+                  ),
+                ),
+                const Spacer(),
+                // 页面编号
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '第${pageIndex + 1}页',
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${memories.length} 个美食记忆',
-            style: AppTypography.bodySmallStyle(isDark: false).copyWith(
-              color: AppColors.textSecondary,
-              fontSize: 12,
+            const SizedBox(height: 8),
+            // 分隔线
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.grey.withValues(alpha: 0.3),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            // 记忆数量
+            Text(
+              '收录 ${memories.length} 个美食记忆',
+              style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -302,18 +366,18 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
                     borderRadius: BorderRadius.circular(12),
                     border: memory.special
                         ? Border.all(
-                            color: AppColors.primary.withOpacity(0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             width: 1.5,
                           )
                         : Border.all(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             width: 0.5,
                           ),
                     boxShadow: [
                       BoxShadow(
                         color: memory.special
-                            ? AppColors.primary.withOpacity(0.1)
-                            : Colors.black.withOpacity(0.05),
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.05),
                         blurRadius: memory.special ? 8 : 4,
                         offset: const Offset(0, 2),
                       ),
@@ -371,7 +435,7 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.backgroundSecondary.withOpacity(0.8),
+                            color: AppColors.backgroundSecondary.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -403,7 +467,7 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
         gradient: LinearGradient(
           colors: [
             Colors.transparent,
-            Colors.grey.withOpacity(0.3),
+            Colors.grey.withValues(alpha: 0.3),
             Colors.transparent,
           ],
         ),
@@ -467,7 +531,7 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -481,7 +545,7 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
             height: 4,
             margin: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.3),
+              color: Colors.grey.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -583,6 +647,126 @@ class _FoodJournalScreenState extends State<FoodJournalScreen>
     );
   }
   
+  /// 构建底部翻页控制
+  Widget _buildPageControls() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Row(
+        children: [
+          // 上一页按钮
+          _buildPageButton(
+            icon: Icons.chevron_left,
+            label: '上一页',
+            onTap: _currentPage > 0 ? _goToPreviousPage : null,
+          ),
+          
+          // 中间的页码指示器和滑动提示
+          Expanded(
+            child: Column(
+              children: [
+                // 页码点指示器
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_journalPages.length, (index) {
+                    return Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: index == _currentPage
+                            ? AppColors.primary
+                            : AppColors.textSecondary.withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 4),
+                // 滑动提示
+                Text(
+                  '👆 左右滑动翻页 ${_currentPage + 1}/${_journalPages.length}',
+                  style: AppTypography.captionStyle(isDark: false).copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // 下一页按钮
+          _buildPageButton(
+            icon: Icons.chevron_right,
+            label: '下一页',
+            onTap: _currentPage < _journalPages.length - 1 ? _goToNextPage : null,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// 构建翻页按钮
+  Widget _buildPageButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    final isEnabled = onTap != null;
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isEnabled
+              ? AppColors.backgroundSecondary
+              : AppColors.backgroundSecondary.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: AppTypography.captionStyle(isDark: false).copyWith(
+                color: isEnabled ? AppColors.textPrimary : AppColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// 转到上一页
+  void _goToPreviousPage() {
+    if (_currentPage > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      HapticFeedback.lightImpact();
+    }
+  }
+  
+  /// 转到下一页
+  void _goToNextPage() {
+    if (_currentPage < _journalPages.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+      HapticFeedback.lightImpact();
+    }
+  }
+
   /// 获取最佳网格尺寸
   GridSize _getOptimalGridSize(int itemCount) {
     if (itemCount >= 9) return GridSize(3, 3);
