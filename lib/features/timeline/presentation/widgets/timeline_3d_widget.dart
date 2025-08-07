@@ -164,6 +164,30 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     }
     return _periodLabels[_currentPeriodIndex];
   }
+  
+  /// 构建3D卡片并正确排序（解决透视遮挡问题）
+  List<Widget> _build3DCards() {
+    final memories = _getCurrentPeriodMemories();
+    if (memories.isEmpty) return [];
+    
+    // 创建卡片数据并计算z值
+    final cardData = memories.asMap().entries.map((entry) {
+      final index = entry.key;
+      final memory = entry.value;
+      final angle = (index / memories.length) * 2 * math.pi;
+      final z = math.cos(angle) * 150.0;
+      
+      return {
+        'widget': _build3DMemoryCard(memory, index, _breathingAnimation.value),
+        'z': z,
+      };
+    }).toList();
+    
+    // 按z值排序，z值小的（远处的）先渲染，z值大的（近处的）后渲染
+    cardData.sort((a, b) => (a['z'] as double).compareTo(b['z'] as double));
+    
+    return cardData.map((data) => data['widget'] as Widget).toList();
+  }
 
   @override
   void dispose() {
@@ -212,11 +236,7 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                       child: Stack(
                         alignment: Alignment.center,
                         clipBehavior: Clip.none, // 避免裁剪问题
-                        children: _getCurrentPeriodMemories().asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final memory = entry.value;
-                          return _build3DMemoryCard(memory, index, _breathingAnimation.value);
-                        }).toList(),
+                        children: _build3DCards(),
                       ),
                     );
                   },
@@ -225,17 +245,12 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
             ),
           ),
           
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           
           // 时间段切换控制
           _buildPeriodControls(),
           
-          const SizedBox(height: 16),
-          
-          // 3D控制按钮
-          _buildMinimalControls(),
-          
-          const SizedBox(height: 48),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -249,9 +264,12 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     final z = math.cos(angle) * radius;
     final y = index * 30.0 - 50; // 恢复适中的Y轴分层
     
-    // 计算呼吸动画值
+    // 计算呼吸动画值和深度透明度
     final breathingScale = 1.0 + (breathingValue * 0.05);
-    final breathingOpacity = 0.8 + (breathingValue * 0.2);
+    final baseOpacity = 0.8 + (breathingValue * 0.2);
+    // 根据z值调整透明度，后面的卡片更暗
+    final depthFactor = (z + 150.0) / 300.0; // 0.0-1.0
+    final breathingOpacity = baseOpacity * (0.4 + 0.6 * depthFactor);
     
     // 固定卡片尺寸，避免LayoutBuilder
     const cardWidth = 160.0;
@@ -378,24 +396,17 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
       child: Column(
         children: [
           Text(
-            '美食时光机',
+            _getCurrentPeriodLabel(),
             style: AppTypography.titleMediumStyle(isDark: false).copyWith(
+              color: AppColors.textPrimary,
               fontWeight: FontWeight.w300,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _getCurrentPeriodLabel(),
-            style: AppTypography.bodyMediumStyle(isDark: false).copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
           if (_memoryPeriods.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               '${_getCurrentPeriodMemories().length} 个美食记忆',
-              style: AppTypography.captionStyle(isDark: false).copyWith(
+              style: AppTypography.bodySmallStyle(isDark: false).copyWith(
                 color: AppColors.textSecondary,
               ),
             ),
@@ -495,80 +506,4 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     );
   }
   
-  Widget _buildMinimalControls() {
-    return Padding(
-      padding: AppSpacing.pagePadding,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildMinimalButton(
-            icon: Icons.remove,
-            onTap: () {
-              setState(() {
-                _scale = (_scale - 0.1).clamp(0.5, 2.0);
-              });
-              HapticFeedback.lightImpact();
-            },
-          ),
-          
-          const SizedBox(width: 48),
-          
-          _buildMinimalButton(
-            icon: _rotationController.isAnimating ? Icons.pause : Icons.play_arrow,
-            onTap: () {
-              // 🔥 修复：使用正确的暂停/恢复逻辑
-              if (_rotationController.isAnimating) {
-                _rotationController.stop(); // 完全停止
-              } else {
-                _rotationController.repeat(); // 重新开始循环
-              }
-              HapticFeedback.lightImpact();
-              setState(() {}); // 更新按钮图标
-            },
-          ),
-          
-          const SizedBox(width: 48),
-          
-          _buildMinimalButton(
-            icon: Icons.add,
-            onTap: () {
-              setState(() {
-                _scale = (_scale + 0.1).clamp(0.5, 2.0);
-              });
-              HapticFeedback.lightImpact();
-            },
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildMinimalButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: AppColors.backgroundSecondary,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadow,
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(
-          icon,
-          color: AppColors.textPrimary,
-          size: 24,
-        ),
-      ),
-    );
-  }
 }

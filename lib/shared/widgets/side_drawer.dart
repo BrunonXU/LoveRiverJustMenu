@@ -209,8 +209,14 @@ class SideDrawer extends ConsumerWidget {
       ),
       // 其他功能按原顺序
       DrawerItem(
+        icon: Icons.menu_book,
+        title: '美食日记',
+        subtitle: '翻页记忆回顾',
+        onTap: () => _navigateTo(context, AppRouter.foodJournal),
+      ),
+      DrawerItem(
         icon: Icons.timeline,
-        title: '时光机',
+        title: '美食时光机',
         subtitle: '3D记忆时光',
         onTap: () => _navigateTo(context, AppRouter.timeline),
       ),

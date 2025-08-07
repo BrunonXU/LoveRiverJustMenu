@@ -33,6 +33,7 @@ import '../../features/profile/presentation/pages/settings_screen.dart';
 import '../../features/auth/presentation/pages/welcome_screen.dart';
 import '../../features/auth/presentation/pages/login_methods_screen.dart';
 import '../../features/auth/presentation/pages/register_methods_screen.dart';
+import '../../features/food_journal/presentation/pages/food_journal_screen.dart';
 import '../animations/liquid_transition.dart';
 import '../auth/providers/auth_providers.dart';
 
@@ -57,6 +58,7 @@ class AppRouter {
   // 应用主要路由
   static const String home = '/home';
   static const String timeline = '/timeline';
+  static const String foodJournal = '/food-journal';
   static const String aiRecommendation = '/ai-recommendation';
   static const String cookingMode = '/cooking-mode';
   static const String recipeDetail = '/recipe/:id';
@@ -127,7 +129,8 @@ class AppRouter {
           // 🎯 游客模式支持 - 允许访问主页和其他功能页面
           final guestAllowedPaths = [
             home, 
-            timeline, 
+            timeline,
+            foodJournal,
             aiRecommendation, 
             search,
             personalSpace,
@@ -258,6 +261,18 @@ class AppRouter {
           child: const TimelineScreen(),
           state: state,
           transitionType: PageTransitionType.fade,
+        ),
+      ),
+      
+      // 美食日记路由 - 📖 翻页日记本设计
+      GoRoute(
+        path: foodJournal,
+        name: 'food-journal',
+        builder: (context, state) => const FoodJournalScreen(),
+        pageBuilder: (context, state) => _buildPageTransition(
+          child: const FoodJournalScreen(),
+          state: state,
+          transitionType: PageTransitionType.slideUp,
         ),
       ),
       
