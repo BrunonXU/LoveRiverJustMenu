@@ -47,7 +47,7 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
   
   void _initializeAnimations() {
     _rotationController = AnimationController(
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 30), // 减慢旋转速度，更优雅
       vsync: this,
     );
     
@@ -87,7 +87,6 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     final sortedMemories = List<Memory>.from(widget.memories)
       ..sort((a, b) => b.date.compareTo(a.date)); // 最新的在前
     
-    final now = DateTime.now();
     final Map<String, List<Memory>> periodMap = {};
     
     for (final memory in sortedMemories) {
@@ -165,28 +164,65 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     return _periodLabels[_currentPeriodIndex];
   }
   
-  /// 构建3D卡片并正确排序（解决透视遮挡问题）
+  /// 构建3D卡片并正确排序（全新的圆形3D布局）
   List<Widget> _build3DCards() {
     final memories = _getCurrentPeriodMemories();
     if (memories.isEmpty) return [];
     
-    // 创建卡片数据并计算z值
-    final cardData = memories.asMap().entries.map((entry) {
-      final index = entry.key;
-      final memory = entry.value;
-      final angle = (index / memories.length) * 2 * math.pi;
-      final z = math.cos(angle) * 150.0;
-      
-      return {
-        'widget': _build3DMemoryCard(memory, index, _breathingAnimation.value),
-        'z': z,
-      };
-    }).toList();
+    final cardData = <Map<String, dynamic>>[];
+    const double radius = 250.0; // 进一步增大半径，让卡片分布更开阔
     
-    // 按z值排序，z值小的（远处的）先渲染，z值大的（近处的）后渲染
+    for (int i = 0; i < memories.length; i++) {
+      final memory = memories[i];
+      
+      // 计算圆形3D位置
+      final angle = (i / memories.length) * 2 * math.pi + (_rotationY + _rotationAnimation.value * 2 * math.pi);
+      final x = math.sin(angle) * radius;
+      final z = math.cos(angle) * radius;
+      final y = 0.0; // 所有卡片在同一水平面上
+      
+      // 计算卡片朝向（始终面向中心）
+      final cardRotationY = angle + math.pi;
+      
+      cardData.add({
+        'memory': memory,
+        'index': i,
+        'x': x,
+        'y': y,
+        'z': z,
+        'angle': angle,
+        'cardRotationY': cardRotationY,
+        'opacity': _calculateDepthOpacity(z),
+        'scale': _calculateDepthScale(z),
+      });
+    }
+    
+    // 按z值排序，后面的先渲染
     cardData.sort((a, b) => (a['z'] as double).compareTo(b['z'] as double));
     
-    return cardData.map((data) => data['widget'] as Widget).toList();
+    return cardData.map((data) => _build3DMemoryCard(data)).toList();
+  }
+  
+  /// 根据深度计算透明度
+  double _calculateDepthOpacity(double z) {
+    const double maxZ = 250.0; // 与半径保持一致
+    const double minOpacity = 0.4; // 提高最小透明度，确保后面卡片依然可见
+    const double maxOpacity = 1.0;
+    
+    // z值范围：-250到250，映射到透明度0.4-1.0
+    final normalizedZ = (z + maxZ) / (2 * maxZ);
+    return minOpacity + (maxOpacity - minOpacity) * normalizedZ;
+  }
+  
+  /// 根据深度计算缩放比例
+  double _calculateDepthScale(double z) {
+    const double maxZ = 250.0; // 与半径保持一致
+    const double minScale = 0.7; // 提高最小缩放，减少过小的卡片
+    const double maxScale = 1.0;
+    
+    // 近大远小的透视效果
+    final normalizedZ = (z + maxZ) / (2 * maxZ);
+    return minScale + (maxScale - minScale) * normalizedZ;
   }
 
   @override
@@ -216,7 +252,7 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
                 onScaleUpdate: (details) {
                   setState(() {
                     if (details.pointerCount == 1) {
-                      _rotationY += details.focalPointDelta.dx * 0.01;
+                      _rotationY += details.focalPointDelta.dx * 0.008; // 降低手势敏感度
                     }
                     _scale = details.scale.clamp(0.5, 2.0);
                   });
@@ -256,126 +292,118 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
     );
   }
   
-  Widget _build3DMemoryCard(Memory memory, int index, double breathingValue) {
-    final totalMemories = widget.memories.length;
-    final angle = (index / totalMemories) * 2 * math.pi;
-    final radius = 150.0; // 恢复原始半径
-    final x = math.sin(angle) * radius;
-    final z = math.cos(angle) * radius;
-    final y = index * 30.0 - 50; // 恢复适中的Y轴分层
+  /// 构建3D记忆卡片（全新设计，简洁高效）
+  Widget _build3DMemoryCard(Map<String, dynamic> cardData) {
+    final memory = cardData['memory'] as Memory;
+    final x = cardData['x'] as double;
+    final y = cardData['y'] as double;
+    final z = cardData['z'] as double;
+    final cardRotationY = cardData['cardRotationY'] as double;
+    final opacity = cardData['opacity'] as double;
+    final scale = cardData['scale'] as double;
     
-    // 计算呼吸动画值和深度透明度
-    final breathingScale = 1.0 + (breathingValue * 0.05);
-    final baseOpacity = 0.8 + (breathingValue * 0.2);
-    // 根据z值调整透明度，后面的卡片更暗
-    final depthFactor = (z + 150.0) / 300.0; // 0.0-1.0
-    final breathingOpacity = baseOpacity * (0.4 + 0.6 * depthFactor);
-    
-    // 固定卡片尺寸，避免LayoutBuilder
-    const cardWidth = 160.0;
-    const cardHeight = 240.0;
+    // 应用呼吸动画 - 更轻微的效果
+    final breathingScale = scale * (1.0 + _breathingAnimation.value * 0.02);
+    final finalOpacity = opacity * (0.85 + _breathingAnimation.value * 0.15);
     
     return RepaintBoundary(
       child: Transform(
         transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001) // 设置透视
           ..translate(x, y, z)
-          ..rotateY(-angle),
+          ..rotateY(cardRotationY)
+          ..scale(breathingScale),
         alignment: Alignment.center,
-        child: GestureDetector(
-          onTap: () {
-            widget.onMemoryTap?.call(memory);
-            HapticFeedback.mediumImpact();
-          },
-          child: Transform.scale(
-            scale: breathingScale,
-            child: Opacity(
-              opacity: breathingOpacity,
-              child: Container(
-                width: cardWidth,
-                height: cardHeight,
+        child: Opacity(
+          opacity: finalOpacity,
+          child: GestureDetector(
+            onTap: () {
+              widget.onMemoryTap?.call(memory);
+              HapticFeedback.mediumImpact();
+            },
+            child: Container(
+              width: 140,
+              height: 200,
               decoration: BoxDecoration(
-                color: AppColors.backgroundColor,
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: memory.special 
-                      ? AppColors.primary.withOpacity(0.3 * breathingOpacity)
-                      : AppColors.shadow.withOpacity(breathingOpacity),
-                    blurRadius: memory.special ? 16 : 8,
-                    offset: const Offset(0, 4),
+                        ? AppColors.primary.withAlpha((0.4 * finalOpacity * 255).round())
+                        : Colors.black.withAlpha((0.1 * finalOpacity * 255).round()),
+                    blurRadius: memory.special ? 20 : 10,
+                    offset: const Offset(0, 8),
                     spreadRadius: memory.special ? 2 : 0,
                   ),
+                  if (memory.special)
+                    BoxShadow(
+                      color: AppColors.primary.withAlpha((0.2 * finalOpacity * 255).round()),
+                      blurRadius: 30,
+                      offset: const Offset(0, 15),
+                      spreadRadius: -5,
+                    ),
                 ],
+                border: memory.special
+                    ? Border.all(
+                        color: AppColors.primary.withAlpha(77), // 0.3 * 255
+                        width: 1,
+                      )
+                    : null,
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Emoji图标
-                  Flexible(
-                    flex: 2,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        memory.emoji,
-                        style: const TextStyle(fontSize: 48),
-                      ),
-                    ),
+                  Text(
+                    memory.emoji,
+                    style: const TextStyle(fontSize: 40),
                   ),
                   
                   const SizedBox(height: 12),
                   
                   // 标题
-                  Flexible(
-                    flex: 2,
-                    child: Text(
-                      memory.title,
-                      style: AppTypography.bodyMediumStyle(
-                        isDark: false,
-                      ).copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w300,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    memory.title,
+                    style: AppTypography.bodySmallStyle(isDark: false).copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w400,
+                      fontSize: 14,
                     ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                      
-                      const SizedBox(height: 6),
-                      
+                  
+                  const SizedBox(height: 8),
+                  
                   // 日期
                   Text(
-                    _formatDate(memory.date),
-                    style: AppTypography.captionStyle(
-                      isDark: false,
-                    ).copyWith(
+                    '${memory.date.month}/${memory.date.day}',
+                    style: AppTypography.captionStyle(isDark: false).copyWith(
                       color: AppColors.textSecondary,
+                      fontSize: 11,
                     ),
                   ),
                   
                   const SizedBox(height: 6),
                   
                   // 情绪标签
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.backgroundSecondary,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        memory.mood,
-                        style: AppTypography.captionStyle(
-                          isDark: false,
-                        ).copyWith(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w300,
-                          fontSize: 10,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: memory.special 
+                          ? AppColors.primary.withAlpha(26) // 0.1 * 255
+                          : AppColors.backgroundSecondary,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      memory.mood,
+                      style: AppTypography.captionStyle(isDark: false).copyWith(
+                        color: memory.special ? AppColors.primary : AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -385,7 +413,6 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
           ),
         ),
       ),
-    ),
     );
   }
   
@@ -474,7 +501,7 @@ class _Timeline3DWidgetState extends State<Timeline3DWidget>
         decoration: BoxDecoration(
           color: isEnabled 
               ? AppColors.backgroundSecondary 
-              : AppColors.backgroundSecondary.withOpacity(0.5),
+              : AppColors.backgroundSecondary.withAlpha(128), // 0.5 * 255
           borderRadius: BorderRadius.circular(20),
           boxShadow: isEnabled ? [
             BoxShadow(
