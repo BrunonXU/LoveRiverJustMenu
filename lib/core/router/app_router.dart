@@ -257,7 +257,7 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageTransition(
           child: const TimelineScreen(),
           state: state,
-          transitionType: PageTransitionType.liquid,
+          transitionType: PageTransitionType.fade,
         ),
       ),
       
@@ -269,7 +269,7 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageTransition(
           child: const AiRecommendationScreen(),
           state: state,
-          transitionType: PageTransitionType.liquid,
+          transitionType: PageTransitionType.fade,
         ),
       ),
       
@@ -475,7 +475,7 @@ class AppRouter {
         pageBuilder: (context, state) => _buildPageTransition(
           child: const ChallengeScreen(),
           state: state,
-          transitionType: PageTransitionType.liquid,
+          transitionType: PageTransitionType.fade,
         ),
       ),
       
