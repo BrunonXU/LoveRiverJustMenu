@@ -98,8 +98,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               child: _buildContent(),
             ),
           ),
@@ -110,138 +110,148 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
 
   /// 🎨 构建页面内容
   Widget _buildContent() {
-    return Column(
-      children: [
-        const Spacer(flex: 2),
-        
-        // Logo区域 - 像素风
-        const PixelLogo(
-          size: 160,
-        ),
-        const SizedBox(height: 24),
-        
-        Text(
-          'LRJ',
-          style: GoogleFonts.pressStart2p(
-            fontSize: 28,
-            color: const Color(0xFF2D4A3E),
-            letterSpacing: 2.0,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height - 48, // 减去SafeArea padding
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 32),
+          
+          // Logo区域 - 像素风
+          const PixelLogo(
+            size: 160,
           ),
-        ),
-        const SizedBox(height: 8),
-        
-        Text(
-          'LOVE-RECIPE JOURNAL',
-          style: GoogleFonts.pressStart2p(
-            fontSize: 12,
-            color: const Color(0xFF4A6B3A),
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 8),
-        
-        Text(
-          '为爱下厨，记录美食与情感',
-          style: GoogleFonts.pressStart2p(
-            fontSize: 10,
-            color: const Color(0xFF6B4423),
-            letterSpacing: 1.0,
-            height: 1.5,
-          ),
-        ),
-        
-        const Spacer(flex: 3),
-        
-        Text(
-          '开始你们的美食之旅',
-          style: GoogleFonts.pressStart2p(
-            fontSize: 14,
-            color: const Color(0xFF2D4A3E),
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 48),
-        
-        // 像素风按钮区域
-        Column(
-          children: [
-            SizedBox(
-              width: 200,
-              child: PixelButton(
-                text: '登录',
-                onPressed: () => _navigateToLogin(context),
-                isPrimary: true,
-                height: 44,
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            SizedBox(
-              width: 200,
-              child: PixelButton(
-                text: '注册',
-                onPressed: () => _navigateToRegister(context),
-                isPrimary: false,
-                height: 44,
-              ),
-            ),
-          ],
-        ),
-        
-        const Spacer(flex: 2),
-        
-        // 游客体验
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          decoration: const BoxDecoration(
-            border: Border(
-              top: BorderSide(color: Color(0xFFF7F7F7)),
+          const SizedBox(height: 24),
+          
+          Text(
+            'LRJ',
+            style: GoogleFonts.pressStart2p(
+              fontSize: 28,
+              color: const Color(0xFF2D4A3E),
+              letterSpacing: 2.0,
             ),
           ),
-          child: GestureDetector(
-            onTap: () => _navigateToGuest(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color(0xFF6B4423),
-                  width: 1,
+          const SizedBox(height: 8),
+          
+          Text(
+            'LOVE-RECIPE JOURNAL',
+            style: GoogleFonts.pressStart2p(
+              fontSize: 12,
+              color: const Color(0xFF4A6B3A),
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          Text(
+            '为爱下厨，记录美食与情感',
+            style: GoogleFonts.pressStart2p(
+              fontSize: 10,
+              color: const Color(0xFF6B4423),
+              letterSpacing: 1.0,
+              height: 1.5,
+            ),
+          ),
+          
+          const SizedBox(height: 48),
+          
+          Text(
+            '开始你们的美食之旅',
+            style: GoogleFonts.pressStart2p(
+              fontSize: 14,
+              color: const Color(0xFF2D4A3E),
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 32),
+          
+          // 像素风按钮区域
+          Column(
+            children: [
+              SizedBox(
+                width: 200,
+                child: PixelButton(
+                  text: '登录',
+                  onPressed: () => _navigateToLogin(context),
+                  isPrimary: true,
+                  height: 44,
                 ),
-                color: Colors.transparent,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('👁', style: TextStyle(fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Text(
-                    '游客体验',
-                    style: GoogleFonts.pressStart2p(
-                      fontSize: 10,
-                      color: const Color(0xFF6B4423),
-                      letterSpacing: 1.0,
-                    ),
+              const SizedBox(height: 16),
+              
+              SizedBox(
+                width: 200,
+                child: PixelButton(
+                  text: '注册',
+                  onPressed: () => _navigateToRegister(context),
+                  isPrimary: false,
+                  height: 44,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // 游客体验
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            decoration: const BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Color(0xFFE6D7C3)),
+              ),
+            ),
+            child: GestureDetector(
+              onTap: () => _navigateToGuest(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: const Color(0xFF6B4423),
+                    width: 1,
                   ),
-                ],
+                  color: Colors.transparent,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('👁', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '游客体验',
+                      style: GoogleFonts.pressStart2p(
+                        fontSize: 10,
+                        color: const Color(0xFF6B4423),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        
-        // 版权信息
-        Text(
-          '使用即表示同意 用户协议 和 隐私政策',
-          style: GoogleFonts.pressStart2p(
-            fontSize: 8,
-            color: const Color(0xFF9B8B7A),
-            letterSpacing: 0.5,
+          
+          const SizedBox(height: 16),
+          
+          // 版权信息
+          Text(
+            '使用即表示同意 用户协议 和 隐私政策',
+            style: GoogleFonts.pressStart2p(
+              fontSize: 8,
+              color: const Color(0xFF9B8B7A),
+              letterSpacing: 0.5,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-      ],
+          
+          const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 

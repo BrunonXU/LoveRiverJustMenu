@@ -12,9 +12,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../shared/widgets/breathing_logo.dart';
+import '../../../../shared/widgets/pixel_logo.dart';
+import '../../../../shared/widgets/pixel_button.dart';
 import '../../../../shared/widgets/method_button.dart';
-import '../../../../shared/widgets/animated_background.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/auth/providers/auth_providers.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/gradient_button.dart';
@@ -85,48 +86,60 @@ class _RegisterMethodsScreenState extends ConsumerState<RegisterMethodsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const AnimatedBackground(),
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                child: _buildContent(),
-              ),
+      body: Container(
+        // 像素风优雅背景 - 奶茶色系
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFFAF7F0), // 温暖白色
+              Color(0xFFF0EBE3), // 奶茶色
+              Color(0xFFE6D7C3), // 浅咖啡色
+            ],
+          ),
+        ),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: _buildContent(),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildContent() {
-    return Column(
-      children: [
-        // 顶部导航栏
-        _buildTopNavigation(),
-        
-        const SizedBox(height: 32),
-        
-        // Logo和标题区域
-        _buildHeaderSection(),
-        
-        const SizedBox(height: 48),
-        
-        // 注册方式选择
-        Expanded(
-          child: SingleChildScrollView(
-            child: _buildMethodsSection(),
-          ),
-        ),
-        
-        // 底部链接
-        _buildBottomLinks(),
-        
-        const SizedBox(height: 16),
-      ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.of(context).size.height - 48,
+      ),
+      child: Column(
+        children: [
+          // 顶部导航栏
+          _buildTopNavigation(),
+          
+          const SizedBox(height: 32),
+          
+          // Logo和标题区域
+          _buildHeaderSection(),
+          
+          const SizedBox(height: 48),
+          
+          // 注册方式选择
+          _buildMethodsSection(),
+          
+          const SizedBox(height: 32),
+          
+          // 底部链接
+          _buildBottomLinks(),
+          
+          const SizedBox(height: 24),
+        ],
+      ),
     );
   }
 
@@ -155,12 +168,12 @@ class _RegisterMethodsScreenState extends ConsumerState<RegisterMethodsScreen>
         
         const Spacer(),
         
-        const Text(
+        Text(
           '选择注册方式',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
+          style: GoogleFonts.pressStart2p(
+            fontSize: 16,
+            color: const Color(0xFF2D4A3E),
+            letterSpacing: 1.0,
           ),
         ),
         
@@ -168,12 +181,12 @@ class _RegisterMethodsScreenState extends ConsumerState<RegisterMethodsScreen>
         
         GestureDetector(
           onTap: () => _handleGuestMode(),
-          child: const Text(
+          child: Text(
             '游客体验',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-              fontWeight: FontWeight.w300,
+            style: GoogleFonts.pressStart2p(
+              fontSize: 10,
+              color: const Color(0xFF6B4423),
+              letterSpacing: 1.0,
             ),
           ),
         ),
@@ -184,26 +197,36 @@ class _RegisterMethodsScreenState extends ConsumerState<RegisterMethodsScreen>
   Widget _buildHeaderSection() {
     return Column(
       children: [
-        const BreathingLogo(size: 80),
+        const PixelLogo(size: 120),
         const SizedBox(height: 24),
         
-        const Text(
-          '爱心食谱',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w300,
-            color: Colors.black,
-            letterSpacing: 0.5,
+        Text(
+          'LRJ',
+          style: GoogleFonts.pressStart2p(
+            fontSize: 24,
+            color: const Color(0xFF2D4A3E),
+            letterSpacing: 2.0,
           ),
         ),
         const SizedBox(height: 8),
         
-        const Text(
+        Text(
+          'LOVE-RECIPE JOURNAL',
+          style: GoogleFonts.pressStart2p(
+            fontSize: 10,
+            color: const Color(0xFF4A6B3A),
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        Text(
           '为爱下厨，记录美食与情感',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w300,
-            color: Color(0xFF666666),
+          style: GoogleFonts.pressStart2p(
+            fontSize: 8,
+            color: const Color(0xFF6B4423),
+            letterSpacing: 1.0,
+            height: 1.5,
           ),
           textAlign: TextAlign.center,
         ),
