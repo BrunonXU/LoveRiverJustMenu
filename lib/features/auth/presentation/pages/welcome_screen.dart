@@ -21,7 +21,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../shared/widgets/pixel_logo.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../shared/widgets/gradient_button.dart';
+import '../../../../shared/widgets/pixel_button.dart';
 import '../../../../shared/widgets/animated_background.dart';
 import 'login_methods_screen.dart';
 import 'register_methods_screen.dart';
@@ -83,14 +83,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 像素风淡黄色背景
+        // 像素风优雅背景 - 奶茶色系
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFF5E6A3), // 淡黄色
-              Color(0xFFF0D975), // 稍深的黄色
+              Color(0xFFFAF7F0), // 温暖白色
+              Color(0xFFF0EBE3), // 奶茶色
+              Color(0xFFE6D7C3), // 浅咖啡色
             ],
           ),
         ),
@@ -161,20 +162,28 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
         ),
         const SizedBox(height: 48),
         
-        // 按钮区域
+        // 像素风按钮区域
         Column(
           children: [
-            GradientButton(
-              text: '登录',
-              onPressed: () => _navigateToLogin(context),
-              isPrimary: true,
+            SizedBox(
+              width: 200,
+              child: PixelButton(
+                text: '登录',
+                onPressed: () => _navigateToLogin(context),
+                isPrimary: true,
+                height: 44,
+              ),
             ),
             const SizedBox(height: 16),
             
-            GradientButton(
-              text: '注册',
-              onPressed: () => _navigateToRegister(context),
-              isPrimary: false,
+            SizedBox(
+              width: 200,
+              child: PixelButton(
+                text: '注册',
+                onPressed: () => _navigateToRegister(context),
+                isPrimary: false,
+                height: 44,
+              ),
             ),
           ],
         ),
@@ -197,19 +206,23 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
                 vertical: 12,
               ),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFF6B4423),
+                  width: 1,
+                ),
                 color: Colors.transparent,
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('👁', style: TextStyle(fontSize: 16)),
-                  SizedBox(width: 8),
+                  const Text('👁', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
                   Text(
                     '游客体验',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFF666666),
+                    style: GoogleFonts.pressStart2p(
+                      fontSize: 10,
+                      color: const Color(0xFF6B4423),
+                      letterSpacing: 1.0,
                     ),
                   ),
                 ],
@@ -219,11 +232,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
         ),
         
         // 版权信息
-        const Text(
+        Text(
           '使用即表示同意 用户协议 和 隐私政策',
-          style: TextStyle(
-            fontSize: 12,
-            color: Color(0xFF999999),
+          style: GoogleFonts.pressStart2p(
+            fontSize: 8,
+            color: const Color(0xFF9B8B7A),
+            letterSpacing: 0.5,
           ),
           textAlign: TextAlign.center,
         ),
