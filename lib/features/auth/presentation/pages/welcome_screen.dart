@@ -19,7 +19,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../shared/widgets/breathing_logo.dart';
+import '../../../../shared/widgets/pixel_logo.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/animated_background.dart';
 import 'login_methods_screen.dart';
@@ -81,19 +82,27 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const AnimatedBackground(),
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-                child: _buildContent(),
-              ),
+      body: Container(
+        // 像素风淡黄色背景
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF5E6A3), // 淡黄色
+              Color(0xFFF0D975), // 稍深的黄色
+            ],
+          ),
+        ),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+              child: _buildContent(),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -104,40 +113,50 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
       children: [
         const Spacer(flex: 2),
         
-        // Logo区域
-        const BreathingLogo(
-          size: 80,
+        // Logo区域 - 像素风
+        const PixelLogo(
+          size: 160,
         ),
         const SizedBox(height: 24),
         
-        const Text(
-          '爱心食谱',
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w300,
-            color: Colors.black,
-            letterSpacing: 0.5,
+        Text(
+          'LRJ',
+          style: GoogleFonts.pressStart2p(
+            fontSize: 28,
+            color: const Color(0xFF2D4A3E),
+            letterSpacing: 2.0,
           ),
         ),
         const SizedBox(height: 8),
         
-        const Text(
+        Text(
+          'LOVE-RECIPE JOURNAL',
+          style: GoogleFonts.pressStart2p(
+            fontSize: 12,
+            color: const Color(0xFF4A6B3A),
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        Text(
           '为爱下厨，记录美食与情感',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w300,
-            color: Color(0xFF666666),
+          style: GoogleFonts.pressStart2p(
+            fontSize: 10,
+            color: const Color(0xFF6B4423),
+            letterSpacing: 1.0,
+            height: 1.5,
           ),
         ),
         
         const Spacer(flex: 3),
         
-        const Text(
+        Text(
           '开始你们的美食之旅',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w300,
-            color: Colors.black,
+          style: GoogleFonts.pressStart2p(
+            fontSize: 14,
+            color: const Color(0xFF2D4A3E),
+            letterSpacing: 1.0,
           ),
         ),
         const SizedBox(height: 48),

@@ -64,6 +64,9 @@ dependencies:
   
   # Google 登录
   google_sign_in: ^6.2.0
+  
+  # 像素风字体支持
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -100,9 +103,6 @@ flutter:
   # 资源配置
   assets:
     - assets/images/
-    - assets/icons/
-    - assets/animations/
-    - assets/sounds/
     - assets/data/
 
 flutter_gen:
