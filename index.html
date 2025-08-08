@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    如果您通过GitHub Pages提供您的Web应用程序，请使用以下内容：
+    <base href="/">
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="极简高级美食菜谱应用 - 为爱下厨，记录美食与情感">
+  <!-- Deployment trigger for GitHub Pages -->
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="爱心食谱">
+  <!-- 使用内联SVG作为图标，避免404错误 -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%235B6FED'/%3E%3Cpath d='M96 40c-8.8 0-16 7.2-16 16v16H64c-8.8 0-16 7.2-16 16v48c0 8.8 7.2 16 16 16h64c8.8 0 16-7.2 16-16V88c0-8.8-7.2-16-16-16h-16V56c0-8.8-7.2-16-16-16zm0 16v16H80V56h16zm-32 32h64v48H64V88z' fill='white'/%3E%3C/svg%3E">
+
+  <!-- Favicon - 使用本地图标文件 -->
+  <link rel="icon" type="image/webp" href="icons/Recipe Icons.webp"/>
+  <!-- 兼容性备份 -->
+  <link rel="icon" type="image/x-icon" href="icons/favicon.ico"/>
+
+  <title>爱心食谱</title>
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Google Sign-In SDK 已移除，使用邮箱登录 -->
+  
+  <!-- 配置Flutter Web引擎使用本地CanvasKit -->
+  <script>
+    window.flutterConfiguration = {
+      canvasKitBaseUrl: "/canvaskit/"
+    };
+  </script>
+
+  <style>
+    /* 使用系统字体替代Google Fonts */
+    * {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #FFFFFF;
+      overflow: hidden;
+      width: 100%;
+      height: 100vh;
+    }
+    
+    html {
+      width: 100%;
+      height: 100%;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    /* 强制Flutter应用占满全屏 */
+    flt-glass-pane {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    flt-scene-host {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    /* 修复Flutter Web容器问题 */
+    #flutter-view {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    .loading-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #FFFFFF;
+    }
+    
+    .loading-content {
+      text-align: center;
+    }
+    
+    .loading-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #FAF7F0 0%, #E6D7C3 100%);
+      border: 2px solid #2D4A3E;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 20px;
+      animation: breathe 4s ease-in-out infinite;
+      box-shadow: 0 8px 24px rgba(212, 182, 120, 0.2);
+    }
+    
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+    
+    .loading-text {
+      color: #2D4A3E;
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    
+    .loading-subtext {
+      color: #6B4423;
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+  </style>
+
+  <script>
+    // 现代化的Service Worker注册
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('flutter-first-frame', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js?v="447537851"');
+      });
+    }
+  </script>
+</head>
+<body>
+  <!-- 加载动画 -->
+  <div class="loading-container" id="loading">
+    <div class="loading-content">
+      <div class="loading-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#FF6B6B"/>
+        </svg>
+      </div>
+      <div class="loading-text">LoveRecipeJournal</div>
+      <div class="loading-subtext">为爱下厨，记录美食与情感</div>
+    </div>
+  </div>
+
+  <script src="main.dart.js" type="application/javascript"></script>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('loading').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

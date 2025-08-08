@@ -1,0 +1,25 @@
+{
+    "name": "爱心食谱",
+    "short_name": "爱心食谱",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#FFFFFF",
+    "theme_color": "#5B6FED",
+    "description": "极简高级美食菜谱应用 - 为爱下厨，记录美食与情感",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Recipe Icons.webp",
+            "sizes": "192x192",
+            "type": "image/webp",
+            "purpose": "maskable any"
+        },
+        {
+            "src": "icons/Recipe Icons.webp",
+            "sizes": "512x512",
+            "type": "image/webp",
+            "purpose": "maskable any"
+        }
+    ]
+}
