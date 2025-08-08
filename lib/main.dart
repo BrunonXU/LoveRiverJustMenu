@@ -136,13 +136,17 @@ class LoveRecipeApp extends ConsumerWidget {
         // 路由配置
         routerConfig: appRouter,
         
-        // 字体配置
+        // 字体配置和布局约束
         builder: (context, child) {
           return MediaQuery(
             data: MediaQuery.of(context).copyWith(
               textScaleFactor: 1.0, // 固定文字缩放，保持设计一致性
             ),
-            child: child!,
+            child: Container(
+              width: double.infinity,  // 强制占满宽度
+              height: double.infinity, // 强制占满高度
+              child: child!,
+            ),
           );
         },
       ),

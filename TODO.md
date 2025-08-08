@@ -1,7 +1,53 @@
 # 🍳 爱心食谱 - 任务清单
 
-## 📋 当前任务
-- [ ] **准备更换favicon图标** - 用户要求更换网站图标为自定义PNG
+## ✅ 登录主页重构任务 (A方案) - 已完成
+
+### 📱 核心功能修复
+- [x] **修复登录页面响应式布局问题** - ✅ 使用AuthLayout响应式布局系统，支持不同屏幕尺寸
+- [x] **修复游客模式点击流程** - ✅ 点击"游客体验"现在先显示功能说明页面
+- [x] **配置项目启动图标** - ✅ 使用Recipe Icons.webp配置web端图标和启动画面
+
+### 🎨 设计系统统一
+- [x] **建立标准化设计系统常量** - ✅ 创建AuthTheme设计系统（颜色、字体、间距、动画）
+- [x] **统一登录相关页面的星露谷像素风格** - ✅ welcome_screen和guest_screen统一使用像素风格
+- [x] **测试web端运行和手机适配效果** - ✅ Web构建成功，图标和样式正确应用
+
+### 🎯 修复成果总结
+
+#### 1. 响应式布局优化
+```dart
+// 修复前：硬编码尺寸
+padding: EdgeInsets.symmetric(horizontal: 32, vertical: 24)  
+SizedBox(width: 200, child: PixelButton())
+
+// 修复后：响应式适配
+padding: AuthLayout.getResponsivePagePadding(context)
+SizedBox(width: AuthLayout.getResponsiveButtonWidth(context), child: PixelButton())
+```
+
+#### 2. 游客模式流程修复
+```dart
+// 修复前：直接跳转主页
+void _navigateToGuest(context) => context.go('/home');
+
+// 修复后：先显示说明页面  
+void _navigateToGuest(context) => Navigator.push(context, GuestScreen());
+```
+
+#### 3. 统一设计系统
+- **色彩**：奶茶色系背景 (#FAF7F0 → #E6D7C3)
+- **字体**：Press Start 2P 像素风字体
+- **布局**：8px栅格间距系统  
+- **图标**：星露谷风格像素茶杯爱心图标
+
+## ✅ 已完成任务
+
+### 🎨 UI修复和优化  
+- [x] **分析当前登录主页代码结构和布局问题** - 已识别所有问题根因
+- [x] **诊断登录页面尺寸固定过小的根本原因** - ConstrainedBox和硬编码尺寸问题
+- [x] **检查游客模式点击时提示页面未弹出的逻辑问题** - 直接跳转而非显示说明页
+- [x] **分析项目启动画面图标配置和替换方案** - 缺少图标配置，需要使用现有图标
+- [x] **评估UI/UX设计统一性问题** - 字体、色彩、按钮风格不一致
 
 ## 🔥 紧急修复任务 (数据同步系统)
 
@@ -77,5 +123,5 @@
 ---
 
 *最后更新：2025-08-08*
-*项目状态：🟡 数据同步系统需要优化*
+*项目状态：🟢 游客模式和主页布局问题已修复*
 *当前优先级：修复收藏功能 → 实现更新提示 → 优化同步流程*

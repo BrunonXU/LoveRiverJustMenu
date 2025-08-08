@@ -115,10 +115,6 @@ class AppRouter {
         try {
           // 安全地获取当前用户状态
           final authState = ref.read(authStateProvider);
-          final isLoggedIn = authState.maybeWhen(
-            data: (user) => user != null,
-            orElse: () => false,
-          );
           
           // 当前访问的路径
           final currentPath = state.uri.toString();
@@ -161,41 +157,98 @@ class AppRouter {
             provinceDetail,
           ];
           
-          // 如果用户未登录且不在认证相关页面，检查是否是游客允许的页面
-          if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
-            // 🎮 游客模式：允许访问主要功能页面
-            // 检查当前路径是否匹配允许的路径（支持动态路由）
-            bool isPathAllowed = false;
-            for (final allowedPath in guestAllowedPaths) {
-              if (currentPath == allowedPath || 
-                  currentPath.startsWith('${allowedPath}/') ||
-                  _matchesDynamicRoute(currentPath, allowedPath)) {
-                isPathAllowed = true;
-                break;
+          // 🔧 修复：处理认证状态的各种情况
+          return authState.when(
+            // 用户已登录
+            data: (user) {
+              final isLoggedIn = user != null;
+              
+              // 如果用户已登录且在认证相关页面，重定向到主页
+              if (isLoggedIn && (authPaths.contains(currentPath) || currentPath.startsWith('/auth/'))) {
+                return home;
               }
-            }
-            
-            if (isPathAllowed) {
-              return null; // 允许访问
-            }
-            return welcome; // 其他页面需要登录
-          }
+              
+              // 如果访问根路径 "/" 重定向到欢迎页面或主页
+              if (currentPath == '/') {
+                return isLoggedIn ? home : welcome;
+              }
+              
+              // 如果用户未登录且不在认证相关页面，检查是否是游客允许的页面
+              if (!isLoggedIn && !authPaths.contains(currentPath) && !currentPath.startsWith('/auth/')) {
+                // 🎮 游客模式：允许访问主要功能页面
+                // 检查当前路径是否匹配允许的路径（支持动态路由）
+                bool isPathAllowed = false;
+                for (final allowedPath in guestAllowedPaths) {
+                  if (currentPath == allowedPath || 
+                      currentPath.startsWith('${allowedPath}/') ||
+                      _matchesDynamicRoute(currentPath, allowedPath)) {
+                    isPathAllowed = true;
+                    break;
+                  }
+                }
+                
+                if (isPathAllowed) {
+                  return null; // 🎯 允许游客访问
+                }
+                return welcome; // 其他页面需要登录
+              }
+              
+              return null; // 其他情况不重定向
+            },
+            // 认证状态加载中 - 不要重定向，让页面先渲染
+            loading: () {
+              debugPrint('🔄 认证状态加载中，允许访问当前路径: $currentPath');
+              return null; // 🔧 关键修复：加载时不重定向
+            },
+            // 认证出错 - 只有在不是游客允许的页面时才重定向
+            error: (error, stackTrace) {
+              debugPrint('❌ 认证状态获取失败: $error');
+              
+              // 如果在认证相关页面，允许继续访问
+              if (authPaths.contains(currentPath) || currentPath.startsWith('/auth/')) {
+                return null;
+              }
+              
+              // 检查是否是游客允许访问的页面
+              bool isGuestAllowed = false;
+              for (final allowedPath in guestAllowedPaths) {
+                if (currentPath == allowedPath || 
+                    currentPath.startsWith('${allowedPath}/') ||
+                    _matchesDynamicRoute(currentPath, allowedPath)) {
+                  isGuestAllowed = true;
+                  break;
+                }
+              }
+              
+              if (isGuestAllowed) {
+                debugPrint('🎮 认证失败但允许游客访问: $currentPath');
+                return null; // 🔧 关键修复：允许游客模式
+              }
+              
+              return welcome; // 其他情况回到欢迎页面
+            },
+          );
           
-          // 如果用户已登录且在认证相关页面，重定向到主页
-          if (isLoggedIn && (authPaths.contains(currentPath) || currentPath.startsWith('/auth/'))) {
-            return home;
-          }
-          
-          // 如果访问根路径 "/" 重定向到欢迎页面或主页
-          if (currentPath == '/') {
-            return isLoggedIn ? home : welcome;
-          }
-          
-          // 其他情况不重定向
-          return null;
         } catch (e) {
-          // 如果获取认证状态失败，默认跳转到欢迎页面
-          debugPrint('⚠️ 路由重定向时获取认证状态失败: $e');
+          // 最后的异常处理 - 允许游客模式
+          debugPrint('⚠️ 路由重定向时发生异常: $e');
+          final currentPath = state.uri.toString();
+          
+          // 认证相关路径直接放行
+          final authPaths = [welcome, login, register];
+          if (authPaths.contains(currentPath) || currentPath.startsWith('/auth/')) {
+            return null;
+          }
+          
+          // 游客模式页面也放行
+          final guestPaths = [home, timeline, foodJournal, aiRecommendation];
+          for (final path in guestPaths) {
+            if (currentPath == path) {
+              debugPrint('🎮 异常情况下允许游客访问: $currentPath');
+              return null;
+            }
+          }
+          
           return welcome;
         }
       },

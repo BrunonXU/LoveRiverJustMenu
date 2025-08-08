@@ -23,6 +23,7 @@ import '../../../../shared/widgets/pixel_logo.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../shared/widgets/pixel_button.dart';
 import '../../../../shared/widgets/animated_background.dart';
+import '../../../../core/themes/auth_theme.dart';
 import 'login_methods_screen.dart';
 import 'register_methods_screen.dart';
 import 'guest_screen.dart';
@@ -83,23 +84,17 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // 像素风优雅背景 - 奶茶色系
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFAF7F0), // 温暖白色
-              Color(0xFFF0EBE3), // 奶茶色
-              Color(0xFFE6D7C3), // 浅咖啡色
-            ],
-          ),
-        ),
+        // 强制占满全屏
+        width: double.infinity,
+        height: double.infinity,
+        // 使用统一的像素风背景装饰
+        decoration: AuthStyles.pageBackground,
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              // 使用响应式页面边距
+              padding: AuthLayout.getResponsivePagePadding(context),
               child: _buildContent(),
             ),
           ),
@@ -112,123 +107,97 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
   Widget _buildContent() {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        minHeight: MediaQuery.of(context).size.height - 48, // 减去SafeArea padding
+        // 使用响应式最小高度计算，但不能太小
+        minHeight: AuthLayout.getContentMinHeight(context),
+        // 确保有最小宽度，但允许响应式
+        minWidth: 300, // 最小300px确保内容可读
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        // 内容居中对齐
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 32),
+          SizedBox(height: AuthLayout.spacing_lg),
           
-          // Logo区域 - 像素风
-          const PixelLogo(
-            size: 160,
+          // Logo区域 - 响应式像素风
+          PixelLogo(
+            size: AuthLayout.getResponsiveLogoSize(context),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: AuthLayout.spacing_md),
           
           Text(
             'LRJ',
-            style: GoogleFonts.pressStart2p(
-              fontSize: 28,
-              color: const Color(0xFF2D4A3E),
-              letterSpacing: 2.0,
-            ),
+            style: AuthTypography.logoLarge,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: AuthLayout.spacing_xs),
           
           Text(
             'LOVE-RECIPE JOURNAL',
-            style: GoogleFonts.pressStart2p(
-              fontSize: 12,
-              color: const Color(0xFF4A6B3A),
-              letterSpacing: 1.0,
-            ),
+            style: AuthTypography.logoSubtitle,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: AuthLayout.spacing_xs),
           
           Text(
             '为爱下厨，记录美食与情感',
-            style: GoogleFonts.pressStart2p(
-              fontSize: 10,
-              color: const Color(0xFF6B4423),
-              letterSpacing: 1.0,
-              height: 1.5,
-            ),
+            style: AuthTypography.description,
           ),
           
-          const SizedBox(height: 48),
+          SizedBox(height: AuthLayout.spacing_xl),
           
           Text(
             '开始你们的美食之旅',
-            style: GoogleFonts.pressStart2p(
-              fontSize: 14,
-              color: const Color(0xFF2D4A3E),
-              letterSpacing: 1.0,
-            ),
+            style: AuthTypography.pageTitle,
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: AuthLayout.spacing_lg),
           
-          // 像素风按钮区域
+          // 响应式像素风按钮区域
           Column(
             children: [
-              SizedBox(
-                width: 200,
-                child: PixelButton(
-                  text: '登录',
-                  onPressed: () => _navigateToLogin(context),
-                  isPrimary: true,
-                  height: 44,
-                ),
+              PixelButton(
+                text: '登录',
+                onPressed: () => _navigateToLogin(context),
+                isPrimary: true,
+                width: AuthLayout.getResponsiveButtonWidth(context),  // 直接传递宽度给按钮
+                height: AuthLayout.buttonHeight,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: AuthLayout.spacing_sm),
               
-              SizedBox(
-                width: 200,
-                child: PixelButton(
-                  text: '注册',
-                  onPressed: () => _navigateToRegister(context),
-                  isPrimary: false,
-                  height: 44,
-                ),
+              PixelButton(
+                text: '注册',
+                onPressed: () => _navigateToRegister(context),
+                isPrimary: false,
+                width: AuthLayout.getResponsiveButtonWidth(context),  // 直接传递宽度给按钮
+                height: AuthLayout.buttonHeight,
               ),
             ],
           ),
           
-          const SizedBox(height: 32),
+          SizedBox(height: AuthLayout.spacing_lg),
           
           // 游客体验
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: const BoxDecoration(
+            padding: EdgeInsets.symmetric(vertical: AuthLayout.spacing_md),
+            decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Color(0xFFE6D7C3)),
+                top: BorderSide(color: AuthColors.pixelDivider),
               ),
             ),
             child: GestureDetector(
               onTap: () => _navigateToGuest(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
+                padding: EdgeInsets.symmetric(
+                  horizontal: AuthLayout.spacing_md,
                   vertical: 12,
                 ),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF6B4423),
-                    width: 1,
-                  ),
-                  color: Colors.transparent,
-                ),
+                decoration: AuthStyles.guestButton,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('👁', style: TextStyle(fontSize: 16)),
-                    const SizedBox(width: 8),
+                    SizedBox(width: AuthLayout.spacing_xs),
                     Text(
                       '游客体验',
-                      style: GoogleFonts.pressStart2p(
-                        fontSize: 10,
-                        color: const Color(0xFF6B4423),
-                        letterSpacing: 1.0,
-                      ),
+                      style: AuthTypography.buttonTextSecondary,
                     ),
                   ],
                 ),
@@ -236,20 +205,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
             ),
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: AuthLayout.spacing_sm),
           
           // 版权信息
           Text(
             '使用即表示同意 用户协议 和 隐私政策',
-            style: GoogleFonts.pressStart2p(
-              fontSize: 8,
-              color: const Color(0xFF9B8B7A),
-              letterSpacing: 0.5,
-            ),
+            style: AuthTypography.copyright,
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: 24),
+          SizedBox(height: AuthLayout.spacing_md),
         ],
       ),
     );
@@ -304,6 +269,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen>
 
   void _navigateToGuest(BuildContext context) {
     HapticFeedback.lightImpact();
+    // 跳转到游客体验说明页面，让用户了解游客模式功能和限制
     Navigator.push(
       context,
       PageRouteBuilder(

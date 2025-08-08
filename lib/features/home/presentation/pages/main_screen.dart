@@ -242,22 +242,33 @@ class _MainScreenState extends ConsumerState<MainScreen>
   
   /// 构建简化的主要内容
   Widget _buildSimplifiedMainContent(bool isDark) {
-    return Column(
-      children: [
-        // 简化的顶部区域：汉堡菜单 + 时间 + 天气 + 搜索
-        _buildSimplifiedHeader(isDark),
-        
-        // 智能推荐文案区域
-        _buildRecommendationText(isDark),
-        
-        // 单个菜谱卡片区域
-        Expanded(
-          child: _buildSingleRecipeCard(isDark),
+    return SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top,
         ),
-        
-        // 操作提示
-        _buildSimplifiedHint(isDark),
-      ],
+        child: Column(
+          children: [
+            // 简化的顶部区域：汉堡菜单 + 时间 + 天气 + 搜索
+            _buildSimplifiedHeader(isDark),
+            
+            // 智能推荐文案区域
+            _buildRecommendationText(isDark),
+            
+            // 单个菜谱卡片区域 - 使用固定高度避免Expanded在ScrollView中的问题
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 0.5, // 占屏幕高度的50%
+              child: _buildSingleRecipeCard(isDark),
+            ),
+            
+            // 操作提示
+            _buildSimplifiedHint(isDark),
+            
+            // 底部安全间距
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
     );
   }
 

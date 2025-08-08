@@ -49,7 +49,8 @@
       "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\core\\services\\favorites_service.dart\")",
       "Bash(gh repo view:*)",
       "Bash(git subtree push:*)",
-      "WebFetch(domain:xuziang.xyz)"
+      "WebFetch(domain:xuziang.xyz)",
+      "WebFetch(domain:)"
     ],
     "deny": []
   }

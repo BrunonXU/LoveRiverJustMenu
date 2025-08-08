@@ -79,8 +79,11 @@ dev_dependencies:
   # 静态分析
   flutter_lints: ^3.0.1
   
-  # 图标生成
+  # 数据生成
   hive_generator: ^2.0.1
+  
+  # 启动图标生成
+  flutter_launcher_icons: ^0.13.1
   
   # 测试
   integration_test:
@@ -108,3 +111,16 @@ flutter:
 flutter_gen:
   output: lib/generated/
   line_length: 80
+
+# 启动图标配置
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "web/icons/Recipe Icons.webp"
+  web:
+    generate: true
+    image_path: "web/icons/Recipe Icons.webp"
+    background_color: "#FAF7F0"
+    theme_color: "#2D4A3E"
+  adaptive_icon_background: "#FAF7F0"
+  adaptive_icon_foreground: "web/icons/Recipe Icons.webp"

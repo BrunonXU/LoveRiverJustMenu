@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/widgets/breathing_logo.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/animated_background.dart';
+import '../../../../core/themes/auth_theme.dart';
 import 'register_methods_screen.dart';
 
 class GuestScreen extends ConsumerStatefulWidget {
@@ -63,19 +64,19 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          const AnimatedBackground(),
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                child: _buildContent(),
-              ),
+      body: Container(
+        // 使用统一的像素风背景装饰
+        decoration: AuthStyles.pageBackground,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: SafeArea(
+            child: Padding(
+              // 使用响应式页面边距
+              padding: AuthLayout.getResponsivePagePadding(context),
+              child: _buildContent(),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -131,13 +132,10 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
           child: Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7F7F7),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
+            decoration: AuthStyles.backButton,
+            child: Icon(
               Icons.arrow_back_ios_new,
-              color: Colors.black,
+              color: AuthColors.pixelTextPrimary,
               size: 18,
             ),
           ),
@@ -145,13 +143,9 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
         
         const Spacer(),
         
-        const Text(
+        Text(
           '游客体验',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            color: Colors.black,
-          ),
+          style: AuthTypography.screenTitle,
         ),
         
         const Spacer(),
@@ -170,27 +164,17 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
           emoji: '👁️',
           gradientColors: const [Color(0xFFFF6B6B), Color(0xFFFFE66D)],
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: AuthLayout.spacing_md),
         
-        const Text(
+        Text(
           '免注册体验',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w300,
-            color: Colors.black,
-            letterSpacing: 0.5,
-          ),
+          style: AuthTypography.subtitle,
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: AuthLayout.spacing_sm),
         
-        const Text(
+        Text(
           '无需注册即可体验核心功能\n开始探索美食的世界吧',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w300,
-            color: Color(0xFF666666),
-            height: 1.5,
-          ),
+          style: AuthTypography.normalDescription,
           textAlign: TextAlign.center,
         ),
       ],
@@ -200,37 +184,23 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
   Widget _buildFeaturesSection() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.all(AuthLayout.spacing_md),
+      decoration: AuthStyles.whiteCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Text('🎨', style: TextStyle(fontSize: 20)),
-              SizedBox(width: 8),
+              const Text('🎨', style: TextStyle(fontSize: 20)),
+              SizedBox(width: AuthLayout.spacing_xs),
               Text(
                 '游客模式可以体验：',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
+                style: AuthTypography.featureTitle,
               ),
             ],
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: AuthLayout.spacing_sm),
           
           _buildFeatureItem('✅', '浏览精选菜谱'),
           const SizedBox(height: 12),
@@ -247,34 +217,23 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
   Widget _buildLimitationsSection() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8DC),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFFFFE66D).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
+      padding: EdgeInsets.all(AuthLayout.spacing_md),
+      decoration: AuthStyles.warningCard,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Text('⚠️', style: TextStyle(fontSize: 20)),
-              SizedBox(width: 8),
+              const Text('⚠️', style: TextStyle(fontSize: 20)),
+              SizedBox(width: AuthLayout.spacing_xs),
               Text(
                 '游客模式限制：',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
+                style: AuthTypography.featureTitle,
               ),
             ],
           ),
           
-          const SizedBox(height: 16),
+          SizedBox(height: AuthLayout.spacing_sm),
           
           _buildLimitationItem('❌', '无法保存个人数据'),
           const SizedBox(height: 12),
@@ -292,15 +251,11 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
     return Row(
       children: [
         Text(icon, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w300,
-              color: Colors.black,
-            ),
+            style: AuthTypography.featureText,
           ),
         ),
       ],
@@ -311,15 +266,11 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
     return Row(
       children: [
         Text(icon, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w300,
-              color: Color(0xFF666666),
-            ),
+            style: AuthTypography.normalDescription,
           ),
         ),
       ],
@@ -342,31 +293,20 @@ class _GuestScreenState extends ConsumerState<GuestScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               '随时可以 ',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF999999),
-              ),
+              style: AuthTypography.smallHint,
             ),
             GestureDetector(
               onTap: () => _handleRegisterTap(),
-              child: const Text(
+              child: Text(
                 '注册账号',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF5B6FED),
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.underline,
-                ),
+                style: AuthTypography.linkText,
               ),
             ),
-            const Text(
+            Text(
               ' 解锁完整功能',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF999999),
-              ),
+              style: AuthTypography.smallHint,
             ),
           ],
         ),

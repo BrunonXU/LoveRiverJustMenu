@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>响应式布局测试</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto;
+            background: linear-gradient(180deg, #FAF7F0 0%, #F0EBE3 50%, #E6D7C3 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        
+        @media (max-width: 400px) {
+            .container { padding: 16px; }
+            .button { width: 80% !important; }
+            .logo { width: 120px !important; height: 120px !important; }
+        }
+        
+        @media (min-width: 400px) and (max-width: 600px) {
+            .container { padding: 32px; }
+            .button { width: 240px !important; }
+            .logo { width: 160px !important; height: 160px !important; }
+        }
+        
+        @media (min-width: 600px) and (max-width: 900px) {
+            .container { padding: 48px; }
+            .button { width: 280px !important; }
+            .logo { width: 200px !important; height: 200px !important; }
+        }
+        
+        @media (min-width: 900px) {
+            .container { padding: 64px; }
+            .button { width: 280px !important; }
+            .logo { width: 200px !important; height: 200px !important; }
+        }
+        
+        .content {
+            min-height: calc(100vh - 48px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            min-width: 300px;
+        }
+        
+        .logo {
+            width: 160px;
+            height: 160px;
+            background: #2D4A3E;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .title {
+            font-size: 28px;
+            color: #2D4A3E;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            color: #4A6B3A;
+            margin-bottom: 8px;
+        }
+        
+        .description {
+            font-size: 10px;
+            color: #6B4423;
+            margin-bottom: 48px;
+        }
+        
+        .page-title {
+            font-size: 14px;
+            color: #2D4A3E;
+            margin-bottom: 32px;
+        }
+        
+        .button {
+            width: 240px;
+            height: 44px;
+            background: #4A6B3A;
+            color: white;
+            border: 2px solid #2D4A3E;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.1s ease;
+        }
+        
+        .button:hover {
+            transform: scale(0.95);
+        }
+        
+        .button.secondary {
+            background: #8B6F47;
+            border-color: #6B4423;
+        }
+        
+        .guest-button {
+            border: 1px solid #6B4423;
+            background: transparent;
+            color: #6B4423;
+            padding: 12px 24px;
+            margin-top: 32px;
+            font-size: 10px;
+        }
+        
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info" id="debugInfo">屏幕宽度: <span id="screenWidth"></span>px</div>
+    
+    <div class="container">
+        <div class="content">
+            <div class="logo">🍳</div>
+            
+            <div class="title">LRJ</div>
+            <div class="subtitle">LOVE-RECIPE JOURNAL</div>
+            <div class="description">为爱下厨，记录美食与情感</div>
+            
+            <div class="page-title">开始你们的美食之旅</div>
+            
+            <div class="button" onclick="alert('登录按钮点击')">登录</div>
+            <div class="button secondary" onclick="alert('注册按钮点击')">注册</div>
+            
+            <div class="guest-button" onclick="alert('游客体验点击')">👁 游客体验</div>
+        </div>
+    </div>
+    
+    <script>
+        function updateScreenWidth() {
+            document.getElementById('screenWidth').textContent = window.innerWidth;
+        }
+        
+        updateScreenWidth();
+        window.addEventListener('resize', updateScreenWidth);
+        
+        // 测试不同屏幕尺寸的按钮宽度
+        console.log('屏幕宽度:', window.innerWidth);
+        console.log('按钮应该的宽度:');
+        if (window.innerWidth < 400) {
+            console.log('小屏手机: 80%宽度 =', window.innerWidth * 0.8, 'px');
+        } else if (window.innerWidth < 600) {
+            console.log('标准手机: 240px');  
+        } else {
+            console.log('大屏设备: 280px');
+        }
+    </script>
+</body>
+</html>
