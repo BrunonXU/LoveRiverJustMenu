@@ -101,8 +101,8 @@ class AppRouter {
   /// 返回配置完成的 GoRouter 实例
   static GoRouter _createRouter(Ref ref) {
     return GoRouter(
-      // 初始路由 - 从欢迎页面开始
-      initialLocation: welcome,
+      // 初始路由 - 直接进入主页（支持游客模式）
+      initialLocation: home,
       
       // 调试日志
       debugLogDiagnostics: true,

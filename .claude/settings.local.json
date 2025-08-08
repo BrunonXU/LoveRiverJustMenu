@@ -48,7 +48,8 @@
       "Bash(del test_recipe_edit_logic.dart)",
       "Bash(del \"D:\\CS--Coding--Software\\Projects-By-Cursor\\LoveRiverJustMenu\\lib\\core\\services\\favorites_service.dart\")",
       "Bash(gh repo view:*)",
-      "Bash(git subtree push:*)"
+      "Bash(git subtree push:*)",
+      "WebFetch(domain:xuziang.xyz)"
     ],
     "deny": []
   }
