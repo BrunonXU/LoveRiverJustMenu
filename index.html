@@ -28,7 +28,7 @@
   <title>爱心食谱</title>
   <link rel="manifest" href="manifest.json">
   
-  <!-- Google Sign-In SDK 已移除，使用邮箱登录 -->
+  <!-- Firebase代理配置 - 使用Cloudflare Workers绕过CDN限制 -->
   
   <!-- 配置Flutter Web引擎使用本地CanvasKit -->
   <script>
@@ -36,28 +36,67 @@
       canvasKitBaseUrl: "/canvaskit/"
     };
     
-    // Firebase 降级处理 - 在国内网络环境下提供备用方案
-    window.firebaseConfig = {
-      // 如果Firebase CDN不可用，应用仍能正常运行（仅限本地功能）
-      fallbackMode: true,
-      // 禁用自动重试，避免长时间阻塞
-      enableLogging: false
-    };
+    // 配置Firebase使用Cloudflare代理
+    window.FIREBASE_PROXY = 'https://firebase-proxy.xza23520168352024.workers.dev';
     
-    // 拦截并处理Firebase CDN加载失败
-    window.addEventListener('error', function(e) {
-      if (e.message && e.message.includes('gstatic.com')) {
-        console.warn('Firebase CDN不可用，切换到离线模式');
-        window.firebaseOffline = true;
-      }
-    });
+    // 只在自定义域名下使用代理（避免影响本地开发）
+    if (window.location.hostname === 'xuziang.xyz') {
+      console.log('🌐 使用Cloudflare代理访问Firebase服务');
+      
+      // 拦截并重定向Firebase SDK加载
+      const originalAppendChild = document.head.appendChild;
+      const originalCreateElement = document.createElement;
+      
+      document.createElement = function(tagName) {
+        const element = originalCreateElement.call(this, tagName);
+        
+        if (tagName.toLowerCase() === 'script') {
+          const originalSetSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src').set;
+          Object.defineProperty(element, 'src', {
+            set: function(value) {
+              // 重定向Firebase相关资源到代理
+              if (value && typeof value === 'string') {
+                if (value.includes('www.gstatic.com/firebasejs/')) {
+                  const newValue = value.replace(
+                    'https://www.gstatic.com/firebasejs/',
+                    window.FIREBASE_PROXY + '/firebase/'
+                  );
+                  console.log('🔄 代理Firebase:', value, '->', newValue);
+                  originalSetSrc.call(this, newValue);
+                  return;
+                } else if (value.includes('fonts.gstatic.com')) {
+                  const newValue = value.replace(
+                    'https://fonts.gstatic.com/',
+                    window.FIREBASE_PROXY + '/fonts/'
+                  );
+                  console.log('🔄 代理字体:', value, '->', newValue);
+                  originalSetSrc.call(this, newValue);
+                  return;
+                } else if (value.includes('accounts.google.com')) {
+                  const newValue = value.replace(
+                    'https://accounts.google.com/',
+                    window.FIREBASE_PROXY + '/accounts/'
+                  );
+                  console.log('🔄 代理Google账户:', value, '->', newValue);
+                  originalSetSrc.call(this, newValue);
+                  return;
+                }
+              }
+              originalSetSrc.call(this, value);
+            },
+            get: Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src').get
+          });
+        }
+        
+        return element;
+      };
+    } else {
+      console.log('🏠 本地环境 - 直接访问Firebase服务');
+    }
     
-    // 拦截未处理的Promise拒绝（Firebase模块加载失败）
-    window.addEventListener('unhandledrejection', function(e) {
-      if (e.reason && e.reason.message && e.reason.message.includes('gstatic.com')) {
-        console.warn('Firebase模块加载失败，使用本地存储');
-        e.preventDefault(); // 阻止错误显示在控制台
-      }
+    // 成功加载提示
+    window.addEventListener('load', function() {
+      console.log('✅ 页面加载完成，Firebase代理配置生效');
     });
   </script>
 
@@ -168,7 +207,7 @@
     // 现代化的Service Worker注册
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js?v="455578971"');
+        navigator.serviceWorker.register('flutter_service_worker.js?v="1039494223"');
       });
     }
   </script>
