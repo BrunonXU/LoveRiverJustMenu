@@ -31,9 +31,18 @@
   <!-- Firebase代理配置 - 使用Cloudflare Workers绕过CDN限制 -->
   
   <!-- 🔥 预先通过代理加载Firebase SDK -->
-  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-app.js" defer></script>
-  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-auth.js" defer></script>
-  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-firestore.js" defer></script>
+  <script>
+    // 在加载Firebase SDK之前设置全局标记
+    window.firebase_loading = true;
+  </script>
+  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-app.js"></script>
+  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-auth.js"></script>
+  <script src="https://firebase-proxy.xza23520168352024.workers.dev/firebase/11.9.1/firebase-firestore.js"></script>
+  <script>
+    // Firebase SDK加载完成后设置全局标记
+    window.firebase_loaded = true;
+    console.log('✅ Firebase SDK预加载完成');
+  </script>
   
   <!-- 配置Flutter Web引擎使用本地CanvasKit -->
   <script>
@@ -44,26 +53,25 @@
     // 配置Firebase使用Cloudflare代理
     window.FIREBASE_PROXY = 'https://firebase-proxy.xza23520168352024.workers.dev';
     
-    // 🔥 关键修复：在最早期就拦截所有模块加载
-    (function() {
-      // 保存原始import函数的引用
-      const originalDynamicImport = window.import || (function(url) { 
-        throw new Error('Dynamic import not supported'); 
-      });
-      
-      // 重写全局dynamic import
-      window.import = function(url) {
-        if (typeof url === 'string') {
-          // 检查是否是Firebase相关URL
-          if (url.includes('www.gstatic.com/firebasejs/')) {
-            const proxyUrl = url.replace('https://www.gstatic.com/firebasejs/', window.FIREBASE_PROXY + '/firebase/');
-            console.log('🔄 早期拦截Dynamic Import:', url, '->', proxyUrl);
-            return originalDynamicImport.call(this, proxyUrl);
-          }
-        }
+    // 🔥 关键修复：彻底阻止动态import Firebase，强制使用预加载
+    window.firebase_force_preloaded = true;
+    
+    // 重写dynamic import，对Firebase URL直接返回已加载的模块
+    const originalDynamicImport = window.import;
+    window.import = function(url) {
+      if (typeof url === 'string' && url.includes('www.gstatic.com/firebasejs/')) {
+        console.log('🚫 阻止动态import Firebase，使用预加载:', url);
+        // 返回一个resolved promise，表示模块已可用
+        return Promise.resolve({
+          default: window.firebase || {},
+          firebase: window.firebase || {}
+        });
+      }
+      if (originalDynamicImport) {
         return originalDynamicImport.apply(this, arguments);
-      };
-    })();
+      }
+      return Promise.reject(new Error('Dynamic import not supported'));
+    };
     
     // 只在自定义域名下使用代理（避免影响本地开发）
     if (window.location.hostname === 'xuziang.xyz') {
@@ -291,7 +299,7 @@
     // 现代化的Service Worker注册
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js?v="2479562469"');
+        navigator.serviceWorker.register('flutter_service_worker.js?v="1796491698"');
       });
     }
   </script>
