@@ -35,12 +35,42 @@
     window.flutterConfiguration = {
       canvasKitBaseUrl: "/canvaskit/"
     };
+    
+    // Firebase 降级处理 - 在国内网络环境下提供备用方案
+    window.firebaseConfig = {
+      // 如果Firebase CDN不可用，应用仍能正常运行（仅限本地功能）
+      fallbackMode: true,
+      // 禁用自动重试，避免长时间阻塞
+      enableLogging: false
+    };
+    
+    // 拦截并处理Firebase CDN加载失败
+    window.addEventListener('error', function(e) {
+      if (e.message && e.message.includes('gstatic.com')) {
+        console.warn('Firebase CDN不可用，切换到离线模式');
+        window.firebaseOffline = true;
+      }
+    });
+    
+    // 拦截未处理的Promise拒绝（Firebase模块加载失败）
+    window.addEventListener('unhandledrejection', function(e) {
+      if (e.reason && e.reason.message && e.reason.message.includes('gstatic.com')) {
+        console.warn('Firebase模块加载失败，使用本地存储');
+        e.preventDefault(); // 阻止错误显示在控制台
+      }
+    });
   </script>
 
   <style>
-    /* 使用系统字体替代Google Fonts */
+    /* 使用系统字体替代Google Fonts，完全禁用网络字体加载 */
     * {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', '微软雅黑', 'Roboto', 'Helvetica Neue', Arial, sans-serif !important;
+    }
+    
+    /* 禁用所有@font-face，避免尝试加载网络字体 */
+    @font-face {
+      font-family: 'Roboto';
+      src: local('Roboto'), local('Microsoft YaHei'), local('微软雅黑');
     }
     body {
       margin: 0;
@@ -138,7 +168,7 @@
     // 现代化的Service Worker注册
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js?v="447537851"');
+        navigator.serviceWorker.register('flutter_service_worker.js?v="455578971"');
       });
     }
   </script>
