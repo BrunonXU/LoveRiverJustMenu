@@ -43,10 +43,49 @@
     if (window.location.hostname === 'xuziang.xyz') {
       console.log('🌐 使用Cloudflare代理访问Firebase服务');
       
-      // 拦截并重定向Firebase SDK加载
-      const originalAppendChild = document.head.appendChild;
+      // 🔧 更强力的全局fetch拦截器
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        let url = args[0];
+        if (typeof url === 'string') {
+          // Firebase JS SDK
+          if (url.includes('www.gstatic.com/firebasejs/')) {
+            url = url.replace('https://www.gstatic.com/firebasejs/', window.FIREBASE_PROXY + '/firebase/');
+            console.log('🔄 代理Firebase SDK:', args[0], '->', url);
+            args[0] = url;
+          } 
+          // Google Fonts
+          else if (url.includes('fonts.gstatic.com') || url.includes('fonts.googleapis.com')) {
+            url = url.replace('https://fonts.gstatic.com/', window.FIREBASE_PROXY + '/fonts/');
+            url = url.replace('https://fonts.googleapis.com/', window.FIREBASE_PROXY + '/fonts/');
+            console.log('🔄 代理字体:', args[0], '->', url);
+            args[0] = url;
+          }
+          // Google账户服务
+          else if (url.includes('accounts.google.com')) {
+            url = url.replace('https://accounts.google.com/', window.FIREBASE_PROXY + '/accounts/');
+            console.log('🔄 代理Google账户:', args[0], '->', url);
+            args[0] = url;
+          }
+          // Firebase API
+          else if (url.includes('identitytoolkit.googleapis.com') || url.includes('securetoken.googleapis.com')) {
+            url = url.replace('https://identitytoolkit.googleapis.com/', window.FIREBASE_PROXY + '/identitytoolkit/');
+            url = url.replace('https://securetoken.googleapis.com/', window.FIREBASE_PROXY + '/securetoken/');
+            console.log('🔄 代理Firebase API:', args[0], '->', url);
+            args[0] = url;
+          }
+        } else if (url && url.url) {
+          // Request对象
+          if (url.url.includes('www.gstatic.com/firebasejs/')) {
+            url.url = url.url.replace('https://www.gstatic.com/firebasejs/', window.FIREBASE_PROXY + '/firebase/');
+            console.log('🔄 代理Firebase SDK Request:', url.url);
+          }
+        }
+        return originalFetch.apply(this, args);
+      };
+
+      // 🔧 Script标签拦截器（作为备用方案）
       const originalCreateElement = document.createElement;
-      
       document.createElement = function(tagName) {
         const element = originalCreateElement.call(this, tagName);
         
@@ -54,14 +93,13 @@
           const originalSetSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src').set;
           Object.defineProperty(element, 'src', {
             set: function(value) {
-              // 重定向Firebase相关资源到代理
               if (value && typeof value === 'string') {
                 if (value.includes('www.gstatic.com/firebasejs/')) {
                   const newValue = value.replace(
                     'https://www.gstatic.com/firebasejs/',
                     window.FIREBASE_PROXY + '/firebase/'
                   );
-                  console.log('🔄 代理Firebase:', value, '->', newValue);
+                  console.log('🔄 代理Firebase Script:', value, '->', newValue);
                   originalSetSrc.call(this, newValue);
                   return;
                 } else if (value.includes('fonts.gstatic.com')) {
@@ -69,15 +107,7 @@
                     'https://fonts.gstatic.com/',
                     window.FIREBASE_PROXY + '/fonts/'
                   );
-                  console.log('🔄 代理字体:', value, '->', newValue);
-                  originalSetSrc.call(this, newValue);
-                  return;
-                } else if (value.includes('accounts.google.com')) {
-                  const newValue = value.replace(
-                    'https://accounts.google.com/',
-                    window.FIREBASE_PROXY + '/accounts/'
-                  );
-                  console.log('🔄 代理Google账户:', value, '->', newValue);
+                  console.log('🔄 代理字体Script:', value, '->', newValue);
                   originalSetSrc.call(this, newValue);
                   return;
                 }
@@ -207,7 +237,7 @@
     // 现代化的Service Worker注册
     if ('serviceWorker' in navigator) {
       window.addEventListener('flutter-first-frame', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js?v="1039494223"');
+        navigator.serviceWorker.register('flutter_service_worker.js?v="2582634640"');
       });
     }
   </script>
